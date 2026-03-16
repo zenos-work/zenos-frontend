@@ -1,46 +1,69 @@
-import { useAuth } from './hooks/useAuth'
-import LoginButton from './components/LoginButton'
+import { Routes, Route } from 'react-router-dom'
+import { useAuth }    from './hooks/useAuth'
+import AppShell       from './components/layout/AppShell'
+import ProtectedRoute from './routes/ProtectedRoute'
+import AdminRoute     from './routes/AdminRoute'
+import TermsRoute     from './routes/TermsRoute'
+import Spinner        from './components/ui/Spinner'
+import HomePage       from './pages/HomePage'
+import ArticlePage    from './pages/ArticlePage'
+import WritePage      from './pages/WritePage'
+import ProfilePage    from './pages/ProfilePage'
+import BookmarksPage  from './pages/BookmarksPage'
+import LibraryPage    from './pages/LibraryPage'
+import StatsPage      from './pages/StatsPage'
+import SearchPage     from './pages/SearchPage'
+import TagPage        from './pages/TagPage'
+import AdminPage      from './pages/AdminPage'
+import LoginPage      from './pages/LoginPage'
+import TermsPage      from './pages/TermsPage'
+import NotFoundPage   from './pages/NotFoundPage'
 
 export default function App() {
-  const { user, logout, loading } = useAuth()
+  const { loading } = useAuth()
 
-  if (loading) return (
-    <div style={{ display:'flex', justifyContent:'center',
-                  alignItems:'center', height:'100vh',
-                  background:'#080C14', color:'#fff' }}>
-      Loading...
-    </div>
-  )
+  if (loading) {
+    return (
+      // Use inline style — CSS var works even before Tailwind loads
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--surface-0)',
+        display: 'grid',
+        placeItems: 'center',
+      }}>
+        <Spinner size='lg' />
+      </div>
+    )
+  }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column',
-                  justifyContent:'center', alignItems:'center',
-                  height:'100vh', background:'#080C14', gap:'20px' }}>
-      {user ? (
-        <>
-          <p style={{ color:'#00D4AA', fontSize:'18px' }}>
-            Welcome, {user.name}!
-          </p>
-          <p style={{ color:'#5A7A99' }}>Role: {user.role}</p>
-          <button onClick={logout}
-            style={{ padding:'10px 24px', background:'#1A2535',
-                     color:'#fff', border:'1px solid #2A3545',
-                     borderRadius:'8px', cursor:'pointer' }}>
-            Logout
-          </button>
-        </>
-      ) : (
-        <>
-          <h1 style={{ color:'#fff', fontSize:'32px',
-                       fontWeight:800, marginBottom:'8px' }}>
-            zenos.work
-          </h1>
-          <p style={{ color:'#5A7A99', marginBottom:'24px' }}>
-            Sign in to continue
-          </p>
-          <LoginButton />
-        </>
-      )}
-    </div>
+    <Routes>
+      <Route path='/login' element={<LoginPage />} />
+      <Route path='/terms' element={<TermsPage />} />
+
+      <Route element={<AppShell />}>
+        <Route index                 element={<HomePage />}    />
+        <Route path='/article/:slug' element={<ArticlePage />} />
+        <Route path='/search'        element={<SearchPage />}  />
+        <Route path='/tag/:slug'     element={<TagPage />}     />
+        <Route path='/profile/:id'   element={<ProfilePage />} />
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<TermsRoute />}>
+            <Route path='/write'      element={<WritePage />}     />
+            <Route path='/write/:id'  element={<WritePage />}     />
+            <Route path='/bookmarks'  element={<BookmarksPage />} />
+            <Route path='/library'    element={<LibraryPage />}   />
+            <Route path='/stats'      element={<StatsPage />}     />
+            <Route path='/profile'    element={<ProfilePage />}   />
+          </Route>
+          <Route element={<AdminRoute />}>
+            <Route path='/admin'      element={<AdminPage />} />
+          </Route>
+        </Route>
+
+        <Route path='*' element={<NotFoundPage />} />
+      </Route>
+    </Routes>
   )
 }

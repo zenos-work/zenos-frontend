@@ -1,68 +1,165 @@
+/* ── Tailwind v4 ──────────────────────────────────────────────────────────── */
+@import "tailwindcss";
+
+/* ── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Tailwind v4 @theme — maps Tailwind utilities to CSS variables ─────────
+   KEY INSIGHT: by mapping the gray scale + white to CSS vars, every class
+   like text-gray-400, bg-gray-800, border-gray-800, text-white automatically
+   adapts to the current theme. No page component needs to change.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Fonts */
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  /* Brand accent */
+  --color-brand-gold:  #C9A96E;
+
+  /* Gray scale → CSS variables so all gray-* classes are theme-aware */
+  --color-gray-50:  var(--surface-0);
+  --color-gray-100: var(--surface-0);
+  --color-gray-200: var(--surface-1);
+  --color-gray-300: var(--surface-2);
+  --color-gray-400: var(--text-muted);
+  --color-gray-500: var(--text-muted);
+  --color-gray-600: var(--text-secondary);
+  --color-gray-700: var(--border-strong);
+  --color-gray-800: var(--surface-3);
+  --color-gray-900: var(--surface-2);
+  --color-gray-950: var(--surface-1);
+
+  /* white → text-primary so text-white adapts (dark text on light bg) */
+  --color-white: var(--text-primary);
+
+  /* Animations */
+  --animate-fade-in:  fadeIn 0.3s ease-out;
+  --animate-slide-up: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ── Dark mode variant (Tailwind v4 syntax) ───────────────────────────────── */
+@variant dark (&:where(.dark, .dark *));
+
+/* ── LIGHT THEME — :root = default ───────────────────────────────────────── */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  --surface-0: #F5F4F0;   /* page background */
+  --surface-1: #EEECEA;   /* sidebar, elevated cards */
+  --surface-2: #E8E6E3;   /* card backgrounds */
+  --surface-3: #DFDDDA;   /* hover states, inputs */
+  --surface-4: #D6D4D0;   /* pressed states */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  --text-primary:   #0A0A0B;   /* headings, bold text */
+  --text-secondary: #3F3F46;   /* body text */
+  --text-muted:     #71717A;   /* placeholders, captions */
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+  --border:        rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  --accent:        #A67C3C;    /* gold darkened for light bg contrast */
+  --accent-dim:    rgba(166, 124, 60, 0.10);
+
+  --topbar-bg:     rgba(245, 244, 240, 0.92);
+  --shadow:        0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+/* ── DARK THEME — activated by adding class="dark" to <html> ─────────────── */
+.dark {
+  --surface-0: #0A0A0B;
+  --surface-1: #111113;
+  --surface-2: #18181B;
+  --surface-3: #1F1F23;
+  --surface-4: #27272B;
+
+  --text-primary:   #F5F4F0;
+  --text-secondary: #A1A1AA;
+  --text-muted:     #52525B;
+
+  --border:        rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --accent:        #C9A96E;
+  --accent-dim:    rgba(201, 169, 110, 0.12);
+
+  --topbar-bg:     rgba(10, 10, 11, 0.88);
+  --shadow:        0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+/* ── Base resets ──────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    background-color: var(--surface-0);
+    color: var(--text-primary);
   }
-  a:hover {
-    color: #747bff;
+
+  /* Override Vite defaults */
+  body {
+    margin: 0; padding: 0;
+    min-height: 100vh;
+    background-color: var(--surface-0);
+    color: var(--text-primary);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
   }
+
   button {
-    background-color: #f9f9f9;
+    border: none; background: none; padding: 0;
+    cursor: pointer; font-family: inherit; font-size: inherit;
   }
+
+  h1 { font-size: inherit; line-height: inherit; }
+  a  { text-decoration: none; color: inherit; }
 }
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 4px; height: 4px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--border-strong); border-radius: 2px; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Prose (TipTap article content) ──────────────────────────────────────── */
+.prose {
+  color: var(--text-secondary);
+  line-height: 1.8;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: var(--text-primary);
+  font-family: 'Syne', system-ui, sans-serif;
+  font-weight: 700; line-height: 1.25;
+  margin: 1.5em 0 0.5em;
+}
+.prose p                { margin: 0.75em 0; }
+.prose a                { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.prose strong           { color: var(--text-primary); font-weight: 600; }
+.prose code             { background: var(--surface-3); color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.875em; padding: 0.15em 0.4em; border-radius: 4px; }
+.prose pre              { background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; }
+.prose pre code         { background: none; padding: 0; }
+.prose blockquote       { border-left: 3px solid var(--accent); padding-left: 1rem; color: var(--text-muted); font-style: italic; }
+.prose ul, .prose ol    { padding-left: 1.5rem; margin: 0.75em 0; }
+.prose li               { margin: 0.3em 0; }
+.prose hr               { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+
+/* ── Utility ──────────────────────────────────────────────────────────────── */
+.page-enter { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
