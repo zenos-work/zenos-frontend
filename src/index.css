@@ -1,9 +1,8 @@
-/* ── Tailwind v4 ──────────────────────────────────────────────────────────── */
-@import "tailwindcss";
-
 /* ── Google Fonts ─────────────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
+/* ── Tailwind v4 ──────────────────────────────────────────────────────────── */
+@import "tailwindcss";
 /* ── Tailwind v4 @theme — maps Tailwind utilities to CSS variables ─────────
    KEY INSIGHT: by mapping the gray scale + white to CSS vars, every class
    like text-gray-400, bg-gray-800, border-gray-800, text-white automatically

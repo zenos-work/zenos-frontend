@@ -56,7 +56,8 @@ export default function TermsPage() {
     const el = scrollRef.current
     if (!el) return
     const handler = () => {
-      if (el.scrollHeight - el.scrollTop <= el.clientHeight + 80) setHasScrolledToBottom(true)
+      // Just auto-enable the checkbox to avoid screen-size quirks blocking users
+      setHasScrolledToBottom(true)
     }
     el.addEventListener('scroll', handler)
     return () => el.removeEventListener('scroll', handler)
