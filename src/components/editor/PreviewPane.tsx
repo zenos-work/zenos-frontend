@@ -1,17 +1,18 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Image from '@tiptap/extension-image'
 import { useEffect } from 'react'
 
 interface Props { title: string; content: string }
 
 export default function PreviewPane({ title, content }: Props) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit, Image],
     editable:   false,
     content:    '',
     editorProps: {
       attributes: {
-        class: 'prose prose-invert prose-lg max-w-none',
+        class: 'prose prose-invert prose-lg max-w-none prose-img:rounded-xl prose-img:w-full prose-img:h-auto',
       },
     },
   })

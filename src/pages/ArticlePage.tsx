@@ -11,6 +11,7 @@ import TagChip       from '../components/ui/TagChip'
 import Avatar        from '../components/ui/Avatar'
 import Spinner       from '../components/ui/Spinner'
 import { PenSquare } from 'lucide-react'
+import { resolveAssetUrl } from '../lib/assets'
 
 export default function ArticlePage() {
   const { slug }  = useParams()
@@ -26,13 +27,14 @@ export default function ArticlePage() {
   )
 
   const isOwner = user?.id === article.author_id
+  const coverUrl = resolveAssetUrl(article.cover_image_url)
 
   return (
     <article className='max-w-2xl mx-auto space-y-8'>
 
       {/* Cover image */}
-      {article.cover_image_url && (
-        <img src={article.cover_image_url} alt=''
+      {coverUrl && (
+        <img src={coverUrl} alt=''
           className='w-full h-72 object-cover rounded-2xl' />
       )}
 

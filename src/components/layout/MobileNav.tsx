@@ -1,15 +1,17 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Search, Bookmark, User, PenSquare } from 'lucide-react'
+import { Home, Search, Bookmark, User, PenSquare, Shield } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function MobileNav() {
   const { user } = useAuth()
   const canWrite = user && ['AUTHOR','APPROVER','SUPERADMIN'].includes(user.role)
+  const isAdmin = user && ['SUPERADMIN','APPROVER'].includes(user.role)
 
   const items = [
     { to: '/',          icon: Home,      label: 'Home',   end: true  },
     { to: '/search',    icon: Search,    label: 'Search', end: false },
     ...(canWrite ? [{ to: '/write', icon: PenSquare, label: 'Write', end: false }] : []),
+    ...(isAdmin ? [{ to: '/admin', icon: Shield, label: 'Admin', end: false }] : []),
     { to: '/bookmarks', icon: Bookmark,  label: 'Saved',  end: false },
     { to: '/profile',   icon: User,      label: 'Profile',end: false },
   ]

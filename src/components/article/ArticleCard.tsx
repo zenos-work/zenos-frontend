@@ -4,6 +4,7 @@ import type { ArticleList } from '../../types'
 import Avatar  from '../ui/Avatar'
 import TagChip from '../ui/TagChip'
 import Badge   from '../ui/Badge'
+import { resolveAssetUrl } from '../../lib/assets'
 
 const STATUS_VARIANT: Record<string, any> = {
   DRAFT:     'default',
@@ -20,12 +21,14 @@ interface Props {
 }
 
 export default function ArticleCard({ article, showStatus }: Props) {
+  const coverUrl = resolveAssetUrl(article.cover_image_url)
+
   return (
     <article className='group flex gap-4 p-4 rounded-xl bg-gray-900 hover:bg-gray-800/80 border border-gray-800 hover:border-gray-700 transition-all duration-200'>
       {/* Cover thumbnail */}
-      {article.cover_image_url && (
+      {coverUrl && (
         <img
-          src={article.cover_image_url}
+          src={coverUrl}
           alt=''
           className='w-28 h-20 object-cover rounded-lg shrink-0'
           loading='lazy'

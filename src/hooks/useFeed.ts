@@ -2,7 +2,10 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
 import type { FeedResponse, ArticleList } from '../types'
 
-export const useFeed = (feedType: 'home' | 'following' = 'home') =>
+export const useFeed = (
+  feedType: 'home' | 'following' | 'trending' = 'home',
+  enabled = true,
+) =>
   useInfiniteQuery({
     queryKey: ['feed', feedType],
     queryFn:  ({ pageParam = 1 }) =>
@@ -10,6 +13,7 @@ export const useFeed = (feedType: 'home' | 'following' = 'home') =>
         params: { page: pageParam },
       }).then(r => r.data),
     initialPageParam: 1,
+    enabled,
     getNextPageParam: (last) => last.has_more ? last.page + 1 : undefined,
   })
 

@@ -11,6 +11,7 @@ export default function Topbar() {
   const navigate                = useNavigate()
   const [query, setQuery]       = useState('')
   const [menu, setMenu]         = useState(false)
+  const isAdmin                 = !!user && ['SUPERADMIN', 'APPROVER'].includes(user.role)
 
   const search = (e: React.FormEvent) => {
     e.preventDefault()
@@ -137,7 +138,12 @@ export default function Topbar() {
                           {user.email}
                         </p>
                       </div>
-                      {[['Profile', '/profile'], ['Library', '/library'], ['Stats', '/stats']].map(([label, path]) => (
+                      {[
+                        ['Profile', '/profile'],
+                        ['Library', '/library'],
+                        ['Stats', '/stats'],
+                        ...(isAdmin ? [['Admin', '/admin']] : []),
+                      ].map(([label, path]) => (
                         <button key={label} className='zenos-dropdown-item' onClick={() => { navigate(path); setMenu(false) }}>
                           {label}
                         </button>

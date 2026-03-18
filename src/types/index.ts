@@ -13,6 +13,7 @@ export interface User {
   email?:      string
   is_active?:  number
   updated_at?: string
+  terms_accepted_at?: string | null
 }
 
 export interface Tag {
@@ -39,6 +40,7 @@ export interface ArticleList {
   is_featured:       number
   published_at?:     string
   created_at:        string
+  updated_at?:       string
   tags:              Tag[]
 }
 
@@ -73,7 +75,7 @@ export interface PaginatedResponse<T> {
 
 export interface FeedResponse {
   articles: ArticleList[]
-  feed:     'personalised' | 'latest' | 'featured' | 'following'
+  feed:     'personalised' | 'latest' | 'featured' | 'following' | 'trending'
   page:     number
   has_more: boolean
 }
@@ -100,6 +102,28 @@ export interface AdminStats {
   total_comments:     number
   articles_by_status: { status: ArticleStatus; c: number }[]
   top_articles:       ArticleList[]
+  governance?: {
+    users_by_role?: { role: UserRole; c: number }[]
+    moderation?: {
+      pending_approvals: number
+      flagged_comments: number
+      hidden_comments: number
+    }
+    recent_activity?: {
+      notifications_7d: number
+      published_7d: number
+      approved_7d: number
+      rejected_7d: number
+    }
+  }
+}
+
+export interface PaginationMeta {
+  page: number
+  limit: number
+  total: number
+  pages: number
+  has_more: boolean
 }
 
 export interface ApiError {

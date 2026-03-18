@@ -19,6 +19,15 @@ interface EditorState {
   setCoverImage:  (url: string) => void
   toggleTag:      (tag: Tag) => void
   setSelectedTags:(tags: Tag[]) => void
+  hydrate:        (data: {
+    articleId?: string
+    title: string
+    subtitle: string
+    content: string
+    coverImageUrl: string
+    selectedTags: Tag[]
+  }) => void
+  markSaved:      () => void
   togglePreview:  () => void
   setIsSaving:    (v: boolean) => void
   reset:          () => void
@@ -52,7 +61,17 @@ export const useEditorStore = create<EditorState>((set) => ({
       : [...s.selectedTags, tag],
   })),
 
-  setSelectedTags: (selectedTags) => set({ selectedTags }),
+  setSelectedTags: (selectedTags) => set({ selectedTags, isDirty: true }),
+  hydrate: (data) => set({
+    articleId: data.articleId,
+    title: data.title,
+    subtitle: data.subtitle,
+    content: data.content,
+    coverImageUrl: data.coverImageUrl,
+    selectedTags: data.selectedTags,
+    isDirty: false,
+  }),
+  markSaved:       () => set({ isDirty: false }),
   togglePreview:   () => set(s => ({ previewMode: !s.previewMode })),
   setIsSaving:     (isSaving) => set({ isSaving }),
   reset:           () => set({ ...INITIAL }),

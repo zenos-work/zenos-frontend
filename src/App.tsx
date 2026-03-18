@@ -40,6 +40,12 @@ export default function App() {
     <Routes>
       <Route path='/login' element={<LoginPage />} />
       <Route path='/terms' element={<TermsPage />} />
+      {/* OAuth callback — render blank spinner while AuthContext exchanges the code */}
+      <Route path='/auth/google/callback' element={
+        <div style={{ minHeight: '100vh', backgroundColor: 'var(--surface-0)', display: 'grid', placeItems: 'center' }}>
+          <Spinner size='lg' />
+        </div>
+      } />
 
       <Route element={<AppShell />}>
         <Route index                 element={<HomePage />}    />

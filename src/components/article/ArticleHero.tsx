@@ -2,15 +2,18 @@ import { Link } from 'react-router-dom'
 import type { ArticleList } from '../../types'
 import Avatar  from '../ui/Avatar'
 import TagChip from '../ui/TagChip'
+import { resolveAssetUrl } from '../../lib/assets'
 
 interface Props { article: ArticleList }
 
 export default function ArticleHero({ article }: Props) {
+  const coverUrl = resolveAssetUrl(article.cover_image_url)
+
   return (
     <Link to={`/article/${article.slug}`} className='group block relative overflow-hidden rounded-2xl aspect-video bg-gray-900'>
-      {article.cover_image_url && (
+      {coverUrl && (
         <img
-          src={article.cover_image_url}
+          src={coverUrl}
           alt=''
           className='absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105'
           loading='lazy'

@@ -1,10 +1,11 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Image from '@tiptap/extension-image'
 
 // Render TipTap JSON content in read-only mode
 export default function ArticleDetail({ content }: { content: string }) {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit, Image],
     editable:   false,
     content:    (() => {
       try { return JSON.parse(content) } catch { return content }
@@ -18,6 +19,7 @@ export default function ArticleDetail({ content }: { content: string }) {
           'prose-code:text-green-400 prose-code:bg-gray-800',
           'prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-800',
           'prose-blockquote:border-l-blue-500 prose-blockquote:text-gray-400',
+          'prose-img:rounded-xl prose-img:w-full prose-img:h-auto',
         ].join(' '),
       },
     },

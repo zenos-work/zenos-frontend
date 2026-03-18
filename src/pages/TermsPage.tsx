@@ -55,6 +55,11 @@ export default function TermsPage() {
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
+
+    // Instantly enable if there is no scrollbar (content fits on screen)
+    if (el.scrollHeight <= el.clientHeight) {
+        setHasScrolledToBottom(true)
+    }
     const handler = () => {
       // Just auto-enable the checkbox to avoid screen-size quirks blocking users
       setHasScrolledToBottom(true)
@@ -319,9 +324,15 @@ export default function TermsPage() {
             </div>
           )}
 
-          <label className={`flex items-start gap-3 cursor-pointer ${!hasScrolledToBottom ? 'opacity-40 pointer-events-none' : ''}`}>
+          {/* Move the onClick to the label and prevent default */}
+          <label
+            onClick={(e) => {
+              e.preventDefault()
+              if (hasScrolledToBottom) setChecked(v => !v)
+            }}
+            className={`flex items-start gap-3 cursor-pointer ${!hasScrolledToBottom ? 'opacity-40 pointer-events-none' : ''}`}>
+            {/* Remove the onClick from this div */}
             <div
-              onClick={() => hasScrolledToBottom && setChecked(v => !v)}
               className={[
                 'mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer',
                 checked ? 'bg-blue-600 border-blue-600' : 'border-gray-500 hover:border-blue-400',
@@ -333,6 +344,7 @@ export default function TermsPage() {
                 </svg>
               )}
             </div>
+
             <span className='text-sm text-gray-300 leading-snug select-none'>
               I have read the Writer Content Agreement and agree that zenos.work and its affiliates,
               successors, and future owners may use my content for indexing, ebooks, printed books,

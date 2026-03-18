@@ -9,10 +9,13 @@ const commentKeys = {
 export const useComments = (articleId: string) =>
   useQuery({
     queryKey: commentKeys.forArticle(articleId),
-    queryFn:  () =>
-      api.get<{ comments: Comment[] }>('/api/comments', {
+    queryFn:  async () => {
+      const res = await api.get<{ data?: Comment[]; comments?: Comment[] }>('/api/comments', {
         params: { article_id: articleId },
-      }).then(r => r.data.comments),
+      })
+      // Backend returns { data: [...] }; keep backward compatibility for { comments: [...] }.
+      return res.data.data ?? res.data.comments ?? []
+    },
     enabled: !!articleId,
   })
 

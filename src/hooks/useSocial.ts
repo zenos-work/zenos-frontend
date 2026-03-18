@@ -3,6 +3,27 @@ import api from '../lib/api'
 import { articleKeys } from './useArticles'
 import type { ArticleList } from '../types'
 
+type BookmarkApiResponse = {
+  bookmarks?: ArticleList[]
+  items?: ArticleList[]
+  data?: ArticleList[]
+  pagination?: {
+    page?: number
+    limit?: number
+    total?: number
+    pages?: number
+  }
+}
+
+export type BookmarkQueryResult = {
+  items: ArticleList[]
+  page: number
+  limit: number
+  total: number
+  pages: number
+  has_more: boolean
+}
+
 export const useLike = (articleId: string) => {
   const qc = useQueryClient()
   return useMutation({
@@ -40,13 +61,29 @@ export const useBookmark = (articleId: string) => {
   })
 }
 
-export const useBookmarks = (page = 1) =>
+export const useBookmarks = (page = 1, limit = 20) =>
   useQuery({
-    queryKey: ['bookmarks', page],
+    queryKey: ['bookmarks', page, limit],
     queryFn:  () =>
-      api.get<{ bookmarks: ArticleList[] }>('/api/social/bookmarks', {
-        params: { page },
-      }).then(r => r.data.bookmarks),
+      api.get<BookmarkApiResponse>('/api/social/bookmarks', {
+        params: { page, limit },
+      }).then(r => {
+        const data = r.data
+        const items = data.bookmarks ?? data.items ?? data.data ?? []
+        const total = data.pagination?.total ?? items.length
+        const pages = data.pagination?.pages ?? Math.max(1, Math.ceil(total / limit))
+        const currentPage = data.pagination?.page ?? page
+        const currentLimit = data.pagination?.limit ?? limit
+
+        return {
+          items,
+          page: currentPage,
+          limit: currentLimit,
+          total,
+          pages,
+          has_more: currentPage < pages,
+        } as BookmarkQueryResult
+      }),
   })
 
 export const useFollow = (targetUserId: string) => {

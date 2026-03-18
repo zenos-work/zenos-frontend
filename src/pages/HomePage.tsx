@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useFeed, useFeatured } from '../hooks/useFeed'
+import { useAuth } from '../hooks/useAuth'
 import ArticleCard from '../components/article/ArticleCard'
 import ArticleHero from '../components/article/ArticleHero'
 import Spinner     from '../components/ui/Spinner'
@@ -7,25 +9,58 @@ import Spinner     from '../components/ui/Spinner'
 const TABS = [
   { id: 'home',      label: 'For You' },
   { id: 'following', label: 'Following' },
+  { id: 'trending',  label: 'Trending' },
 ] as const
 
 export default function HomePage() {
-  const [tab, setTab] = useState<'home' | 'following'>('home')
+  const [tab, setTab] = useState<'home' | 'following' | 'trending'>('home')
+  const { user } = useAuth()
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const { data: featuredData } = useFeatured()
   const {
-    data, fetchNextPage, hasNextPage,
-    isFetchingNextPage, isLoading,
-  } = useFeed(tab)
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    error,
+  } = useFeed(tab, tab !== 'following' || !!user)
 
-  const articles = data?.pages.flatMap(p => p.articles) ?? []
+  const articles = useMemo(() => {
+    const merged = data?.pages.flatMap(p => p.articles) ?? []
+    const unique = new Map<string, (typeof merged)[number]>()
+    for (const article of merged) {
+      unique.set(article.id, article)
+    }
+    return [...unique.values()]
+  }, [data])
+
   const feedLabel = data?.pages[0]?.feed
+  const showFeatured = tab === 'home' && featuredData && featuredData.length > 0
+
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          fetchNextPage()
+        }
+      },
+      { rootMargin: '240px 0px' },
+    )
+
+    observer.observe(loadMoreRef.current)
+    return () => observer.disconnect()
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, articles.length, tab])
 
   return (
     <div className='space-y-10'>
 
       {/* Featured carousel */}
-      {featuredData && featuredData.length > 0 && (
+      {showFeatured && (
         <section>
           <h2 className='text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4'>
             Featured
@@ -60,12 +95,28 @@ export default function HomePage() {
           )}
         </div>
 
-        {isLoading ? (
+        {tab === 'following' && !user ? (
+          <div className='text-center py-14 rounded-2xl border border-gray-800 bg-gray-900/40'>
+            <p className='text-gray-300 mb-3'>Sign in to view articles from authors you follow.</p>
+            <Link
+              to='/login'
+              className='inline-flex items-center rounded-full px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors'
+            >
+              Go to login
+            </Link>
+          </div>
+        ) : isLoading ? (
           <div className='flex justify-center py-12'><Spinner /></div>
+        ) : isError ? (
+          <div className='text-center py-16 text-red-400'>
+            Failed to load feed{error instanceof Error ? `: ${error.message}` : '.'}
+          </div>
         ) : articles.length === 0 ? (
           <div className='text-center py-16 text-gray-500'>
             {tab === 'following'
               ? 'Follow some authors to see their articles here.'
+              : tab === 'trending'
+                ? 'No trending articles yet.'
               : 'No articles yet.'
             }
           </div>
@@ -76,7 +127,7 @@ export default function HomePage() {
         )}
 
         {hasNextPage && (
-          <div className='flex justify-center pt-8'>
+          <div className='flex justify-center pt-8' ref={loadMoreRef}>
             <button
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}

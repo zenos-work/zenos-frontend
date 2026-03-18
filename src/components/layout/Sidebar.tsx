@@ -12,7 +12,7 @@ import Avatar         from '../ui/Avatar'
 // import logoDark  from '../../assets/logo_dark.png'
 
 /** Text fallback — replace with <LogoImage /> once assets are in place */
-function LogoMark({ open, theme }: { open: boolean; theme: 'light' | 'dark' }) {
+function LogoMark({ open }: { open: boolean }) {
   return open ? (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, userSelect: 'none' }}>
       <span style={{
@@ -59,7 +59,7 @@ const navStyle = (open: boolean, active: boolean): React.CSSProperties => ({
 
 export default function Sidebar() {
   const { user }                       = useAuth()
-  const { sidebarOpen, toggleSidebar, theme } = useUiStore()
+  const { sidebarOpen, toggleSidebar } = useUiStore()
   const open     = sidebarOpen
   const canWrite = user && ['AUTHOR','APPROVER','SUPERADMIN'].includes(user.role)
   const isAdmin  = user && ['SUPERADMIN','APPROVER'].includes(user.role)
@@ -74,7 +74,7 @@ export default function Sidebar() {
         padding: open ? '0 20px' : 0,
         borderBottom: '1px solid var(--border)',
       }}>
-        <LogoMark open={open} theme={theme} />
+        <LogoMark open={open} />
       </div>
 
       {/* Write button */}
