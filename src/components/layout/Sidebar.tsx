@@ -4,34 +4,43 @@ import { useAuth }    from '../../hooks/useAuth'
 import { useUiStore } from '../../stores/uiStore'
 import Avatar         from '../ui/Avatar'
 
-// ── Logo ─────────────────────────────────────────────────────────────────────
-// TO ADD LOGOS: copy logo_light.png (for light theme) and logo_dark.png (for dark)
-// into src/assets/, then uncomment the imports below and swap LogoMark for LogoImage.
-//
-// import logoLight from '../../assets/logo_light.png'
-// import logoDark  from '../../assets/logo_dark.png'
-
-/** Text fallback — replace with <LogoImage /> once assets are in place */
 function LogoMark({ open }: { open: boolean }) {
   return open ? (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, userSelect: 'none' }}>
       <span style={{
         fontFamily: "'Syne', system-ui, sans-serif",
-        fontWeight: 800, fontSize: 22, letterSpacing: '-0.06em',
+        fontWeight: 750,
+        fontSize: 28,
+        letterSpacing: '-0.06em',
         color: 'var(--text-primary)',
-      }}>ZENOS</span>
+        lineHeight: 1,
+      }}>Z</span>
       <span style={{
         fontFamily: "'Syne', system-ui, sans-serif",
-        fontWeight: 400, fontSize: 16, letterSpacing: '-0.02em',
+        fontWeight: 700,
+        fontSize: 20,
+        letterSpacing: '-0.04em',
+        color: 'var(--text-primary)',
+        lineHeight: 1,
+      }}>ENOS</span>
+      <span style={{
+        fontFamily: "'Syne', system-ui, sans-serif",
+        fontWeight: 500,
+        fontSize: 15,
+        letterSpacing: '-0.02em',
         color: 'var(--accent)',
+        lineHeight: 1,
       }}>.work</span>
     </div>
   ) : (
     <span style={{
       fontFamily: "'Syne', system-ui, sans-serif",
-      fontWeight: 800, fontSize: 20, letterSpacing: '-0.06em',
-      color: 'var(--text-primary)', userSelect: 'none',
-    }}>ZZ</span>
+      fontWeight: 800,
+      fontSize: 20,
+      letterSpacing: '-0.06em',
+      color: 'var(--text-primary)',
+      userSelect: 'none',
+    }}>Z</span>
   )
 }
 
@@ -74,7 +83,9 @@ export default function Sidebar() {
         padding: open ? '0 20px' : 0,
         borderBottom: '1px solid var(--border)',
       }}>
-        <LogoMark open={open} />
+        <NavLink to='/' style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+          <LogoMark open={open} />
+        </NavLink>
       </div>
 
       {/* Write button */}

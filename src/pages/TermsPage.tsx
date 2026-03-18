@@ -87,7 +87,29 @@ export default function TermsPage() {
       {/* Sticky header */}
       <header className='sticky top-0 z-20 bg-gray-900/95 backdrop-blur-md border-b border-gray-800 px-6 py-4 flex items-center justify-between shrink-0'>
         <div>
-          <div className='text-lg font-black text-white'>zenos.work</div>
+          <div className='mb-1 flex items-baseline gap-[1px] leading-none select-none'>
+            <span style={{
+              fontFamily: "'Syne', system-ui, sans-serif",
+              fontWeight: 800,
+              fontSize: 24,
+              letterSpacing: '-0.06em',
+              color: '#ffffff',
+            }}>Z</span>
+            <span style={{
+              fontFamily: "'Syne', system-ui, sans-serif",
+              fontWeight: 700,
+              fontSize: 16,
+              letterSpacing: '-0.04em',
+              color: '#ffffff',
+            }}>ENOS</span>
+            <span style={{
+              fontFamily: "'Syne', system-ui, sans-serif",
+              fontWeight: 500,
+              fontSize: 14,
+              letterSpacing: '-0.02em',
+              color: '#fbbf24',
+            }}>.work</span>
+          </div>
           <div className='text-xs text-gray-500'>Writer Content Agreement · ZW-WCA-001 v1.0</div>
         </div>
         <div className='text-xs text-gray-600 text-right hidden sm:block'>

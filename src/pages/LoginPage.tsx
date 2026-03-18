@@ -33,17 +33,32 @@ export default function LoginPage() {
         {/* Brand */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{
-            display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 3,
-            marginBottom: 8,
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'center',
+            gap: 1,
+            marginBottom: 12,
+            lineHeight: 1,
           }}>
             <span style={{
               fontFamily: "'Syne', system-ui, sans-serif",
-              fontWeight: 800, fontSize: 36, letterSpacing: '-0.06em',
+              fontWeight: 800,
+              fontSize: 52,
+              letterSpacing: '-0.06em',
               color: 'var(--text-primary)',
-            }}>ZENOS</span>
+            }}>Z</span>
             <span style={{
               fontFamily: "'Syne', system-ui, sans-serif",
-              fontWeight: 400, fontSize: 24, letterSpacing: '-0.02em',
+              fontWeight: 700,
+              fontSize: 34,
+              letterSpacing: '-0.04em',
+              color: 'var(--text-primary)',
+            }}>enos</span>
+            <span style={{
+              fontFamily: "'Syne', system-ui, sans-serif",
+              fontWeight: 500,
+              fontSize: 26,
+              letterSpacing: '-0.02em',
               color: 'var(--accent)',
             }}>.work</span>
           </div>

@@ -52,11 +52,11 @@
 
 /* ── LIGHT THEME — :root = default ───────────────────────────────────────── */
 :root {
-  --surface-0: #F5F4F0;   /* page background */
-  --surface-1: #EEECEA;   /* sidebar, elevated cards */
-  --surface-2: #E8E6E3;   /* card backgrounds */
-  --surface-3: #DFDDDA;   /* hover states, inputs */
-  --surface-4: #D6D4D0;   /* pressed states */
+  --surface-0: #F2F4EA;   /* page background */
+  --surface-1: #EFF1E3;   /* sidebar, elevated cards */
+  --surface-2: #E8EBDD;   /* card backgrounds */
+  --surface-3: #E0E5D4;   /* hover states, inputs */
+  --surface-4: #D8DECC;   /* pressed states */
 
   --text-primary:   #0A0A0B;   /* headings, bold text */
   --text-secondary: #3F3F46;   /* body text */
@@ -68,29 +68,29 @@
   --accent:        #A67C3C;    /* gold darkened for light bg contrast */
   --accent-dim:    rgba(166, 124, 60, 0.10);
 
-  --topbar-bg:     rgba(245, 244, 240, 0.92);
+  --topbar-bg:     rgba(239, 241, 227, 0.92);
   --shadow:        0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
 }
 
 /* ── DARK THEME — activated by adding class="dark" to <html> ─────────────── */
 .dark {
-  --surface-0: #0A0A0B;
-  --surface-1: #111113;
-  --surface-2: #18181B;
-  --surface-3: #1F1F23;
-  --surface-4: #27272B;
+  --surface-0: #2C3232;
+  --surface-1: #303636;
+  --surface-2: #383F3F;
+  --surface-3: #414848;
+  --surface-4: #4A5252;
 
   --text-primary:   #F5F4F0;
-  --text-secondary: #A1A1AA;
-  --text-muted:     #52525B;
+  --text-secondary: #CDD1D1;
+  --text-muted:     #9CA4A4;
 
-  --border:        rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.14);
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
 
   --accent:        #C9A96E;
   --accent-dim:    rgba(201, 169, 110, 0.12);
 
-  --topbar-bg:     rgba(10, 10, 11, 0.88);
+  --topbar-bg:     rgba(48, 54, 54, 0.9);
   --shadow:        0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
 }
 

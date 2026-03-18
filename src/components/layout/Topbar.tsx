@@ -34,7 +34,44 @@ export default function Topbar() {
           flex-shrink: 0;
           box-shadow: var(--shadow);
         }
-        .zenos-search-wrap { flex: 1; max-width: 380px; position: relative; }
+        .zenos-topbar-brand {
+          display: none;
+          align-items: center;
+          flex-shrink: 0;
+          border: none;
+          background: none;
+          padding: 0;
+          cursor: pointer;
+          user-select: none;
+        }
+        .zenos-topbar-brand-wordmark {
+          display: inline-flex;
+          align-items: baseline;
+          gap: 1px;
+          line-height: 1;
+        }
+        .zenos-topbar-brand-z {
+          font-family: 'Syne', system-ui, sans-serif;
+          font-weight: 800;
+          font-size: 22px;
+          letter-spacing: -0.06em;
+          color: var(--text-primary);
+        }
+        .zenos-topbar-brand-enos {
+          font-family: 'Syne', system-ui, sans-serif;
+          font-weight: 700;
+          font-size: 15px;
+          letter-spacing: -0.04em;
+          color: var(--text-primary);
+        }
+        .zenos-topbar-brand-work {
+          font-family: 'Syne', system-ui, sans-serif;
+          font-weight: 500;
+          font-size: 13px;
+          letter-spacing: -0.02em;
+          color: var(--accent);
+        }
+        .zenos-search-wrap { flex: 1; min-width: 0; max-width: 380px; position: relative; }
         .zenos-search-icon {
           position: absolute; left: 10px; top: 50%;
           transform: translateY(-50%);
@@ -87,10 +124,21 @@ export default function Topbar() {
           transition: background-color 0.15s;
         }
         .zenos-signin-btn:hover { background: rgba(166,124,60,0.18); }
-        @media (max-width: 767px) { .zenos-topbar { padding: 0 16px; } }
+        @media (max-width: 767px) {
+          .zenos-topbar { padding: 0 16px; }
+          .zenos-topbar-brand { display: inline-flex; }
+        }
       `}</style>
 
       <header className='zenos-topbar'>
+        <button className='zenos-topbar-brand' onClick={() => navigate('/')} title='Go to home'>
+          <span className='zenos-topbar-brand-wordmark'>
+            <span className='zenos-topbar-brand-z'>Z</span>
+            <span className='zenos-topbar-brand-enos'>enos</span>
+            <span className='zenos-topbar-brand-work'>.work</span>
+          </span>
+        </button>
+
         <form onSubmit={search} className='zenos-search-wrap'>
           <Search size={13} className='zenos-search-icon' />
           <input
