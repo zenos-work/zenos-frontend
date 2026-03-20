@@ -58,7 +58,7 @@ export default function TermsPage() {
 
     // Instantly enable if there is no scrollbar (content fits on screen)
     if (el.scrollHeight <= el.clientHeight) {
-        setHasScrolledToBottom(true)
+        setTimeout(() => setHasScrolledToBottom(true), 0)
     }
     const handler = () => {
       // Just auto-enable the checkbox to avoid screen-size quirks blocking users

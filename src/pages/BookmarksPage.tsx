@@ -14,7 +14,7 @@ export default function BookmarksPage() {
   const [sort, setSort] = useState<SortMode>('newest')
   const { data, isLoading } = useBookmarks(page, PAGE_SIZE)
 
-  const bookmarks = data?.items ?? []
+  const bookmarks = useMemo(() => data?.items ?? [], [data?.items])
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase()

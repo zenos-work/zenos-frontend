@@ -8,7 +8,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) navigate('/', { replace: true })
-  }, [user])
+  }, [user, navigate])
 
   return (
     <div style={{
