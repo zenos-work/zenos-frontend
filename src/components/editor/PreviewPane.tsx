@@ -1,18 +1,43 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
+import Link from '@tiptap/extension-link'
+import Underline from '@tiptap/extension-underline'
+import { TextStyle } from '@tiptap/extension-text-style'
+import Youtube from '@tiptap/extension-youtube'
 import { useEffect } from 'react'
+import { FontSize } from './extensions/FontSize'
+import { PrivateNote } from './extensions/PrivateNote'
+import { IframeEmbed, VideoEmbed } from './extensions/EmbedNodes'
 
 interface Props { title: string; content: string }
 
 export default function PreviewPane({ title, content }: Props) {
   const editor = useEditor({
-    extensions: [StarterKit, Image],
+    extensions: [
+      StarterKit,
+      Image,
+      VideoEmbed,
+      IframeEmbed,
+      Youtube,
+      Link,
+      Underline,
+      TextStyle,
+      FontSize,
+      PrivateNote,
+    ],
     editable:   false,
     content:    '',
     editorProps: {
       attributes: {
-        class: 'prose prose-invert prose-lg max-w-none prose-img:rounded-xl prose-img:w-full prose-img:h-auto',
+        class: [
+          "font-[Georgia,'Times New Roman',serif]",
+          'prose prose-lg max-w-none',
+          'prose-headings:text-gray-900 prose-p:text-gray-800',
+          'prose-code:text-emerald-900 prose-code:bg-emerald-100/80 prose-code:px-1 prose-code:py-0.5 prose-code:rounded',
+          'prose-pre:bg-slate-900 prose-pre:text-slate-200 prose-pre:border prose-pre:border-slate-700',
+          'prose-img:rounded-xl prose-img:w-full prose-img:h-auto',
+        ].join(' '),
       },
     },
   })
@@ -25,9 +50,9 @@ export default function PreviewPane({ title, content }: Props) {
 
   return (
     <div className='space-y-4'>
-      <div className='pb-4 border-b border-gray-800'>
-        <p className='text-xs text-gray-600 uppercase tracking-wider mb-3'>Preview</p>
-        {title && <h1 className='text-2xl font-bold text-white'>{title}</h1>}
+      <div className='pb-4 border-b border-gray-300'>
+        <p className='text-xs text-gray-500 uppercase tracking-wider mb-3'>Preview</p>
+        {title && <h1 className='text-2xl font-bold text-gray-900'>{title}</h1>}
       </div>
       <EditorContent editor={editor} />
     </div>
