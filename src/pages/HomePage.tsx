@@ -29,9 +29,10 @@ export default function HomePage() {
   } = useFeed(tab, tab !== 'following' || !!user)
 
   const articles = useMemo(() => {
-    const merged = data?.pages.flatMap(p => p.articles) ?? []
+    const merged = data?.pages.flatMap(p => Array.isArray(p?.articles) ? p.articles : []) ?? []
     const unique = new Map<string, (typeof merged)[number]>()
     for (const article of merged) {
+      if (!article?.id) continue
       unique.set(article.id, article)
     }
     return [...unique.values()]
