@@ -22,6 +22,7 @@ export const useFeatured = () =>
     queryKey: ['feed', 'featured'],
     queryFn:  () =>
       api.get<{ articles: ArticleList[] }>('/api/feed/featured')
-         .then(r => r.data.articles),
+         .then(r => Array.isArray(r.data?.articles) ? r.data.articles : []),
+    initialData: [],
     staleTime: 1000 * 60 * 10, // featured changes slowly
   })
