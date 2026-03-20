@@ -6,7 +6,7 @@ import TagChip from '../ui/TagChip'
 import Badge   from '../ui/Badge'
 import { resolveAssetUrl } from '../../lib/assets'
 
-const STATUS_VARIANT: Record<string, any> = {
+const STATUS_VARIANT: Record<string, 'default' | 'warning' | 'info' | 'danger' | 'success'> = {
   DRAFT:     'default',
   SUBMITTED: 'warning',
   APPROVED:  'info',

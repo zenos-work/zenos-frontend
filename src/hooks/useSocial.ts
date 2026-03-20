@@ -35,7 +35,7 @@ export const useLike = (articleId: string) => {
     onMutate: async (liked) => {
       await qc.cancelQueries({ queryKey: articleKeys.detail(articleId) })
       const prev = qc.getQueryData(articleKeys.detail(articleId))
-      qc.setQueryData(articleKeys.detail(articleId), (old: any) =>
+      qc.setQueryData(articleKeys.detail(articleId), (old: ArticleList | undefined) =>
         old
           ? { ...old, likes_count: old.likes_count + (liked ? 1 : -1) }
           : old,
