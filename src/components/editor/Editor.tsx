@@ -1,8 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
-import Link from '@tiptap/extension-link'
-import Underline from '@tiptap/extension-underline'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Placeholder from '@tiptap/extension-placeholder'
 import Youtube from '@tiptap/extension-youtube'
@@ -93,7 +91,16 @@ export default function Editor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        link: {
+          openOnClick: false,
+          autolink: true,
+          HTMLAttributes: {
+            class: 'text-blue-700 underline underline-offset-2',
+            rel: 'noopener noreferrer nofollow',
+          },
+        },
+      }),
       Placeholder.configure({
         placeholder: 'Type here. Use the + button to insert media, embeds, and code blocks.',
       }),
@@ -118,15 +125,6 @@ export default function Editor({
       IframeEmbed,
       TextStyle,
       FontSize,
-      Underline,
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        HTMLAttributes: {
-          class: 'text-blue-700 underline underline-offset-2',
-          rel: 'noopener noreferrer nofollow',
-        },
-      }),
       PrivateNote,
     ],
     content:    '',
@@ -166,9 +164,14 @@ export default function Editor({
 
     const syncCursorAnchor = () => {
       const root = containerRef.current
-      if (!root) return
+      if (!root || editor.isDestroyed || !editor.view?.dom?.isConnected) return
       const pos = editor.state.selection.from
-      const cursor = editor.view.coordsAtPos(pos)
+      let cursor
+      try {
+        cursor = editor.view.coordsAtPos(pos)
+      } catch {
+        return
+      }
       const rect = root.getBoundingClientRect()
       setCursorAnchor({ top: Math.max(16, cursor.top - rect.top - 12) })
       const { from, to } = editor.state.selection
