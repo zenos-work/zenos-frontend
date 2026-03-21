@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import ArticleHero from '../../../src/components/article/ArticleHero'
+import { resolveAssetUrl } from '../../../src/lib/assets'
 import { makeArticle, makeTag } from '../../utils/fixtures'
 
 vi.mock('../../../src/components/ui/Avatar', () => ({
@@ -40,7 +41,7 @@ describe('ArticleHero', () => {
     expect(screen.queryByText('Ignored')).not.toBeInTheDocument()
     expect(screen.getAllByText('Admin Writer').length).toBeGreaterThan(0)
     expect(screen.getByText('· 7m read')).toBeInTheDocument()
-    expect(container.querySelector('img')).toHaveAttribute('src', 'http://localhost:8787/uploads/hero.jpg')
+    expect(container.querySelector('img')).toHaveAttribute('src', resolveAssetUrl('/uploads/hero.jpg'))
   })
 
   it('handles missing cover image', () => {
