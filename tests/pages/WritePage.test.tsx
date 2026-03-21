@@ -330,7 +330,7 @@ describe('WritePage', () => {
       expect(uploadMutateAsyncMock).toHaveBeenCalled()
     })
     expect(setCoverImageMock).toHaveBeenCalledWith('https://cdn.example.com/img.png')
-    expect(toastMock).toHaveBeenCalledWith('Cover uploaded', 'success')
+    expect(toastMock).toHaveBeenCalledWith('Cover image uploaded', 'success')
 
     fireEvent.click(screen.getByRole('button', { name: 'Inline upload' }))
 

@@ -15,16 +15,16 @@ export default function EditorToolbar({
   onSave, onSubmit, onTogglePreview, isSaving, isDirty, previewMode,
 }: Props) {
   return (
-    <div className='flex items-center gap-3 pb-4 border-b border-gray-800'>
-      <Link to='/library' className='p-2 rounded-lg text-gray-500 hover:text-white hover:bg-gray-800 transition-colors'>
+    <div className='flex items-center gap-3 pb-4 border-b border-[color:var(--border)]'>
+      <Link to='/library' className='p-2 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] transition-colors'>
         <ChevronLeft size={18} />
       </Link>
 
-      <span className='text-sm text-gray-500 flex-1'>
+      <span className='text-sm text-[color:var(--text-muted)] flex-1'>
         {isDirty ? (
-          <span className='text-yellow-500'>● Unsaved changes</span>
+          <span className='text-amber-700'>● Unsaved changes</span>
         ) : (
-          <span className='text-green-500'>✓ Saved</span>
+          <span className='text-emerald-700'>✓ Saved</span>
         )}
       </span>
 

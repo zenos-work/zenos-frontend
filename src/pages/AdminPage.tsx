@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import api from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import {
@@ -161,8 +162,16 @@ export default function AdminPage() {
         await rejectMutation.mutateAsync({ articleId: article.id, note: note ?? '' })
         toast(`Rejected: ${article.title}`, 'success')
       }
-    } catch {
-      toast(`Failed to ${action} article`, 'error')
+    } catch (err) {
+      if (isAxiosError(err)) {
+        const message =
+          (err.response?.data && typeof err.response.data.error === 'string' && err.response.data.error) ||
+          (err.response?.data && typeof err.response.data.message === 'string' && err.response.data.message) ||
+          `Failed to ${action} article`
+        toast(message, 'error')
+      } else {
+        toast(`Failed to ${action} article`, 'error')
+      }
     } finally {
       setActionState(null)
     }
@@ -438,6 +447,10 @@ function QueueItem({
   onPublish: () => Promise<void>
   onReject: () => void
 }) {
+  const canApprove = article.status === 'SUBMITTED'
+  const canPublish = article.status === 'APPROVED'
+  const canReject = article.status === 'SUBMITTED'
+
   return (
     <div className='p-4 rounded-xl bg-gray-900 border border-gray-800'>
       <div className='flex items-start justify-between gap-4'>
@@ -449,13 +462,33 @@ function QueueItem({
       </div>
 
       <div className='flex gap-2 mt-4'>
-        <Button size='sm' variant='primary' loading={loadingAction === 'approve'} onClick={onApprove}>
+        <Button
+          size='sm'
+          variant='primary'
+          loading={loadingAction === 'approve'}
+          onClick={onApprove}
+          disabled={!canApprove}
+          title={canApprove ? 'Approve article' : 'Only SUBMITTED articles can be approved'}
+        >
           <CheckCircle size={13} /> Approve
         </Button>
-        <Button size='sm' variant='primary' loading={loadingAction === 'publish'} onClick={onPublish}>
+        <Button
+          size='sm'
+          variant='primary'
+          loading={loadingAction === 'publish'}
+          onClick={onPublish}
+          disabled={!canPublish}
+          title={canPublish ? 'Publish article' : 'Only APPROVED articles can be published'}
+        >
           <Radio size={13} /> Publish
         </Button>
-        <Button size='sm' variant='danger' onClick={onReject}>
+        <Button
+          size='sm'
+          variant='danger'
+          onClick={onReject}
+          disabled={!canReject}
+          title={canReject ? 'Reject article' : 'Only SUBMITTED articles can be rejected'}
+        >
           <XCircle size={13} /> Reject
         </Button>
       </div>

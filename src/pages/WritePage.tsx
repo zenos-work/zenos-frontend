@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
+import { Upload } from 'lucide-react'
 import api from '../lib/api'
 import { useEditorStore }  from '../stores/editorStore'
 import { useUiStore }      from '../stores/uiStore'
@@ -12,6 +13,20 @@ import PreviewPane   from '../components/editor/PreviewPane'
 import { resolveAssetUrl } from '../lib/assets'
 
 const AUTO_SAVE_MS = 20000
+
+function omitEmptyFields<T extends Record<string, unknown>>(payload: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(payload).filter(([, value]) => value !== undefined && value !== ''),
+  ) as Partial<T>
+}
+
+type ArticleDraftPayload = {
+  title: string
+  content: string
+  subtitle?: string
+  cover_image_url?: string
+  tag_ids?: string[]
+}
 
 function getApiErrorMessage(err: unknown): string | null {
   if (!err || typeof err !== 'object') return null
@@ -57,7 +72,11 @@ export default function WritePage() {
   const toast     = useUiStore(s => s.toast)
   const [tagQuery, setTagQuery] = useState('')
 
-  const { data: allTags } = useTags()
+  const {
+    data: allTags,
+    isLoading: tagsLoading,
+    isError: tagsError,
+  } = useTags()
 
   // Load existing article when editing
   const { data: existing } = useArticle(id ?? '')
@@ -77,8 +96,8 @@ export default function WritePage() {
   useEffect(() => () => resetEditor(), [resetEditor])
 
   const createMutation = useCreateArticle()
-  const updateMutation = useUpdateArticle(id ?? '')
-  const submitMutation = useSubmitArticle(id ?? store.articleId ?? '')
+  const updateMutation = useUpdateArticle(id ?? store.articleId ?? '')
+  const submitMutation = useSubmitArticle()
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       const res = await api.post<{ url: string; key: string }>(
@@ -102,43 +121,53 @@ export default function WritePage() {
       .slice(0, 20)
   }, [allTags, store.selectedTags, tagQuery])
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (): Promise<string | undefined> => {
     if (!store.title.trim()) {
       toast('Title is required', 'error')
-      return
+      return undefined
     }
 
     const normalizedContent = store.content.trim()
     if (!normalizedContent) {
       toast('Content is required', 'error')
-      return
+      return undefined
     }
 
     if (normalizedContent.length < 50) {
       toast('Content must be at least 50 characters long', 'error')
-      return
+      return undefined
     }
 
     store.setIsSaving(true)
     try {
-      const payload = {
+      const payload: ArticleDraftPayload = {
         title:           store.title,
-        subtitle:        store.subtitle || undefined,
         content:         store.content,
-        cover_image_url: store.coverImageUrl || undefined,
         tag_ids:         store.selectedTags.map(t => t.id),
       }
-      if (id) {
+      const optionalFields = omitEmptyFields({
+        subtitle: store.subtitle || undefined,
+        cover_image_url: store.coverImageUrl || undefined,
+      })
+      Object.assign(payload, optionalFields)
+      const targetArticleId = id ?? store.articleId
+
+      if (targetArticleId) {
         await updateMutation.mutateAsync(payload)
+        store.markSaved()
+        toast('Draft saved', 'success')
+        return targetArticleId
       } else {
         const article = await createMutation.mutateAsync(payload)
         store.setArticleId(article.id)
         navigate(`/write/${article.id}`, { replace: true })
+        store.markSaved()
+        toast('Draft saved', 'success')
+        return article.id
       }
-      store.markSaved()
-      toast('Draft saved', 'success')
     } catch (err) {
       toast(getApiErrorMessage(err) ?? 'Save failed — please try again', 'error')
+      return undefined
     } finally {
       store.setIsSaving(false)
     }
@@ -172,17 +201,6 @@ export default function WritePage() {
     return result.url
   }
 
-  const handleCoverFileUpload = async (file: File | undefined) => {
-    if (!file) return
-    try {
-      const url = await uploadImageFile(file)
-      store.setCoverImage(url)
-      toast('Cover uploaded', 'success')
-    } catch (err) {
-      toast(getApiErrorMessage(err) ?? 'Cover upload failed', 'error')
-    }
-  }
-
   const handleInlineImageUpload = async (file: File) => {
     try {
       const url = await uploadImageFile(file)
@@ -194,14 +212,28 @@ export default function WritePage() {
     }
   }
 
+  const handleCoverUpload = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const url = await uploadImageFile(file)
+      store.setCoverImage(url)
+      toast('Cover image uploaded', 'success')
+    } catch (err) {
+      toast(getApiErrorMessage(err) ?? 'Cover image upload failed', 'error')
+    }
+  }
+
   const handleSubmit = async () => {
     if (contentWordCount < 80) {
       toast('Add more content before submitting (minimum ~80 words)', 'warning')
       return
     }
-    await handleSave()
+    const articleId = await handleSave()
+    if (!articleId) {
+      return
+    }
     try {
-      await submitMutation.mutateAsync()
+      await submitMutation.mutateAsync(articleId)
       toast('Submitted for review!', 'success')
       navigate('/library')
     } catch {
@@ -228,19 +260,25 @@ export default function WritePage() {
         {/* Editor side */}
         <div className={store.previewMode ? 'w-1/2' : 'w-full'}>
           {/* Cover image URL input */}
-          <input
-            value={store.coverImageUrl}
-            onChange={e => store.setCoverImage(e.target.value)}
-            placeholder='Cover image URL (optional)'
-            className='w-full mb-4 bg-transparent border-b border-gray-800 pb-2 text-sm text-gray-400 placeholder-gray-700 outline-none focus:border-gray-600 transition-colors'
-          />
-          <div className='mb-4 flex items-center gap-3'>
-            <label className='text-xs text-gray-500'>or upload cover:</label>
+          <div className='mb-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-3'>
+            <div className='flex flex-wrap items-center justify-between gap-3'>
+              <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Cover Image</p>
+              <label className='inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-3 py-1.5 text-xs text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>
+                <Upload size={13} />
+                Upload image
+                <input
+                  type='file'
+                  accept='image/*'
+                  className='hidden'
+                  onChange={e => void handleCoverUpload(e.target.files?.[0])}
+                />
+              </label>
+            </div>
             <input
-              type='file'
-              accept='image/*'
-              onChange={e => void handleCoverFileUpload(e.target.files?.[0])}
-              className='block text-xs text-gray-400 file:mr-3 file:rounded-md file:border-0 file:bg-gray-800 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-gray-200 hover:file:bg-gray-700'
+              value={store.coverImageUrl}
+              onChange={e => store.setCoverImage(e.target.value)}
+              placeholder='Or paste cover image URL (optional)'
+              className='mt-3 w-full bg-transparent border-b border-[color:var(--border-strong)] pb-2 text-sm text-[color:var(--text-secondary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)] transition-colors'
             />
           </div>
 
@@ -248,7 +286,7 @@ export default function WritePage() {
             <img
               src={resolveAssetUrl(store.coverImageUrl)}
               alt='Cover preview'
-              className='mb-6 w-full h-64 object-cover rounded-xl border border-gray-800'
+              className='mb-6 w-full h-64 object-cover rounded-xl border border-[color:var(--border-strong)]'
               loading='lazy'
             />
           )}
@@ -258,7 +296,7 @@ export default function WritePage() {
             value={store.title}
             onChange={e => store.setTitle(e.target.value)}
             placeholder='Article title...'
-            className='w-full mb-3 bg-transparent text-3xl font-bold text-white placeholder-gray-700 outline-none'
+            className='w-full mb-3 bg-transparent text-3xl font-bold text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none'
           />
 
           {/* Subtitle */}
@@ -266,7 +304,7 @@ export default function WritePage() {
             value={store.subtitle}
             onChange={e => store.setSubtitle(e.target.value)}
             placeholder='Add a subtitle (optional)'
-            className='w-full mb-6 bg-transparent text-lg text-gray-400 placeholder-gray-700 outline-none'
+            className='w-full mb-6 bg-transparent text-lg text-[color:var(--text-secondary)] placeholder-[color:var(--text-muted)] outline-none'
           />
 
           {/* Rich text editor */}
@@ -277,17 +315,17 @@ export default function WritePage() {
           />
 
           {/* Tags */}
-          <div className='mt-6 rounded-xl border border-gray-800 p-4 bg-gray-900/30'>
+          <div className='mt-6 rounded-xl border border-[color:var(--border-strong)] p-4 bg-[color:var(--surface-1)]/70'>
             <div className='flex items-center justify-between gap-3 mb-3'>
-              <p className='text-xs uppercase tracking-wider text-gray-500'>Tags</p>
-              <span className='text-xs text-gray-500'>{store.selectedTags.length} selected</span>
+              <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Tags</p>
+              <span className='text-xs text-[color:var(--text-muted)]'>{store.selectedTags.length} selected</span>
             </div>
 
             <input
               value={tagQuery}
               onChange={e => setTagQuery(e.target.value)}
               placeholder='Search tags...'
-              className='w-full mb-3 rounded-lg bg-gray-900 border border-gray-700 px-3 py-2 text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-gray-500'
+              className='w-full mb-3 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)]'
             />
 
             {store.selectedTags.length > 0 && (
@@ -296,7 +334,7 @@ export default function WritePage() {
                   <button
                     key={t.id}
                     onClick={() => store.toggleTag(t)}
-                    className='rounded-full px-3 py-1 text-xs bg-blue-900/40 border border-blue-700 text-blue-200 hover:bg-blue-800/50 transition-colors'
+                    className='rounded-full px-3 py-1 text-xs bg-[color:var(--accent-dim)] border border-[color:var(--accent)] text-[color:var(--text-primary)] hover:opacity-90 transition-colors'
                     title='Click to remove'
                   >
                     #{t.name}
@@ -306,33 +344,41 @@ export default function WritePage() {
             )}
 
             <div className='flex flex-wrap gap-2'>
+              {tagsLoading && (
+                <p className='text-xs text-[color:var(--text-muted)]'>Loading tags...</p>
+              )}
+              {tagsError && (
+                <p className='text-xs text-rose-700'>Could not load tags. Please refresh or check API connectivity.</p>
+              )}
               {availableTags.map(t => (
                 <button
                   key={t.id}
                   onClick={() => store.toggleTag(t)}
-                  className='rounded-full px-3 py-1 text-xs bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 transition-colors'
+                  className='rounded-full px-3 py-1 text-xs bg-[color:var(--surface-2)] border border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-3)] transition-colors'
                 >
                   + {t.name}
                 </button>
               ))}
               {!availableTags.length && (
-                <p className='text-xs text-gray-500'>No matching tags found.</p>
+                <p className='text-xs text-[color:var(--text-muted)]'>
+                  {(allTags?.length ?? 0) === 0 ? 'No tags available yet. Ask an admin to create tags.' : 'No matching tags found.'}
+                </p>
               )}
             </div>
           </div>
 
-          <div className='mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-500'>
+          <div className='mt-4 flex flex-wrap items-center gap-3 text-xs text-[color:var(--text-muted)]'>
             <span>{contentWordCount} words</span>
             <span>~{readTime} min read</span>
-            {store.isDirty && <span className='text-amber-400'>Unsaved edits</span>}
-            {!store.isDirty && <span className='text-emerald-400'>All changes saved</span>}
+            {store.isDirty && <span className='text-amber-700'>Unsaved edits</span>}
+            {!store.isDirty && <span className='text-emerald-700'>All changes saved</span>}
           </div>
 
         </div>
 
         {/* Preview side */}
         {store.previewMode && (
-          <div className='w-1/2 border-l border-gray-800 pl-6 overflow-y-auto'>
+          <div className='w-1/2 border-l border-[color:var(--border)] pl-6 overflow-y-auto'>
             <PreviewPane title={store.title} content={store.content} />
           </div>
         )}

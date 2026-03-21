@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFeed, useFeatured } from '../hooks/useFeed'
 import { useAuth } from '../hooks/useAuth'
+import { resolveAssetUrl } from '../lib/assets'
 import ArticleCard from '../components/article/ArticleCard'
 import ArticleHero from '../components/article/ArticleHero'
 import Spinner     from '../components/ui/Spinner'
@@ -16,6 +17,8 @@ export default function HomePage() {
   const [tab, setTab] = useState<'home' | 'following' | 'trending'>('home')
   const { user } = useAuth()
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
+
+  const guestTrending = useFeed('trending', !user)
 
   const { data: featuredData } = useFeatured()
   const {
@@ -41,6 +44,34 @@ export default function HomePage() {
   const feedLabel = data?.pages[0]?.feed
   const showFeatured = tab === 'home' && featuredData && featuredData.length > 0
 
+  const guestTrendingArticles = useMemo(() => {
+    const merged = guestTrending.data?.pages.flatMap(p => Array.isArray(p?.articles) ? p.articles : []) ?? []
+    const unique = new Map<string, (typeof merged)[number]>()
+    for (const article of merged) {
+      if (!article?.id) continue
+      unique.set(article.id, article)
+    }
+    return [...unique.values()].slice(0, 3)
+  }, [guestTrending.data])
+
+  const guestFallbackCards = [
+    {
+      id: 'zenos-write',
+      title: 'Write with confidence',
+      subtitle: 'Craft thoughtful stories with a clean editor and rich embeds.',
+    },
+    {
+      id: 'zenos-review',
+      title: 'Review with clarity',
+      subtitle: 'Collaborate through approval workflows built for editorial teams.',
+    },
+    {
+      id: 'zenos-publish',
+      title: 'Publish and automate',
+      subtitle: 'Ship content fast with governance, analytics, and automation.',
+    },
+  ]
+
   useEffect(() => {
     if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return
 
@@ -56,6 +87,80 @@ export default function HomePage() {
     observer.observe(loadMoreRef.current)
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, articles.length, tab])
+
+  if (!user) {
+    const cards = guestTrendingArticles.length > 0 ? guestTrendingArticles : guestFallbackCards
+
+    return (
+      <div className='space-y-8'>
+        <section className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6'>
+          <p className='text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Welcome to Zenos</p>
+          <h1 className='mt-2 text-3xl font-bold text-[color:var(--text-primary)]'>Trending stories to explore</h1>
+          <p className='mt-2 max-w-2xl text-sm text-[color:var(--text-secondary)]'>
+            Discover the latest content. Sign in to unlock your personalised feed, bookmarks, and writing workspace.
+          </p>
+        </section>
+
+        {guestTrending.isLoading ? (
+          <div className='flex justify-center py-12'><Spinner /></div>
+        ) : (
+          <section>
+            <div className='mb-3 flex items-center justify-between'>
+              <h2 className='text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]'>Trending now</h2>
+            </div>
+
+            <div className='-mx-2 flex gap-4 overflow-x-auto px-2 pb-2 snap-x snap-mandatory'>
+              {cards.map((card) => {
+                const article = 'slug' in card ? card : null
+                const coverUrl = article ? resolveAssetUrl(article.cover_image_url) : null
+
+                return (
+                  <article
+                    key={card.id}
+                    className='min-w-[280px] md:min-w-[340px] snap-start overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)] shadow-sm'
+                  >
+                    {article ? (
+                      <Link to={`/article/${article.slug}`} className='block'>
+                        <div className='h-44 w-full overflow-hidden bg-[color:var(--surface-2)]'>
+                          {coverUrl ? (
+                            <img src={coverUrl} alt={article.title} className='h-full w-full object-cover' loading='lazy' />
+                          ) : (
+                            <div className='grid h-full w-full place-items-center bg-gradient-to-br from-[#2a3b4a] via-[#4d657a] to-[#6f8ea8] text-white'>
+                              <span className='text-lg font-semibold tracking-wider'>ZENOS</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className='space-y-2 p-4'>
+                          <h3 className='line-clamp-2 text-lg font-semibold text-[color:var(--text-primary)]'>{article.title}</h3>
+                          <p className='line-clamp-2 text-sm text-[color:var(--text-secondary)]'>{article.subtitle || 'No subtitle'}</p>
+                        </div>
+                      </Link>
+                    ) : (
+                      <div>
+                        <div className='grid h-44 w-full place-items-center bg-gradient-to-br from-[#243447] via-[#35506b] to-[#4e7294] text-white'>
+                          <span className='text-lg font-semibold tracking-wider'>ZENOS</span>
+                        </div>
+                        <div className='space-y-2 p-4'>
+                          <h3 className='line-clamp-2 text-lg font-semibold text-[color:var(--text-primary)]'>{card.title}</h3>
+                          <p className='line-clamp-2 text-sm text-[color:var(--text-secondary)]'>{card.subtitle}</p>
+                        </div>
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
+
+            {!guestTrendingArticles.length && (
+              <p className='mt-3 text-xs text-[color:var(--text-muted)]'>
+                No published content yet. Zenos helps teams write, review, publish, and automate.
+              </p>
+            )}
+          </section>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className='space-y-10'>
