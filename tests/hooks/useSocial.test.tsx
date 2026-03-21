@@ -97,4 +97,80 @@ describe('useSocial hooks', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['feed', 'following'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['user', 'user-22'] })
   })
+
+  it('uses delete endpoint when unliking and updates likes optimistically', async () => {
+    const articleId = 'article-2'
+    const original = makeArticle({ id: articleId, likes_count: 5 })
+    vi.mocked(api.delete).mockResolvedValue({ data: {} })
+
+    const { Wrapper, client } = createQueryClientWrapper()
+    client.setQueryData(articleKeys.detail(articleId), original)
+
+    const { result } = renderHook(() => useLike(articleId), { wrapper: Wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync(false)
+    })
+
+    expect(api.delete).toHaveBeenCalledWith(`/api/social/likes/${articleId}`)
+    expect(client.getQueryData(articleKeys.detail(articleId))).toEqual(
+      makeArticle({ id: articleId, likes_count: 4 }),
+    )
+  })
+
+  it('uses delete endpoint when removing bookmark', async () => {
+    vi.mocked(api.delete).mockResolvedValue({ data: {} })
+
+    const { Wrapper, client } = createQueryClientWrapper()
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const { result } = renderHook(() => useBookmark('article-9'), { wrapper: Wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync(false)
+    })
+
+    expect(api.delete).toHaveBeenCalledWith('/api/social/bookmarks/article-9')
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['bookmarks'] })
+  })
+
+  it('normalizes alternate bookmark payload shape using items without pagination', async () => {
+    const article = makeArticle({ id: 'alt-1' })
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        items: [article],
+      },
+    })
+
+    const { Wrapper } = createQueryClientWrapper()
+    const { result } = renderHook(() => useBookmarks(1, 20), { wrapper: Wrapper })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+    })
+
+    expect(result.current.data).toEqual({
+      items: [article],
+      page: 1,
+      limit: 20,
+      total: 1,
+      pages: 1,
+      has_more: false,
+    })
+  })
+
+  it('uses delete endpoint when unfollowing and invalidates feed/user queries', async () => {
+    vi.mocked(api.delete).mockResolvedValue({ data: {} })
+
+    const { Wrapper, client } = createQueryClientWrapper()
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const { result } = renderHook(() => useFollow('user-50'), { wrapper: Wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync(false)
+    })
+
+    expect(api.delete).toHaveBeenCalledWith('/api/social/follows/user-50')
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['feed', 'following'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['user', 'user-50'] })
+  })
 })

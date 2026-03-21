@@ -117,4 +117,50 @@ describe('SearchPage', () => {
     })
     expect(screen.getByText('Page 2')).toBeInTheDocument()
   })
+
+  it('shows loading state while search is in progress', () => {
+    useSearchAllMock.mockReturnValue({ data: undefined, isLoading: true })
+    useSearchArticlesMock.mockReturnValue({ data: undefined, isLoading: false })
+    useSearchTagsMock.mockReturnValue({ data: undefined, isLoading: false })
+    useSearchAuthorsMock.mockReturnValue({ data: undefined, isLoading: false })
+
+    renderSearch('/search?q=ai&type=all&page=1')
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
+  })
+
+  it('shows no-results message when all-search has no payload', () => {
+    useSearchAllMock.mockReturnValue({ data: undefined, isLoading: false })
+    useSearchArticlesMock.mockReturnValue({ data: undefined, isLoading: false })
+    useSearchTagsMock.mockReturnValue({ data: undefined, isLoading: false })
+    useSearchAuthorsMock.mockReturnValue({ data: undefined, isLoading: false })
+
+    renderSearch('/search?q=ai&type=all&page=1')
+
+    expect(screen.getByText('No results found for "ai"')).toBeInTheDocument()
+  })
+
+  it('renders empty tags state with disabled pagination buttons', () => {
+    useSearchTagsMock.mockReturnValue({
+      data: makePaginatedResponse([], { page: 1, has_more: false, total: 0 }),
+      isLoading: false,
+    })
+
+    renderSearch('/search?q=ai&type=tags&page=1')
+
+    expect(screen.getByText('No tags found for "ai"')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
+  })
+
+  it('renders empty authors state', () => {
+    useSearchAuthorsMock.mockReturnValue({
+      data: makePaginatedResponse([], { page: 1, has_more: false, total: 0 }),
+      isLoading: false,
+    })
+
+    renderSearch('/search?q=ai&type=authors&page=1')
+
+    expect(screen.getByText('No authors found for "ai"')).toBeInTheDocument()
+  })
 })

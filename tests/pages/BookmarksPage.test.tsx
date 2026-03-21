@@ -38,6 +38,21 @@ describe('BookmarksPage', () => {
     expect(screen.getByText('No saved articles yet.')).toBeInTheDocument()
   })
 
+  it('shows loading state', () => {
+    useBookmarksMock.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    })
+
+    render(
+      <MemoryRouter>
+        <BookmarksPage />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
+  })
+
   it('filters bookmarks and paginates to the next page', async () => {
     const alpha = makeArticle({ id: 'a1', title: 'Alpha Note' })
     const beta = makeArticle({ id: 'a2', title: 'Beta Insight', subtitle: 'Search me' })
@@ -77,5 +92,63 @@ describe('BookmarksPage', () => {
       expect(useBookmarksMock).toHaveBeenLastCalledWith(2, 20)
     })
     expect(screen.getByText('Gamma Report')).toBeInTheDocument()
+  })
+
+  it('shows filter-empty state and resets filters', () => {
+    const alpha = makeArticle({ id: 'a1', title: 'Alpha Note' })
+    const beta = makeArticle({ id: 'a2', title: 'Beta Insight' })
+
+    useBookmarksMock.mockReturnValue({
+      data: { items: [alpha, beta], total: 2, page: 1, pages: 1, has_more: false },
+      isLoading: false,
+    })
+
+    render(
+      <MemoryRouter>
+        <BookmarksPage />
+      </MemoryRouter>,
+    )
+
+    fireEvent.change(screen.getByPlaceholderText('Search within saved articles'), {
+      target: { value: 'does-not-match' },
+    })
+
+    expect(screen.getByText('No bookmarks match your filters.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }))
+
+    expect(screen.getByText('Alpha Note')).toBeInTheDocument()
+    expect(screen.getByText('Beta Insight')).toBeInTheDocument()
+  })
+
+  it('applies title/likes/views/oldest sorting modes', () => {
+    const zeta = makeArticle({ id: 'a1', title: 'Zeta', likes_count: 1, views_count: 10, published_at: '2026-03-10T00:00:00Z' })
+    const alpha = makeArticle({ id: 'a2', title: 'Alpha', likes_count: 20, views_count: 5, published_at: '2026-03-01T00:00:00Z' })
+    const beta = makeArticle({ id: 'a3', title: 'Beta', likes_count: 5, views_count: 200, published_at: '2026-03-05T00:00:00Z' })
+
+    useBookmarksMock.mockReturnValue({
+      data: { items: [zeta, alpha, beta], total: 3, page: 1, pages: 1, has_more: false },
+      isLoading: false,
+    })
+
+    render(
+      <MemoryRouter>
+        <BookmarksPage />
+      </MemoryRouter>,
+    )
+
+    const select = screen.getByRole('combobox')
+
+    fireEvent.change(select, { target: { value: 'title' } })
+    expect(screen.getAllByTestId('article-card').map((n) => n.textContent)).toEqual(['Alpha', 'Beta', 'Zeta'])
+
+    fireEvent.change(select, { target: { value: 'likes' } })
+    expect(screen.getAllByTestId('article-card').map((n) => n.textContent)[0]).toBe('Alpha')
+
+    fireEvent.change(select, { target: { value: 'views' } })
+    expect(screen.getAllByTestId('article-card').map((n) => n.textContent)[0]).toBe('Beta')
+
+    fireEvent.change(select, { target: { value: 'oldest' } })
+    expect(screen.getAllByTestId('article-card').map((n) => n.textContent)[0]).toBe('Alpha')
   })
 })

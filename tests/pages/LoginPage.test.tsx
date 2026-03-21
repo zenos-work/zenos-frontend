@@ -49,4 +49,21 @@ describe('LoginPage', () => {
       expect(navigateMock).toHaveBeenCalledWith('/', { replace: true })
     })
   })
+
+  it('applies and restores Google button hover styles', () => {
+    useAuthMock.mockReturnValue({
+      user: null,
+      loginWithGoogle: vi.fn(),
+    })
+
+    render(<LoginPage />)
+
+    const button = screen.getByRole('button', { name: /continue with google/i })
+
+    fireEvent.mouseEnter(button)
+    expect(button).toHaveStyle({ backgroundColor: 'rgb(245, 245, 245)' })
+
+    fireEvent.mouseLeave(button)
+    expect(button).toHaveStyle({ backgroundColor: 'rgb(255, 255, 255)' })
+  })
 })
