@@ -1,18 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import { IframeEmbed, VideoEmbed } from '../../../../src/components/editor/extensions/EmbedNodes'
 
+type EmbedExtensionConfig = {
+  addAttributes: () => Record<string, { default: unknown }>
+  parseHTML: () => Array<{ tag: string }>
+  renderHTML: (args: {
+    HTMLAttributes: Record<string, unknown>
+  }) => [string, Record<string, unknown>, ...unknown[]]
+}
+
+const asEmbedConfig = (extension: unknown): EmbedExtensionConfig => {
+  const extensionWithConfig = extension as { config: EmbedExtensionConfig }
+  return extensionWithConfig.config
+}
+
 describe('Embed node extensions', () => {
   it('defines iframe embed attributes and html transforms', () => {
-    const attrs = (IframeEmbed as any).config.addAttributes()
+    const iframeConfig = asEmbedConfig(IframeEmbed)
+    const attrs = iframeConfig.addAttributes()
     expect(attrs.src.default).toBeNull()
     expect(attrs.title.default).toBe('Embedded media')
     expect(attrs.height.default).toBe(420)
 
-    expect((IframeEmbed as any).config.parseHTML()).toEqual([
+    expect(iframeConfig.parseHTML()).toEqual([
       { tag: 'iframe[data-embed="true"]' },
     ])
 
-    const rendered = (IframeEmbed as any).config.renderHTML({
+    const rendered = iframeConfig.renderHTML({
       HTMLAttributes: { src: 'https://example.com/embed' },
     })
     expect(rendered[0]).toBe('iframe')
@@ -24,15 +38,16 @@ describe('Embed node extensions', () => {
   })
 
   it('defines video embed attributes and html transforms', () => {
-    const attrs = (VideoEmbed as any).config.addAttributes()
+    const videoConfig = asEmbedConfig(VideoEmbed)
+    const attrs = videoConfig.addAttributes()
     expect(attrs.src.default).toBeNull()
     expect(attrs.title.default).toBe('Uploaded video')
 
-    expect((VideoEmbed as any).config.parseHTML()).toEqual([
+    expect(videoConfig.parseHTML()).toEqual([
       { tag: 'video[data-embed-video="true"]' },
     ])
 
-    const rendered = (VideoEmbed as any).config.renderHTML({
+    const rendered = videoConfig.renderHTML({
       HTMLAttributes: { src: '/video.mp4' },
     })
     expect(rendered[0]).toBe('video')
