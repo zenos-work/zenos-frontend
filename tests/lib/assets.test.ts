@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 // We import lazily per test so we can swap env values by stubbing import.meta.
 async function importResolver() {
-  return import('./assets')
+  return import('../../src/lib/assets')
 }
 
 describe('resolveAssetUrl', () => {

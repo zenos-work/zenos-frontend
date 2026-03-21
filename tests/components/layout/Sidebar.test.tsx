@@ -1,0 +1,76 @@
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import Sidebar from '../../../src/components/layout/Sidebar'
+
+const useAuthMock = vi.fn()
+const useUiStoreMock = vi.fn()
+
+vi.mock('../../../src/hooks/useAuth', () => ({
+  useAuth: () => useAuthMock(),
+}))
+
+vi.mock('../../../src/stores/uiStore', () => ({
+  useUiStore: () => useUiStoreMock(),
+}))
+
+vi.mock('../../../src/components/ui/Avatar', () => ({
+  default: ({ name }: { name: string }) => <div data-testid='avatar'>{name}</div>,
+}))
+
+describe('Sidebar', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders open sidebar navigation for admin authors', () => {
+    useAuthMock.mockReturnValue({
+      user: {
+        name: 'Admin User',
+        role: 'SUPERADMIN',
+        avatar_url: null,
+      },
+    })
+    const toggleSidebar = vi.fn()
+    useUiStoreMock.mockReturnValue({ sidebarOpen: true, toggleSidebar })
+
+    render(
+      <MemoryRouter>
+        <Sidebar />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Bookmarks')).toBeInTheDocument()
+    expect(screen.getByText('Library')).toBeInTheDocument()
+    expect(screen.getByText('Stats')).toBeInTheDocument()
+    expect(screen.getByText('Profile')).toBeInTheDocument()
+    expect(screen.getByText('Write')).toBeInTheDocument()
+    expect(screen.getByText('Admin')).toBeInTheDocument()
+    expect(screen.getByTestId('avatar')).toHaveTextContent('Admin User')
+    expect(screen.getByText('SUPERADMIN')).toBeInTheDocument()
+
+    screen.getAllByRole('button').at(-1)?.click()
+    expect(toggleSidebar).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders collapsed reader sidebar without write or admin links', () => {
+    useAuthMock.mockReturnValue({
+      user: {
+        name: 'Reader User',
+        role: 'READER',
+        avatar_url: null,
+      },
+    })
+    useUiStoreMock.mockReturnValue({ sidebarOpen: false, toggleSidebar: vi.fn() })
+
+    render(
+      <MemoryRouter>
+        <Sidebar />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByText('Write')).not.toBeInTheDocument()
+    expect(screen.queryByText('Admin')).not.toBeInTheDocument()
+    expect(screen.getByText('Z')).toBeInTheDocument()
+  })
+})

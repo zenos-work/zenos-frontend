@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { queryClient } from './queryClient'
+import { queryClient } from '../../src/lib/queryClient'
 
 describe('queryClient defaults', () => {
   it('has expected query defaults for Phase 7 tuning', () => {
