@@ -8,11 +8,15 @@ const setLinkRunMock = vi.fn()
 const unsetLinkRunMock = vi.fn()
 
 let fakeEditor: {
+  isDestroyed: boolean
   state: {
     selection: { from: number; to: number }
     doc: { textBetween: (from: number, to: number, separator: string) => string }
   }
-  view: { coordsAtPos: (pos: number) => { top: number } }
+  view: {
+    coordsAtPos: (pos: number) => { top: number }
+    dom: { isConnected: boolean }
+  }
   on: (event: string, cb: () => void) => void
   off: (event: string, cb: () => void) => void
   getJSON: () => unknown
@@ -68,11 +72,15 @@ describe('Editor', () => {
     })
 
     fakeEditor = {
+      isDestroyed: false,
       state: {
         selection: { from: 1, to: 2 },
         doc: { textBetween: () => 'selection text' },
       },
-      view: { coordsAtPos: () => ({ top: 150 }) },
+      view: {
+        coordsAtPos: () => ({ top: 150 }),
+        dom: { isConnected: true },
+      },
       on: (_event, cb) => cb(),
       off: vi.fn(),
       getJSON: () => ({ type: 'doc', content: [] }),
