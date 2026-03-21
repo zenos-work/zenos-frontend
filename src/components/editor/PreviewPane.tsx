@@ -1,8 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
-import Link from '@tiptap/extension-link'
-import Underline from '@tiptap/extension-underline'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Youtube from '@tiptap/extension-youtube'
 import { useEffect } from 'react'
@@ -20,8 +18,6 @@ export default function PreviewPane({ title, content }: Props) {
       VideoEmbed,
       IframeEmbed,
       Youtube,
-      Link,
-      Underline,
       TextStyle,
       FontSize,
       PrivateNote,
