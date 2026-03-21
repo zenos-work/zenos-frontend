@@ -1,12 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import { PrivateNote } from '../../../../src/components/editor/extensions/PrivateNote'
 
+type PrivateNoteConfig = {
+  parseHTML: () => Array<{ tag: string }>
+  renderHTML: (args: {
+    HTMLAttributes: Record<string, unknown>
+  }) => [string, Record<string, unknown>, ...unknown[]]
+}
+
+const asPrivateNoteConfig = (extension: unknown): PrivateNoteConfig => {
+  const extensionWithConfig = extension as { config: PrivateNoteConfig }
+  return extensionWithConfig.config
+}
+
 describe('PrivateNote mark', () => {
   it('parses and renders private-note markup', () => {
-    const parsed = (PrivateNote as any).config.parseHTML()
+    const privateNoteConfig = asPrivateNoteConfig(PrivateNote)
+    const parsed = privateNoteConfig.parseHTML()
     expect(parsed).toEqual([{ tag: 'span[data-private-note="true"]' }])
 
-    const rendered = (PrivateNote as any).config.renderHTML({
+    const rendered = privateNoteConfig.renderHTML({
       HTMLAttributes: { title: 'internal' },
     })
 

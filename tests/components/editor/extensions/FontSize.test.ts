@@ -1,9 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { FontSize } from '../../../../src/components/editor/extensions/FontSize'
 
+type FontSizeConfig = {
+  addGlobalAttributes: () => Array<{
+    types: string[]
+    attributes: {
+      fontSize: {
+        parseHTML: (element: HTMLElement) => string
+        renderHTML: (attrs: { fontSize: string | null }) => Record<string, string>
+      }
+    }
+  }>
+}
+
+const asFontSizeConfig = (extension: unknown): FontSizeConfig => {
+  const extensionWithConfig = extension as { config: FontSizeConfig }
+  return extensionWithConfig.config
+}
+
 describe('FontSize extension', () => {
   it('exposes textStyle global attribute with parser and renderer', () => {
-    const attrs = (FontSize as any).config.addGlobalAttributes()
+    const attrs = asFontSizeConfig(FontSize).addGlobalAttributes()
     expect(attrs).toHaveLength(1)
     expect(attrs[0].types).toEqual(['textStyle'])
 
