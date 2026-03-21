@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import ArticleCard from '../../../src/components/article/ArticleCard'
+import { resolveAssetUrl } from '../../../src/lib/assets'
 import { makeArticle, makeTag } from '../../utils/fixtures'
 
 vi.mock('../../../src/components/ui/Avatar', () => ({
@@ -39,7 +40,7 @@ describe('ArticleCard', () => {
     expect(screen.getByTestId('badge')).toHaveTextContent('PUBLISHED')
     expect(screen.getAllByTestId('tag-chip')).toHaveLength(2)
     expect(screen.getByRole('link', { name: 'Testing Article Card' })).toHaveAttribute('href', '/article/alpha-article')
-    expect(container.querySelector('img')).toHaveAttribute('src', 'http://localhost:8787/uploads/cover.png')
+    expect(container.querySelector('img')).toHaveAttribute('src', resolveAssetUrl('/uploads/cover.png'))
     expect(screen.getByText(/5m/)).toBeInTheDocument()
     expect(screen.getByText(/10/)).toBeInTheDocument()
   })
