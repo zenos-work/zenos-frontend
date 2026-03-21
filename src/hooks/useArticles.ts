@@ -82,13 +82,13 @@ export const useUpdateArticle = (articleId: string) => {
   })
 }
 
-export const useSubmitArticle = (articleId: string) => {
+export const useSubmitArticle = () => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () =>
+    mutationFn: (articleId: string) =>
       api.post<{ status: string }>(`/api/articles/${articleId}/submit`)
          .then(r => r.data),
-    onSuccess: () => {
+    onSuccess: (_result, articleId) => {
       qc.invalidateQueries({ queryKey: articleKeys.detail(articleId) })
       qc.invalidateQueries({ queryKey: articleKeys.myList() })
     },

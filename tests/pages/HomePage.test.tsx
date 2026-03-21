@@ -77,7 +77,7 @@ describe('HomePage', () => {
     expect(screen.getByText(/Personalised/)).toBeInTheDocument()
   })
 
-  it('prompts login on following tab when user is not signed in', () => {
+  it('shows guest trending landing when user is not signed in', () => {
     useAuthMock.mockReturnValue({ user: null })
     useFeaturedMock.mockReturnValue({ data: [] })
     useFeedMock.mockReturnValue({
@@ -96,10 +96,11 @@ describe('HomePage', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Following' }))
-
-    expect(screen.getByText('Sign in to view articles from authors you follow.')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Go to login' })).toHaveAttribute('href', '/login')
+    expect(screen.getByText('Trending stories to explore')).toBeInTheDocument()
+    expect(screen.getByText('Trending now')).toBeInTheDocument()
+    expect(screen.getByText('Write with confidence')).toBeInTheDocument()
+    expect(screen.getByText('Review with clarity')).toBeInTheDocument()
+    expect(screen.getByText('Publish and automate')).toBeInTheDocument()
   })
 
   it('loads next page when load more is clicked', async () => {

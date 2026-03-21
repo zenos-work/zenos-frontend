@@ -2,9 +2,10 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import { TextStyle } from '@tiptap/extension-text-style'
+import TextAlign from '@tiptap/extension-text-align'
 import Placeholder from '@tiptap/extension-placeholder'
 import Youtube from '@tiptap/extension-youtube'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import {
   Plus,
   ImagePlus,
@@ -19,6 +20,10 @@ import {
   Minus,
   Type,
   StickyNote,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
 } from 'lucide-react'
 import { FontSize } from './extensions/FontSize'
 import { PrivateNote } from './extensions/PrivateNote'
@@ -36,6 +41,11 @@ const FONT_STEPS = [14, 16, 18, 20, 24]
 
 type CursorAnchor = {
   top: number
+}
+
+type SelectionToolbarAnchor = {
+  top: number
+  left: number
 }
 
 function toVimeoEmbed(url: URL): string | null {
@@ -74,13 +84,12 @@ export default function Editor({
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const videoInputRef = useRef<HTMLInputElement | null>(null)
 
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false)
   const [showInsertMenu, setShowInsertMenu] = useState(false)
   const [showUnsplashPicker, setShowUnsplashPicker] = useState(false)
   const [unsplashQuery, setUnsplashQuery] = useState('')
   const [cursorAnchor, setCursorAnchor] = useState<CursorAnchor>({ top: 36 })
   const [hasTextSelection, setHasTextSelection] = useState(false)
+  const [selectionToolbarAnchor, setSelectionToolbarAnchor] = useState<SelectionToolbarAnchor>({ top: 8, left: 0 })
 
   const unsplashCandidates = useMemo(() => {
     const q = (unsplashQuery || 'writing desk').trim()
@@ -126,6 +135,9 @@ export default function Editor({
       TextStyle,
       FontSize,
       PrivateNote,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
     ],
     content:    '',
     editorProps: {
@@ -165,17 +177,28 @@ export default function Editor({
     const syncCursorAnchor = () => {
       const root = containerRef.current
       if (!root || editor.isDestroyed || !editor.view?.dom?.isConnected) return
-      const pos = editor.state.selection.from
-      let cursor
+      const { from, to } = editor.state.selection
+      let start
+      let end
       try {
-        cursor = editor.view.coordsAtPos(pos)
+        start = editor.view.coordsAtPos(from)
+        end = editor.view.coordsAtPos(to)
       } catch {
         return
       }
+
       const rect = root.getBoundingClientRect()
-      setCursorAnchor({ top: Math.max(16, cursor.top - rect.top - 12) })
-      const { from, to } = editor.state.selection
-      setHasTextSelection(from !== to)
+      setCursorAnchor({ top: Math.max(16, start.top - rect.top - 12) })
+
+      const selected = from !== to
+      setHasTextSelection(selected)
+      if (selected) {
+        const centerX = (start.left + end.right) / 2
+        setSelectionToolbarAnchor({
+          top: Math.max(8, start.top - rect.top - 52),
+          left: centerX - rect.left,
+        })
+      }
     }
 
     syncCursorAnchor()
@@ -192,11 +215,9 @@ export default function Editor({
   const handleInlineImagePick = async (file: File | undefined) => {
     if (!file || !editor || !onInlineImageUpload) return
     try {
-      setIsUploadingImage(true)
       const url = await onInlineImageUpload(file)
       editor.chain().focus().setImage({ src: url, alt: file.name }).run()
     } finally {
-      setIsUploadingImage(false)
       if (imageInputRef.current) imageInputRef.current.value = ''
     }
   }
@@ -204,7 +225,6 @@ export default function Editor({
   const handleInlineVideoPick = async (file: File | undefined) => {
     if (!file || !editor) return
     try {
-      setIsUploadingVideo(true)
       const src = onInlineVideoUpload
         ? await onInlineVideoUpload(file)
         : URL.createObjectURL(file)
@@ -222,7 +242,6 @@ export default function Editor({
         .insertContent({ type: 'paragraph' })
         .run()
     } finally {
-      setIsUploadingVideo(false)
       if (videoInputRef.current) videoInputRef.current.value = ''
     }
   }
@@ -302,41 +321,61 @@ export default function Editor({
     editor.chain().focus().setLink({ href: url.trim() }).run()
   }
 
+  const preserveSelectionMouseDown = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+  }
+
   return (
     <div
       ref={containerRef}
-      className='relative rounded-xl border border-gray-300 bg-white/85 p-6 shadow-sm transition-colors focus-within:border-slate-500'
+      className='relative rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-6 shadow-sm transition-colors focus-within:border-[color:var(--accent)]'
     >
       {editor && hasTextSelection && (
-        <div className='absolute left-1/2 top-2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-slate-300 bg-white p-1 shadow-xl'>
-          <button type='button' className='rounded px-2 py-1 hover:bg-slate-100' onClick={() => editor.chain().focus().toggleBold().run()}>
+        <div
+          className='absolute z-20 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] p-1 shadow-xl text-[color:var(--text-primary)]'
+          style={{ top: `${selectionToolbarAnchor.top}px`, left: `${selectionToolbarAnchor.left}px` }}
+        >
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => editor.chain().focus().toggleBold().run()}>
             <Bold size={14} />
           </button>
-          <button type='button' className='rounded px-2 py-1 hover:bg-slate-100' onClick={() => editor.chain().focus().toggleItalic().run()}>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => editor.chain().focus().toggleItalic().run()}>
             <Italic size={14} />
           </button>
-          <button type='button' className='rounded px-2 py-1 hover:bg-slate-100' onClick={() => editor.chain().focus().toggleUnderline().run()}>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => editor.chain().focus().toggleUnderline().run()}>
             <UnderlineIcon size={14} />
           </button>
-          <button type='button' className='rounded px-2 py-1 hover:bg-slate-100' onClick={applyLink}>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={applyLink}>
             <Link2 size={14} />
           </button>
-          <button type='button' className='rounded px-2 py-1 hover:bg-slate-100' onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
             <Quote size={14} />
           </button>
           <button
             type='button'
             className='rounded px-2 py-1 hover:bg-amber-100'
+            onMouseDown={preserveSelectionMouseDown}
             onClick={() => editor.chain().focus().toggleMark('privateNote').run()}
             title='Private note'
           >
             <StickyNote size={14} />
           </button>
-          <button type='button' className='rounded px-2 py-1 hover:bg-slate-100' onClick={() => applyFontSize(false)}>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => applyFontSize(false)}>
             <Minus size={14} />
           </button>
-          <button type='button' className='rounded px-2 py-1 hover:bg-slate-100' onClick={() => applyFontSize(true)}>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)] text-[color:var(--text-primary)]' onMouseDown={preserveSelectionMouseDown} onClick={() => applyFontSize(true)}>
             <Type size={14} />
+          </button>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => editor.chain().focus().setTextAlign('left').run()} title='Align left'>
+            <AlignLeft size={14} />
+          </button>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => editor.chain().focus().setTextAlign('center').run()} title='Align center'>
+            <AlignCenter size={14} />
+          </button>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => editor.chain().focus().setTextAlign('right').run()} title='Align right'>
+            <AlignRight size={14} />
+          </button>
+          <button type='button' className='rounded px-2 py-1 hover:bg-[color:var(--surface-2)]' onMouseDown={preserveSelectionMouseDown} onClick={() => editor.chain().focus().setTextAlign('justify').run()} title='Justify'>
+            <AlignJustify size={14} />
           </button>
         </div>
       )}
@@ -345,33 +384,33 @@ export default function Editor({
         <button
           type='button'
           onClick={() => setShowInsertMenu(v => !v)}
-          className='grid h-8 w-8 place-items-center rounded-full border border-slate-400 bg-white text-slate-700 shadow-sm hover:bg-slate-50'
+          className='grid h-8 w-8 place-items-center rounded-full border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] text-[color:var(--text-primary)] shadow-sm hover:bg-[color:var(--surface-2)]'
           title='Insert block'
         >
           <Plus size={16} />
         </button>
 
         {showInsertMenu && (
-          <div className='mt-2 flex items-center gap-2 rounded-full border border-emerald-300 bg-white p-2 shadow-lg'>
-            <button type='button' onClick={insertParagraph} className='rounded-full border border-emerald-500 p-2 text-emerald-700 hover:bg-emerald-50' title='Add paragraph'>
+          <div className='mt-2 flex items-center gap-2 rounded-full border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] p-2 shadow-lg'>
+            <button type='button' onClick={insertParagraph} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Add paragraph'>
               <Plus size={14} />
             </button>
-            <button type='button' onClick={() => imageInputRef.current?.click()} className='rounded-full border border-emerald-500 p-2 text-emerald-700 hover:bg-emerald-50' title='Image from device'>
+            <button type='button' onClick={() => imageInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Image from device'>
               <ImagePlus size={14} />
             </button>
-            <button type='button' onClick={() => { setShowUnsplashPicker(v => !v); setUnsplashQuery(editor?.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || '') }} className='rounded-full border border-emerald-500 p-2 text-emerald-700 hover:bg-emerald-50' title='Search Unsplash image'>
+            <button type='button' onClick={() => { setShowUnsplashPicker(v => !v); setUnsplashQuery(editor?.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || '') }} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Search Unsplash image'>
               <Search size={14} />
             </button>
-            <button type='button' onClick={() => videoInputRef.current?.click()} className='rounded-full border border-emerald-500 p-2 text-emerald-700 hover:bg-emerald-50' title='Video from device'>
+            <button type='button' onClick={() => videoInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Video from device'>
               <Video size={14} />
             </button>
-            <button type='button' onClick={insertVideoByUrl} className='rounded-full border border-emerald-500 p-2 text-emerald-700 hover:bg-emerald-50' title='YouTube/Vimeo/Dailymotion URL'>
+            <button type='button' onClick={insertVideoByUrl} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='YouTube/Vimeo/Dailymotion URL'>
               <Link2 size={14} />
             </button>
-            <button type='button' onClick={insertCodeBlock} className='rounded-full border border-emerald-500 p-2 text-emerald-700 hover:bg-emerald-50' title='Code block'>
+            <button type='button' onClick={insertCodeBlock} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Code block'>
               <Code size={14} />
             </button>
-            <button type='button' onClick={insertGenericEmbed} className='rounded-full border border-emerald-500 p-2 text-emerald-700 hover:bg-emerald-50' title='Embed item'>
+            <button type='button' onClick={insertGenericEmbed} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Embed item'>
               {'<>'}
             </button>
           </div>
@@ -399,39 +438,20 @@ export default function Editor({
         </div>
       )}
 
-      <div className='mb-4 flex items-center gap-3'>
-        <button
-          type='button'
-          onClick={() => imageInputRef.current?.click()}
-          disabled={!onInlineImageUpload || isUploadingImage}
-          className='rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 transition-colors'
-        >
-          {isUploadingImage ? 'Uploading image...' : 'Insert image'}
-        </button>
-        <button
-          type='button'
-          onClick={() => videoInputRef.current?.click()}
-          disabled={isUploadingVideo}
-          className='rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 transition-colors'
-        >
-          {isUploadingVideo ? 'Uploading video...' : 'Insert video'}
-        </button>
-        <span className='text-xs text-slate-500'>Font is fixed for consistency. Use + near cursor for inserts.</span>
-        <input
-          ref={imageInputRef}
-          type='file'
-          accept='image/*'
-          className='hidden'
-          onChange={e => void handleInlineImagePick(e.target.files?.[0])}
-        />
-        <input
-          ref={videoInputRef}
-          type='file'
-          accept='video/*'
-          className='hidden'
-          onChange={e => void handleInlineVideoPick(e.target.files?.[0])}
-        />
-      </div>
+      <input
+        ref={imageInputRef}
+        type='file'
+        accept='image/*'
+        className='hidden'
+        onChange={e => void handleInlineImagePick(e.target.files?.[0])}
+      />
+      <input
+        ref={videoInputRef}
+        type='file'
+        accept='video/*'
+        className='hidden'
+        onChange={e => void handleInlineVideoPick(e.target.files?.[0])}
+      />
       <EditorContent editor={editor} />
     </div>
   )

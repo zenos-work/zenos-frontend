@@ -7,14 +7,20 @@ export default function MobileNav() {
   const canWrite = user && ['AUTHOR','APPROVER','SUPERADMIN'].includes(user.role)
   const isAdmin = user && ['SUPERADMIN','APPROVER'].includes(user.role)
 
-  const items = [
-    { to: '/',          icon: Home,      label: 'Home',   end: true  },
-    { to: '/search',    icon: Search,    label: 'Search', end: false },
-    ...(canWrite ? [{ to: '/write', icon: PenSquare, label: 'Write', end: false }] : []),
-    ...(isAdmin ? [{ to: '/admin', icon: Shield, label: 'Admin', end: false }] : []),
-    { to: '/bookmarks', icon: Bookmark,  label: 'Saved',  end: false },
-    { to: '/profile',   icon: User,      label: 'Profile',end: false },
-  ]
+  const items = user
+    ? [
+        { to: '/', icon: Home, label: 'Home', end: true },
+        { to: '/search', icon: Search, label: 'Search', end: false },
+        ...(canWrite ? [{ to: '/write', icon: PenSquare, label: 'Write', end: false }] : []),
+        ...(isAdmin ? [{ to: '/admin', icon: Shield, label: 'Admin', end: false }] : []),
+        { to: '/bookmarks', icon: Bookmark, label: 'Saved', end: false },
+        { to: '/profile', icon: User, label: 'Profile', end: false },
+      ]
+    : [
+        { to: '/', icon: Home, label: 'Home', end: true },
+        { to: '/search', icon: Search, label: 'Search', end: false },
+        { to: '/login', icon: User, label: 'Login', end: false },
+      ]
 
   return (
     <>
