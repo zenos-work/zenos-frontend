@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useFeed, useFeatured } from '../hooks/useFeed'
 import { useAuth } from '../hooks/useAuth'
 import { resolveAssetUrl } from '../lib/assets'
@@ -15,6 +16,7 @@ const TABS = [
 
 export default function HomePage() {
   const [tab, setTab] = useState<'home' | 'following' | 'trending'>('home')
+  const [guestIndex, setGuestIndex] = useState(0)
   const { user } = useAuth()
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -88,73 +90,161 @@ export default function HomePage() {
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, articles.length, tab])
 
+  useEffect(() => {
+    if (user) return
+    const cardCount = guestTrendingArticles.length > 0 ? guestTrendingArticles.length : guestFallbackCards.length
+    if (cardCount <= 1) return
+
+    const timer = window.setInterval(() => {
+      setGuestIndex((current) => (current + 1) % cardCount)
+    }, 5000)
+
+    return () => window.clearInterval(timer)
+  }, [user, guestTrendingArticles.length])
+
   if (!user) {
     const cards = guestTrendingArticles.length > 0 ? guestTrendingArticles : guestFallbackCards
+    const currentCard = cards[guestIndex % cards.length]
+    const currentArticle = 'slug' in currentCard ? currentCard : null
+    const currentCoverUrl = currentArticle ? resolveAssetUrl(currentArticle.cover_image_url) : null
+    const sideCards = cards.filter((_, index) => index !== guestIndex).slice(0, 2)
+
+    const goPrev = () => setGuestIndex((current) => (current - 1 + cards.length) % cards.length)
+    const goNext = () => setGuestIndex((current) => (current + 1) % cards.length)
 
     return (
-      <div className='space-y-8'>
-        <section className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6'>
-          <p className='text-xs uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Welcome to Zenos</p>
-          <h1 className='mt-2 text-3xl font-bold text-[color:var(--text-primary)]'>Trending stories to explore</h1>
-          <p className='mt-2 max-w-2xl text-sm text-[color:var(--text-secondary)]'>
-            Discover the latest content. Sign in to unlock your personalised feed, bookmarks, and writing workspace.
-          </p>
-        </section>
-
+      <div className='space-y-6'>
         {guestTrending.isLoading ? (
           <div className='flex justify-center py-12'><Spinner /></div>
         ) : (
-          <section>
-            <div className='mb-3 flex items-center justify-between'>
-              <h2 className='text-sm font-semibold uppercase tracking-wider text-[color:var(--text-muted)]'>Trending now</h2>
-            </div>
-
-            <div className='-mx-2 flex gap-4 overflow-x-auto px-2 pb-2 snap-x snap-mandatory'>
-              {cards.map((card) => {
-                const article = 'slug' in card ? card : null
-                const coverUrl = article ? resolveAssetUrl(article.cover_image_url) : null
-
-                return (
-                  <article
-                    key={card.id}
-                    className='min-w-[280px] md:min-w-[340px] snap-start overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)] shadow-sm'
+          <section className='space-y-4'>
+            <div className='mb-2 flex items-center justify-between'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--text-muted)]'>Guest Edition</p>
+                <h1 className='mt-2 text-3xl font-semibold tracking-tight text-[color:var(--text-primary)] md:text-4xl'>
+                  Stories worth opening first
+                </h1>
+              </div>
+              {cards.length > 1 && (
+                <div className='flex items-center gap-2'>
+                  <button
+                    type='button'
+                    onClick={goPrev}
+                    className='grid h-9 w-9 place-items-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-0)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
+                    aria-label='Previous slide'
                   >
-                    {article ? (
-                      <Link to={`/article/${article.slug}`} className='block'>
-                        <div className='h-44 w-full overflow-hidden bg-[color:var(--surface-2)]'>
-                          {coverUrl ? (
-                            <img src={coverUrl} alt={article.title} className='h-full w-full object-cover' loading='lazy' />
-                          ) : (
-                            <div className='grid h-full w-full place-items-center bg-gradient-to-br from-[#2a3b4a] via-[#4d657a] to-[#6f8ea8] text-white'>
-                              <span className='text-lg font-semibold tracking-wider'>ZENOS</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className='space-y-2 p-4'>
-                          <h3 className='line-clamp-2 text-lg font-semibold text-[color:var(--text-primary)]'>{article.title}</h3>
-                          <p className='line-clamp-2 text-sm text-[color:var(--text-secondary)]'>{article.subtitle || 'No subtitle'}</p>
-                        </div>
-                      </Link>
-                    ) : (
-                      <div>
-                        <div className='grid h-44 w-full place-items-center bg-gradient-to-br from-[#243447] via-[#35506b] to-[#4e7294] text-white'>
-                          <span className='text-lg font-semibold tracking-wider'>ZENOS</span>
-                        </div>
-                        <div className='space-y-2 p-4'>
-                          <h3 className='line-clamp-2 text-lg font-semibold text-[color:var(--text-primary)]'>{card.title}</h3>
-                          <p className='line-clamp-2 text-sm text-[color:var(--text-secondary)]'>{card.subtitle}</p>
-                        </div>
-                      </div>
-                    )}
-                  </article>
-                )
-              })}
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    type='button'
+                    onClick={goNext}
+                    className='grid h-9 w-9 place-items-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-0)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
+                    aria-label='Next slide'
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
             </div>
+
+            <div className='grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_320px]'>
+              <article className='relative overflow-hidden rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface-0)] shadow-sm'>
+                {currentArticle ? (
+                  <Link to={`/article/${currentArticle.slug}`} className='block'>
+                    <div className='relative h-[360px] md:h-[520px] w-full overflow-hidden bg-[color:var(--surface-2)]'>
+                      {currentCoverUrl ? (
+                        <img src={currentCoverUrl} alt={currentArticle.title} className='h-full w-full object-cover' loading='lazy' />
+                      ) : (
+                        <div className='grid h-full w-full place-items-center bg-gradient-to-br from-[#1d2d3f] via-[#35506b] to-[#6b8ba7] text-white'>
+                          <span className='text-2xl font-semibold tracking-[0.3em]'>ZENOS</span>
+                        </div>
+                      )}
+                      <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent' />
+                      <div className='absolute inset-x-0 bottom-0 p-6 md:p-8'>
+                        <p className='mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/70'>Spotlight</p>
+                        <h2 className='max-w-3xl text-3xl font-semibold leading-tight text-white md:text-5xl'>
+                          {currentArticle.title}
+                        </h2>
+                        <p className='mt-3 max-w-2xl text-sm leading-6 text-white/85 md:text-base md:leading-7'>
+                          {currentArticle.subtitle || 'Explore the latest story from Zenos.'}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                ) : (
+                  <div className='relative h-[360px] md:h-[520px] overflow-hidden bg-gradient-to-br from-[#1d2d3f] via-[#35506b] to-[#6b8ba7]'>
+                    <div className='absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_38%)]' />
+                    <div className='absolute inset-x-0 bottom-0 p-6 md:p-8'>
+                      <p className='mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/70'>Spotlight</p>
+                      <h2 className='max-w-3xl text-3xl font-semibold leading-tight text-white md:text-5xl'>{currentCard.title}</h2>
+                      <p className='mt-3 max-w-2xl text-sm leading-6 text-white/85 md:text-base md:leading-7'>{currentCard.subtitle}</p>
+                    </div>
+                  </div>
+                )}
+              </article>
+
+              <aside className='grid gap-4 sm:grid-cols-2 xl:grid-cols-1'>
+                {sideCards.map((card, index) => {
+                  const cardArticle = 'slug' in card ? card : null
+                  const cardCoverUrl = cardArticle ? resolveAssetUrl(cardArticle.cover_image_url) : null
+                  const body = (
+                    <div className='flex h-full flex-col justify-end rounded-[1.6rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+                      <div className='mb-4 overflow-hidden rounded-[1.2rem] bg-[color:var(--surface-2)]'>
+                        {cardCoverUrl ? (
+                          <img src={cardCoverUrl} alt={cardArticle?.title || card.title} className='h-36 w-full object-cover' loading='lazy' />
+                        ) : (
+                          <div className='grid h-36 w-full place-items-center bg-gradient-to-br from-[#2b3f53] to-[#5d7896] text-sm font-semibold uppercase tracking-[0.2em] text-white/80'>
+                            Zenos
+                          </div>
+                        )}
+                      </div>
+                      <p className='text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-muted)]'>Queue {index + 1}</p>
+                      <h3 className='mt-2 text-lg font-semibold leading-tight text-[color:var(--text-primary)]'>
+                        {cardArticle?.title || card.title}
+                      </h3>
+                      <p className='mt-2 text-sm leading-6 text-[color:var(--text-secondary)]'>
+                        {cardArticle?.subtitle || card.subtitle}
+                      </p>
+                    </div>
+                  )
+
+                  return cardArticle ? (
+                    <Link key={card.id} to={`/article/${cardArticle.slug}`} className='block'>
+                      {body}
+                    </Link>
+                  ) : (
+                    <button
+                      key={card.id}
+                      type='button'
+                      onClick={() => setGuestIndex(cards.findIndex((item) => item.id === card.id))}
+                      className='text-left'
+                    >
+                      {body}
+                    </button>
+                  )
+                })}
+              </aside>
+            </div>
+
+            {cards.length > 1 && (
+              <div className='flex items-center justify-center gap-2'>
+                {cards.map((card, index) => (
+                  <button
+                    key={card.id}
+                    type='button'
+                    onClick={() => setGuestIndex(index)}
+                    aria-label={`Go to slide ${index + 1}`}
+                    className={[
+                      'h-2.5 rounded-full transition-all',
+                      index === guestIndex ? 'w-8 bg-[color:var(--accent)]' : 'w-2.5 bg-[color:var(--border-strong)] hover:bg-[color:var(--text-muted)]',
+                    ].join(' ')}
+                  />
+                ))}
+              </div>
+            )}
 
             {!guestTrendingArticles.length && (
-              <p className='mt-3 text-xs text-[color:var(--text-muted)]'>
-                No published content yet. Zenos helps teams write, review, publish, and automate.
-              </p>
+              <p className='mt-2 text-xs text-[color:var(--text-muted)]'>Fresh stories will appear here as soon as they are published.</p>
             )}
           </section>
         )}

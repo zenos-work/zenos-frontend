@@ -6,9 +6,9 @@ import api from '../lib/api'
 
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
-    <section className='mb-8'>
-      <h2 className='flex items-baseline gap-2 text-base font-bold text-white border-b border-gray-700 pb-2 mb-3'>
-        <span className='text-blue-400 font-mono text-sm'>{num}</span>
+    <section className='mb-10 rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--surface-1)]/90 px-5 py-5 shadow-[var(--shadow)] sm:px-7'>
+      <h2 className='mb-4 flex items-baseline gap-3 border-b border-[color:var(--border-strong)] pb-3 text-base font-bold tracking-[0.02em] text-[color:var(--text-primary)] sm:text-lg'>
+        <span className='font-mono text-sm text-[color:var(--accent)]'>{num}</span>
         <span>{title.toUpperCase()}</span>
       </h2>
       {children}
@@ -17,31 +17,36 @@ function Section({ num, title, children }: { num: string; title: string; childre
 }
 function Sub({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
-    <div className='mb-4 pl-1'>
-      <h3 className='text-sm font-semibold text-teal-400 mb-1'>
-        <span className='font-mono mr-1'>{num}</span>{title}
+    <div className='mb-5 rounded-2xl bg-[color:var(--surface-0)]/85 px-4 py-4 last:mb-0 sm:px-5'>
+      <h3 className='mb-2 text-sm font-semibold text-[color:var(--text-primary)] sm:text-[0.95rem]'>
+        <span className='mr-2 font-mono text-[color:var(--accent)]'>{num}</span>{title}
       </h3>
       {children}
     </div>
   )
 }
 const P = ({ children }: { children: React.ReactNode }) => (
-  <p className='text-sm text-gray-300 leading-relaxed mb-2 text-justify'>{children}</p>
+  <p className='mb-2 text-sm leading-7 text-[color:var(--text-secondary)] sm:text-[0.96rem]'>{children}</p>
 )
 const Bullets = ({ items }: { items: string[] }) => (
-  <ul className='list-disc list-inside space-y-1 mb-2 pl-2'>
-    {items.map((item, i) => <li key={i} className='text-sm text-gray-300 leading-relaxed'>{item}</li>)}
+  <ul className='mb-2 space-y-2 pl-1'>
+    {items.map((item, i) => (
+      <li key={i} className='flex gap-3 text-sm leading-7 text-[color:var(--text-secondary)] sm:text-[0.96rem]'>
+        <span className='mt-2 h-2 w-2 shrink-0 rounded-full bg-[color:var(--accent)]' />
+        <span>{item}</span>
+      </li>
+    ))}
   </ul>
 )
 const Important = ({ children }: { children: React.ReactNode }) => (
-  <div className='border-l-4 border-red-500 bg-red-950/30 px-4 py-3 my-3 rounded-r-lg'>
-    <p className='text-xs font-bold text-red-400 uppercase tracking-wider mb-1'>Important</p>
-    <p className='text-sm text-gray-200 leading-relaxed'>{children}</p>
+  <div className='my-4 rounded-2xl border border-[color:rgba(166,124,60,0.28)] bg-[color:var(--accent-dim)] px-4 py-4 shadow-sm'>
+    <p className='mb-1 text-[11px] font-bold uppercase tracking-[0.24em] text-[color:var(--accent)]'>Important</p>
+    <p className='text-sm leading-7 text-[color:var(--text-primary)] sm:text-[0.96rem]'>{children}</p>
   </div>
 )
 const Note = ({ children }: { children: React.ReactNode }) => (
-  <div className='border-l-4 border-blue-500 bg-blue-950/30 px-4 py-3 my-3 rounded-r-lg'>
-    <p className='text-sm text-gray-300 leading-relaxed italic'>{children}</p>
+  <div className='my-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-4 py-4'>
+    <p className='text-sm leading-7 text-[color:var(--text-secondary)] sm:text-[0.96rem]'>{children}</p>
   </div>
 )
 
@@ -82,10 +87,10 @@ export default function TermsPage() {
   })
 
   return (
-    <div className='min-h-screen bg-gray-950 flex flex-col'>
+    <div className='flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_rgba(166,124,60,0.12),_transparent_32%),var(--surface-0)] text-[color:var(--text-primary)]'>
 
       {/* Sticky header */}
-      <header className='sticky top-0 z-20 bg-gray-900/95 backdrop-blur-md border-b border-gray-800 px-6 py-4 flex items-center justify-between shrink-0'>
+      <header className='sticky top-0 z-20 flex shrink-0 items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--topbar-bg)] px-5 py-4 backdrop-blur-md sm:px-6'>
         <div>
           <div className='mb-1 flex items-baseline gap-[1px] leading-none select-none'>
             <span style={{
@@ -93,34 +98,34 @@ export default function TermsPage() {
               fontWeight: 800,
               fontSize: 24,
               letterSpacing: '-0.06em',
-              color: '#ffffff',
+              color: 'var(--text-primary)',
             }}>Z</span>
             <span style={{
               fontFamily: "'Syne', system-ui, sans-serif",
               fontWeight: 700,
               fontSize: 16,
               letterSpacing: '-0.04em',
-              color: '#ffffff',
+              color: 'var(--text-primary)',
             }}>ENOS</span>
             <span style={{
               fontFamily: "'Syne', system-ui, sans-serif",
               fontWeight: 500,
               fontSize: 14,
               letterSpacing: '-0.02em',
-              color: '#fbbf24',
+              color: 'var(--accent)',
             }}>.work</span>
           </div>
-          <div className='text-xs text-gray-500'>Writer Content Agreement · ZW-WCA-001 v1.0</div>
+          <div className='text-xs text-[color:var(--text-muted)]'>Writer Content Agreement · ZW-WCA-001 v1.0</div>
         </div>
-        <div className='text-xs text-gray-600 text-right hidden sm:block'>
+        <div className='hidden text-right text-xs text-[color:var(--text-muted)] sm:block'>
           <div>Effective: {effectiveDate}</div>
           <div>Governing Law: Delaware, USA</div>
         </div>
       </header>
 
       {/* Warning banner */}
-      <div className='bg-amber-950/40 border-b border-amber-800/40 px-6 py-3 shrink-0'>
-        <p className='text-sm text-amber-200 text-center max-w-3xl mx-auto'>
+      <div className='shrink-0 border-b border-[color:rgba(166,124,60,0.18)] bg-[color:var(--accent-dim)] px-5 py-4 sm:px-6'>
+        <p className='mx-auto max-w-4xl text-center text-sm leading-6 text-[color:var(--text-primary)]'>
           <strong>Before you start writing</strong> — please read this agreement. By accepting, you grant
           zenos.work a permanent, worldwide license to use your content for indexing, ebooks, printed
           books, AI training, and more. Scroll to the bottom to accept.
@@ -128,16 +133,22 @@ export default function TermsPage() {
       </div>
 
       {/* Scrollable content */}
-      <div ref={scrollRef} className='flex-1 overflow-y-auto px-4 sm:px-6 py-8'>
-        <div className='max-w-3xl mx-auto'>
+      <div ref={scrollRef} className='flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-10'>
+        <div className='mx-auto max-w-4xl'>
 
-          <div className='text-center mb-10'>
-            <h1 className='text-3xl font-bold text-white mb-2'>Writer Content Agreement</h1>
-            <p className='text-gray-400 text-sm'>Terms and Conditions for Content Creators</p>
-            <div className='mt-3 flex flex-wrap justify-center gap-4 text-xs text-gray-500'>
-              <span>Ref: ZW-WCA-001</span>
-              <span>Version 1.0</span>
-              <span>Effective: {effectiveDate}</span>
+          <div className='mb-8 rounded-[2rem] border border-[color:var(--border)] bg-[linear-gradient(145deg,rgba(255,255,255,0.38),rgba(255,255,255,0.08))] px-6 py-7 shadow-[var(--shadow)] sm:px-8'>
+            <div className='mb-4 inline-flex rounded-full border border-[color:rgba(166,124,60,0.2)] bg-[color:var(--accent-dim)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[color:var(--accent)]'>
+              Legal agreement
+            </div>
+            <h1 className='mb-3 text-3xl font-bold tracking-tight text-[color:var(--text-primary)] sm:text-4xl'>Writer Content Agreement</h1>
+            <p className='max-w-2xl text-sm leading-7 text-[color:var(--text-secondary)] sm:text-base'>
+              Clear terms for creators publishing on zenos.work, with the core licensing, royalty, and
+              removal implications surfaced in readable language before you accept.
+            </p>
+            <div className='mt-5 flex flex-wrap gap-3 text-xs text-[color:var(--text-muted)]'>
+              <span className='rounded-full border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 py-1.5'>Ref: ZW-WCA-001</span>
+              <span className='rounded-full border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 py-1.5'>Version 1.0</span>
+              <span className='rounded-full border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 py-1.5'>Effective: {effectiveDate}</span>
             </div>
           </div>
 
@@ -153,7 +164,7 @@ export default function TermsPage() {
               assigns, licensees, and transferees (collectively, "the Platform"); and (b) you ("Writer").</P>
             </Sub>
             <Sub num='1.2' title='Key Definitions'>
-              <div className='bg-gray-900 rounded-xl border border-gray-800 overflow-hidden'>
+              <div className='overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)]'>
                 {[
                   ['"Content"','Any text, articles, images, metadata, titles, abstracts, comments, or material you submit.'],
                   ['"Affiliates"','All parent companies, subsidiaries, successors, acquirers, future owners, and licensees.'],
@@ -161,9 +172,9 @@ export default function TermsPage() {
                   ['"Commercial Use"','Any revenue-generating use including book sales, licensing, AI licensing, and white-label resale.'],
                   ['"Moral Rights"','Rights of attribution and integrity under the Berne Convention and national laws.'],
                 ].map(([t, d], i) => (
-                  <div key={i} className={`flex gap-3 px-4 py-3 ${i % 2 ? 'bg-gray-800/40' : ''}`}>
-                    <span className='text-sm font-mono font-bold text-blue-400 shrink-0 w-36'>{t}</span>
-                    <span className='text-sm text-gray-300'>{d}</span>
+                  <div key={i} className={`flex flex-col gap-2 px-4 py-4 sm:flex-row sm:gap-4 ${i % 2 ? 'bg-[color:var(--surface-2)]/75' : 'bg-transparent'}`}>
+                    <span className='w-36 shrink-0 text-sm font-bold text-[color:var(--text-primary)] sm:font-mono'>{t}</span>
+                    <span className='text-sm leading-7 text-[color:var(--text-secondary)]'>{d}</span>
                   </div>
                 ))}
               </div>
@@ -173,7 +184,7 @@ export default function TermsPage() {
           <Section num='2.' title='Grant of Rights and Content License'>
             <Sub num='2.1' title='Broad License Grant'>
               <P>By submitting any Content to the Platform — whether as draft or published — you grant
-              the Platform and its Affiliates a <strong className='text-white'>worldwide, irrevocable,
+              the Platform and its Affiliates a <strong className='text-[color:var(--text-primary)]'>worldwide, irrevocable,
               perpetual, non-exclusive, royalty-free, transferable, and sublicensable license</strong> to
               use, reproduce, distribute, display, modify, translate, create Derivative Works from, and
               exploit the Content in any medium now known or hereafter devised.</P>
@@ -252,10 +263,10 @@ export default function TermsPage() {
             </Sub>
             <Sub num='5.2' title='Royalties for Publications'>
               <P>Where your Content is included in a commercially sold publication:</P>
-              <div className='bg-gray-900 rounded-xl border border-gray-800 overflow-hidden mb-2'>
-                <div className='grid grid-cols-3 bg-gray-800 px-4 py-2'>
+              <div className='mb-2 overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)]'>
+                <div className='grid grid-cols-3 border-b border-[color:var(--border)] bg-[color:var(--surface-2)] px-4 py-3'>
                   {['Type', 'Royalty', 'Threshold'].map(h => (
-                    <span key={h} className='text-xs font-bold text-gray-400'>{h}</span>
+                    <span key={h} className='text-xs font-bold uppercase tracking-[0.18em] text-[color:var(--text-muted)]'>{h}</span>
                   ))}
                 </div>
                 {[
@@ -266,10 +277,10 @@ export default function TermsPage() {
                   ['AI training datasets','No royalty','N/A'],
                   ['Indexing / distribution','No royalty','N/A'],
                 ].map(([t, r, th], i) => (
-                  <div key={i} className={`grid grid-cols-3 px-4 py-2.5 ${i % 2 ? 'bg-gray-800/30' : ''}`}>
-                    <span className='text-sm text-gray-300'>{t}</span>
-                    <span className='text-sm text-teal-400 font-medium'>{r}</span>
-                    <span className='text-sm text-gray-400'>{th}</span>
+                  <div key={i} className={`grid grid-cols-3 px-4 py-3 ${i % 2 ? 'bg-[color:var(--surface-2)]/65' : 'bg-transparent'}`}>
+                    <span className='pr-3 text-sm leading-6 text-[color:var(--text-primary)]'>{t}</span>
+                    <span className='pr-3 text-sm font-semibold leading-6 text-[color:#2f6b46] dark:text-[#9bd3aa]'>{r}</span>
+                    <span className='text-sm leading-6 text-[color:var(--text-secondary)]'>{th}</span>
                   </div>
                 ))}
               </div>
@@ -322,11 +333,11 @@ export default function TermsPage() {
             </Sub>
           </Section>
 
-          <div className='mt-6 p-5 bg-gray-900 border border-gray-700 rounded-2xl text-center'>
-            <p className='text-xs text-gray-500'>
-              Questions? <span className='text-blue-400'>legal@zenos.work</span>
+          <div className='mt-6 rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] px-5 py-5 text-center shadow-[var(--shadow)]'>
+            <p className='text-xs leading-6 text-[color:var(--text-muted)] sm:text-sm'>
+              Questions? <span className='font-semibold text-[color:var(--accent)]'>legal@zenos.work</span>
               {' '}· Effective {effectiveDate}
-              {' '}· <span className='text-amber-500'>Not legal advice — consult qualified counsel before relying on these terms.</span>
+              {' '}· <span className='font-medium text-[color:var(--text-primary)]'>Not legal advice — consult qualified counsel before relying on these terms.</span>
             </p>
           </div>
           <div className='h-10' />
@@ -334,11 +345,11 @@ export default function TermsPage() {
       </div>
 
       {/* Sticky accept footer */}
-      <div className='sticky bottom-0 bg-gray-900/98 backdrop-blur-md border-t border-gray-700 px-4 sm:px-6 py-5 shrink-0'>
-        <div className='max-w-3xl mx-auto space-y-3'>
+      <div className='sticky bottom-0 shrink-0 border-t border-[color:var(--border)] bg-[color:var(--topbar-bg)] px-4 py-5 backdrop-blur-md sm:px-6'>
+        <div className='mx-auto max-w-4xl rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--surface-1)]/92 p-4 shadow-[var(--shadow)] sm:p-5'>
 
           {!hasScrolledToBottom && (
-            <div className='flex items-center justify-center gap-2 text-xs text-amber-400'>
+            <div className='mb-3 flex items-center justify-center gap-2 text-xs font-medium text-[color:var(--accent)]'>
               <svg className='w-4 h-4 animate-bounce' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
                 <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
               </svg>
@@ -346,18 +357,23 @@ export default function TermsPage() {
             </div>
           )}
 
-          {/* Move the onClick to the label and prevent default */}
           <label
             onClick={(e) => {
               e.preventDefault()
               if (hasScrolledToBottom) setChecked(v => !v)
             }}
-            className={`flex items-start gap-3 cursor-pointer ${!hasScrolledToBottom ? 'opacity-40 pointer-events-none' : ''}`}>
-            {/* Remove the onClick from this div */}
+            className={[
+              'flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 transition-colors',
+              hasScrolledToBottom
+                ? 'border-[color:var(--border-strong)] bg-[color:var(--surface-0)] hover:border-[color:var(--accent)]'
+                : 'pointer-events-none border-[color:var(--border)] bg-[color:var(--surface-2)] opacity-55',
+            ].join(' ')}>
             <div
               className={[
-                'mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors cursor-pointer',
-                checked ? 'bg-blue-600 border-blue-600' : 'border-gray-500 hover:border-blue-400',
+                'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors',
+                checked
+                  ? 'border-[color:var(--accent)] bg-[color:var(--accent)]'
+                  : 'border-[color:var(--border-strong)] bg-[color:var(--surface-1)]',
               ].join(' ')}
             >
               {checked && (
@@ -367,29 +383,29 @@ export default function TermsPage() {
               )}
             </div>
 
-            <span className='text-sm text-gray-300 leading-snug select-none'>
+            <span className='select-none text-sm leading-7 text-[color:var(--text-secondary)]'>
               I have read the Writer Content Agreement and agree that zenos.work and its affiliates,
               successors, and future owners may use my content for indexing, ebooks, printed books,
               AI training, and other purposes as described. I understand this license is{' '}
-              <strong className='text-white'>irrevocable and perpetual</strong> and survives account
+              <strong className='text-[color:var(--text-primary)]'>irrevocable and perpetual</strong> and survives account
               deletion.{' '}
               {user && (
-                <span className='text-gray-500 text-xs'>
+                <span className='text-xs text-[color:var(--text-muted)]'>
                   (Signing as: {user.name} · {user.email})
                 </span>
               )}
             </span>
           </label>
 
-          <div className='flex items-center gap-3'>
+          <div className='mt-4 flex flex-col gap-3 sm:flex-row sm:items-center'>
             <button
               disabled={!checked || acceptMutation.isPending}
               onClick={() => acceptMutation.mutate()}
               className={[
-                'flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-150',
+                'flex-1 rounded-xl px-5 py-3 text-sm font-bold transition-all duration-150',
                 checked && !acceptMutation.isPending
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                  : 'bg-gray-800 text-gray-600 cursor-not-allowed',
+                  ? 'bg-[#7a5b2f] text-white shadow-sm hover:bg-[#694d27]'
+                  : 'cursor-not-allowed bg-[color:var(--surface-3)] text-[color:var(--text-muted)]',
               ].join(' ')}
             >
               {acceptMutation.isPending ? 'Recording acceptance...' : 'I Agree — Start Writing'}
@@ -397,14 +413,14 @@ export default function TermsPage() {
 
             <a
               href='/login'
-              className='px-5 py-3 rounded-xl text-sm text-gray-500 hover:text-white hover:bg-gray-800 transition-colors'
+              className='inline-flex items-center justify-center rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-5 py-3 text-sm font-medium text-[color:var(--text-primary)] transition-colors hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-2)]'
             >
               Decline & Sign Out
             </a>
           </div>
 
           {acceptMutation.isError && (
-            <p className='text-xs text-red-400 text-center'>
+            <p className='mt-3 text-center text-xs font-medium text-[#b42318] dark:text-[#ff9f94]'>
               Something went wrong. Please try again.
             </p>
           )}

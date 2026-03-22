@@ -7,6 +7,7 @@ import { useEditorStore }  from '../stores/editorStore'
 import { useUiStore }      from '../stores/uiStore'
 import { useArticle, useCreateArticle, useUpdateArticle, useSubmitArticle } from '../hooks/useArticles'
 import { useTags }         from '../hooks/useTags'
+import { useAuth }         from '../hooks/useAuth'
 import Editor        from '../components/editor/Editor'
 import EditorToolbar from '../components/editor/EditorToolbar'
 import PreviewPane   from '../components/editor/PreviewPane'
@@ -28,6 +29,13 @@ type ArticleDraftPayload = {
   tag_ids?: string[]
 }
 
+type Approver = {
+  id: string
+  name: string
+  role: 'SUPERADMIN' | 'APPROVER' | 'AUTHOR' | 'READER'
+  avatar_url?: string
+}
+
 function getApiErrorMessage(err: unknown): string | null {
   if (!err || typeof err !== 'object') return null
 
@@ -44,6 +52,10 @@ function getApiErrorMessage(err: unknown): string | null {
 
   const maybeError = err as ApiErrorShape
   return maybeError.response?.data?.error?.message ?? maybeError.message ?? null
+}
+
+function normalizeTagName(raw: string): string {
+  return raw.trim().replace(/^#+\s*/, '')
 }
 
 function getWordCount(content: string): number {
@@ -66,17 +78,34 @@ function getWordCount(content: string): number {
 export default function WritePage() {
   const { id }    = useParams()
   const navigate  = useNavigate()
+  const { user }  = useAuth()
   const store     = useEditorStore()
   const hydrateEditor = useEditorStore(s => s.hydrate)
   const resetEditor = useEditorStore(s => s.reset)
   const toast     = useUiStore(s => s.toast)
   const [tagQuery, setTagQuery] = useState('')
+  const [localTags, setLocalTags] = useState<Array<{ id: string; name: string; slug: string; article_count: number }>>([])
+  const [newTagName, setNewTagName] = useState('')
+  const [creatingTag, setCreatingTag] = useState(false)
+  const [approvers, setApprovers] = useState<Approver[]>([])
+  const [approversLoading, setApproversLoading] = useState(false)
+  const [approversError, setApproversError] = useState<string | null>(null)
+  const [recipientMode, setRecipientMode] = useState<'group' | 'individual'>('group')
+  const [selectedApproverIds, setSelectedApproverIds] = useState<string[]>([])
+  const [approvalMessage, setApprovalMessage] = useState('')
+  const [sendingApprovalMessage, setSendingApprovalMessage] = useState(false)
+  const [uploadTarget, setUploadTarget] = useState<'inline-image' | 'cover-image' | null>(null)
+  const [uploadProgressPct, setUploadProgressPct] = useState<number | null>(null)
 
   const {
     data: allTags,
     isLoading: tagsLoading,
     isError: tagsError,
   } = useTags()
+
+  useEffect(() => {
+    setLocalTags(allTags ?? [])
+  }, [allTags])
 
   // Load existing article when editing
   const { data: existing } = useArticle(id ?? '')
@@ -99,11 +128,18 @@ export default function WritePage() {
   const updateMutation = useUpdateArticle(id ?? store.articleId ?? '')
   const submitMutation = useSubmitArticle()
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, onProgress }: { file: File; onProgress?: (pct: number) => void }) => {
       const res = await api.post<{ url: string; key: string }>(
         '/api/media/upload',
         file,
-        { headers: { 'Content-Type': file.type } },
+        {
+          headers: { 'Content-Type': file.type },
+          onUploadProgress: (event) => {
+            if (!event.total) return
+            const pct = Math.min(100, Math.max(1, Math.round((event.loaded * 100) / event.total)))
+            onProgress?.(pct)
+          },
+        },
       )
       return res.data
     },
@@ -115,11 +151,107 @@ export default function WritePage() {
   const availableTags = useMemo(() => {
     const selected = new Set(store.selectedTags.map(t => t.id))
     const q = tagQuery.trim().toLowerCase()
-    return (allTags ?? [])
+    return (localTags ?? [])
       .filter(t => !selected.has(t.id))
       .filter(t => !q || t.name.toLowerCase().includes(q) || t.slug.toLowerCase().includes(q))
       .slice(0, 20)
-  }, [allTags, store.selectedTags, tagQuery])
+  }, [localTags, store.selectedTags, tagQuery])
+
+  const canManageTags = user?.role === 'AUTHOR' || user?.role === 'APPROVER' || user?.role === 'SUPERADMIN'
+  const showApprovalPanel = !!existing && (existing.status === 'SUBMITTED' || existing.status === 'APPROVED')
+
+  useEffect(() => {
+    if (!showApprovalPanel || !canManageTags) return
+    let cancelled = false
+
+    const loadApprovers = async () => {
+      setApproversLoading(true)
+      setApproversError(null)
+      try {
+        const res = await api.get<{ approvers: Approver[] }>('/api/users/approvers')
+        if (cancelled) return
+        setApprovers(res.data.approvers ?? [])
+      } catch {
+        if (cancelled) return
+        setApproversError('Could not load approvers right now.')
+      } finally {
+        if (!cancelled) setApproversLoading(false)
+      }
+    }
+
+    void loadApprovers()
+    return () => {
+      cancelled = true
+    }
+  }, [showApprovalPanel, canManageTags])
+
+  const handleCreateTag = async () => {
+    const name = normalizeTagName(newTagName)
+    if (!name) {
+      toast('Tag name is required', 'warning')
+      return
+    }
+    setCreatingTag(true)
+    try {
+      const res = await api.post<{ tag: { id: string; name: string; slug: string; article_count: number } }>(
+        '/api/tags',
+        { name },
+      )
+      const created = res.data.tag
+      setLocalTags((prev) => {
+        if (prev.some((t) => t.id === created.id || t.slug === created.slug)) return prev
+        return [...prev, created]
+      })
+      store.toggleTag(created)
+      setNewTagName('')
+      toast(`Tag created: ${created.name}`, 'success')
+    } catch (err) {
+      toast(getApiErrorMessage(err) ?? 'Could not create tag', 'error')
+    } finally {
+      setCreatingTag(false)
+    }
+  }
+
+  const toggleApprover = (approverId: string) => {
+    setSelectedApproverIds((prev) =>
+      prev.includes(approverId) ? prev.filter((id) => id !== approverId) : [...prev, approverId],
+    )
+  }
+
+  const sendApprovalMessage = async () => {
+    const message = approvalMessage.trim()
+    if (!message) {
+      toast('Write a message before sending', 'warning')
+      return
+    }
+
+    const articleId = existing?.id ?? id ?? store.articleId
+    if (!articleId) {
+      toast('Save the draft first before messaging approvers', 'warning')
+      return
+    }
+
+    if (recipientMode === 'individual' && selectedApproverIds.length === 0) {
+      toast('Select at least one approver', 'warning')
+      return
+    }
+
+    setSendingApprovalMessage(true)
+    try {
+      await api.post('/api/users/approvers/message', {
+        article_id: articleId,
+        mode: recipientMode,
+        recipient_ids: selectedApproverIds,
+        message,
+      })
+      setApprovalMessage('')
+      toast('Message sent to approvers', 'success')
+    } catch (err) {
+      toast(getApiErrorMessage(err) ?? 'Could not send message to approvers', 'error')
+    } finally {
+      setSendingApprovalMessage(false)
+    }
+  }
 
   const handleSave = useCallback(async (): Promise<string | undefined> => {
     if (!store.title.trim()) {
@@ -193,33 +325,49 @@ export default function WritePage() {
     return () => window.clearTimeout(timer)
   }, [store.isDirty, store.title, store.content, store.subtitle, store.coverImageUrl, store.selectedTags, id, store.articleId, handleSave])
 
-  const uploadImageFile = async (file: File): Promise<string> => {
+  const uploadImageFile = async (file: File, onProgress?: (pct: number) => void): Promise<string> => {
     if (!file.type.startsWith('image/')) {
       throw new Error('Please choose an image file')
     }
-    const result = await uploadMutation.mutateAsync(file)
+    const result = await uploadMutation.mutateAsync({ file, onProgress })
     return result.url
   }
 
+  const inlineUploadInProgress = uploadMutation.isPending && uploadTarget === 'inline-image'
+  const coverUploadInProgress = uploadMutation.isPending && uploadTarget === 'cover-image'
+  const inlineUploadStatusText = inlineUploadInProgress
+    ? `Uploading image${uploadProgressPct ? `... ${uploadProgressPct}%` : '...'}`
+    : undefined
+
   const handleInlineImageUpload = async (file: File) => {
+    setUploadTarget('inline-image')
+    setUploadProgressPct(0)
     try {
-      const url = await uploadImageFile(file)
+      const url = await uploadImageFile(file, (pct) => setUploadProgressPct(pct))
       toast('Image inserted', 'success')
       return url
     } catch (err) {
       toast(getApiErrorMessage(err) ?? 'Inline image upload failed', 'error')
       throw err
+    } finally {
+      setUploadTarget(null)
+      setUploadProgressPct(null)
     }
   }
 
   const handleCoverUpload = async (file: File | undefined) => {
     if (!file) return
+    setUploadTarget('cover-image')
+    setUploadProgressPct(0)
     try {
-      const url = await uploadImageFile(file)
+      const url = await uploadImageFile(file, (pct) => setUploadProgressPct(pct))
       store.setCoverImage(url)
       toast('Cover image uploaded', 'success')
     } catch (err) {
       toast(getApiErrorMessage(err) ?? 'Cover image upload failed', 'error')
+    } finally {
+      setUploadTarget(null)
+      setUploadProgressPct(null)
     }
   }
 
@@ -265,7 +413,9 @@ export default function WritePage() {
               <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Cover Image</p>
               <label className='inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-3 py-1.5 text-xs text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>
                 <Upload size={13} />
-                Upload image
+                {coverUploadInProgress
+                  ? `Uploading${uploadProgressPct ? ` ${uploadProgressPct}%` : '...'}`
+                  : 'Upload image'}
                 <input
                   type='file'
                   accept='image/*'
@@ -274,6 +424,9 @@ export default function WritePage() {
                 />
               </label>
             </div>
+            {coverUploadInProgress && (
+              <p className='mt-2 text-xs text-[color:var(--text-muted)]'>Cover upload in progress. Please wait...</p>
+            )}
             <input
               value={store.coverImageUrl}
               onChange={e => store.setCoverImage(e.target.value)}
@@ -312,6 +465,8 @@ export default function WritePage() {
             content={store.content}
             onChange={store.setContent}
             onInlineImageUpload={handleInlineImageUpload}
+            isInlineUploadInProgress={inlineUploadInProgress}
+            inlineUploadStatusText={inlineUploadStatusText}
           />
 
           {/* Tags */}
@@ -327,6 +482,24 @@ export default function WritePage() {
               placeholder='Search tags...'
               className='w-full mb-3 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)]'
             />
+
+            {canManageTags && (
+              <div className='mb-3 flex flex-col gap-2 sm:flex-row sm:items-center'>
+                <input
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  placeholder='Create a new tag (e.g. fintech or #fintech)'
+                  className='w-full rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)]'
+                />
+                <button
+                  onClick={() => void handleCreateTag()}
+                  disabled={creatingTag || !newTagName.trim()}
+                  className='rounded-lg border border-[color:var(--accent)] px-3 py-2 text-xs font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50'
+                >
+                  {creatingTag ? 'Creating...' : 'Add Tag'}
+                </button>
+              </div>
+            )}
 
             {store.selectedTags.length > 0 && (
               <div className='flex flex-wrap gap-2 mb-3'>
@@ -361,11 +534,87 @@ export default function WritePage() {
               ))}
               {!availableTags.length && (
                 <p className='text-xs text-[color:var(--text-muted)]'>
-                  {(allTags?.length ?? 0) === 0 ? 'No tags available yet. Ask an admin to create tags.' : 'No matching tags found.'}
+                  {(localTags?.length ?? 0) === 0 ? 'No tags available yet. Create one above.' : 'No matching tags found.'}
                 </p>
               )}
             </div>
           </div>
+
+          {showApprovalPanel && (
+            <div className='mt-6 rounded-xl border border-[color:var(--border-strong)] p-4 bg-[color:var(--surface-1)]/70 space-y-4'>
+              <div>
+                <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Approval status</p>
+                <p className='text-sm text-[color:var(--text-primary)] mt-1'>
+                  {existing?.status === 'SUBMITTED'
+                    ? 'Pending with Approver Group (APPROVER + SUPERADMIN)'
+                    : 'Approved. Pending with Publishing Group (SUPERADMIN)'}
+                </p>
+              </div>
+
+              <div>
+                <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)] mb-2'>Approvers</p>
+                {approversLoading && <p className='text-xs text-[color:var(--text-muted)]'>Loading approvers...</p>}
+                {approversError && <p className='text-xs text-rose-700'>{approversError}</p>}
+                {!approversLoading && !approversError && (
+                  <div className='flex flex-wrap gap-2'>
+                    {approvers.map((approver) => (
+                      <label
+                        key={approver.id}
+                        className='inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-1 text-xs text-[color:var(--text-secondary)]'
+                      >
+                        <input
+                          type='checkbox'
+                          checked={selectedApproverIds.includes(approver.id)}
+                          onChange={() => toggleApprover(approver.id)}
+                          disabled={recipientMode !== 'individual'}
+                        />
+                        <span>{approver.name}</span>
+                        <span className='text-[color:var(--text-muted)]'>({approver.role})</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className='space-y-2'>
+                <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Chat with approvers</p>
+                <div className='flex flex-wrap items-center gap-3 text-xs'>
+                  <label className='inline-flex items-center gap-2 text-[color:var(--text-secondary)]'>
+                    <input
+                      type='radio'
+                      name='recipientMode'
+                      checked={recipientMode === 'group'}
+                      onChange={() => setRecipientMode('group')}
+                    />
+                    Group
+                  </label>
+                  <label className='inline-flex items-center gap-2 text-[color:var(--text-secondary)]'>
+                    <input
+                      type='radio'
+                      name='recipientMode'
+                      checked={recipientMode === 'individual'}
+                      onChange={() => setRecipientMode('individual')}
+                    />
+                    Individual
+                  </label>
+                </div>
+                <textarea
+                  value={approvalMessage}
+                  onChange={(e) => setApprovalMessage(e.target.value)}
+                  rows={3}
+                  placeholder='Write a message to approvers...'
+                  className='w-full rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)]'
+                />
+                <button
+                  onClick={() => void sendApprovalMessage()}
+                  disabled={sendingApprovalMessage}
+                  className='rounded-lg border border-[color:var(--accent)] px-3 py-2 text-xs font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50'
+                >
+                  {sendingApprovalMessage ? 'Sending...' : 'Send message'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className='mt-4 flex flex-wrap items-center gap-3 text-xs text-[color:var(--text-muted)]'>
             <span>{contentWordCount} words</span>

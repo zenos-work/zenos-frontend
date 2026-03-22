@@ -4,6 +4,7 @@ import LoginPage from '../../src/pages/LoginPage'
 
 const navigateMock = vi.fn()
 const useAuthMock = vi.fn()
+const useLocationMock = vi.fn()
 
 vi.mock('../../src/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -14,12 +15,15 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useNavigate: () => navigateMock,
+    useLocation: () => useLocationMock(),
   }
 })
 
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    sessionStorage.clear()
+    useLocationMock.mockReturnValue({ state: null })
   })
 
   it('renders the login CTA and starts Google sign-in', () => {
@@ -34,6 +38,30 @@ describe('LoginPage', () => {
     expect(screen.getByText('Welcome back')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /continue with google/i }))
 
+    expect(loginWithGoogle).toHaveBeenCalledTimes(1)
+  })
+
+  it('stores the intended route before starting Google sign-in', () => {
+    const loginWithGoogle = vi.fn()
+    useAuthMock.mockReturnValue({
+      user: null,
+      loginWithGoogle,
+    })
+    useLocationMock.mockReturnValue({
+      state: {
+        from: {
+          pathname: '/terms',
+          search: '',
+          hash: '',
+        },
+      },
+    })
+
+    render(<LoginPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    expect(sessionStorage.getItem('post_login_redirect')).toBe('/terms')
     expect(loginWithGoogle).toHaveBeenCalledTimes(1)
   })
 

@@ -39,6 +39,7 @@ vi.mock('../src/pages/StatsPage', () => ({ default: () => <div>StatsPage</div> }
 vi.mock('../src/pages/SearchPage', () => ({ default: () => <div>SearchPage</div> }))
 vi.mock('../src/pages/TagPage', () => ({ default: () => <div>TagPage</div> }))
 vi.mock('../src/pages/AdminPage', () => ({ default: () => <div>AdminPage</div> }))
+vi.mock('../src/pages/NotificationsPage', () => ({ default: () => <div>NotificationsPage</div> }))
 vi.mock('../src/pages/LoginPage', () => ({ default: () => <div>LoginPage</div> }))
 vi.mock('../src/pages/TermsPage', () => ({ default: () => <div>TermsPage</div> }))
 vi.mock('../src/pages/NotFoundPage', () => ({ default: () => <div>NotFoundPage</div> }))

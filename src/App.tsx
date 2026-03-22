@@ -15,6 +15,7 @@ import StatsPage      from './pages/StatsPage'
 import SearchPage     from './pages/SearchPage'
 import TagPage        from './pages/TagPage'
 import AdminPage      from './pages/AdminPage'
+import NotificationsPage from './pages/NotificationsPage'
 import LoginPage      from './pages/LoginPage'
 import TermsPage      from './pages/TermsPage'
 import NotFoundPage   from './pages/NotFoundPage'
@@ -39,7 +40,9 @@ export default function App() {
   return (
     <Routes>
       <Route path='/login' element={<LoginPage />} />
-      <Route path='/terms' element={<TermsPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path='/terms' element={<TermsPage />} />
+      </Route>
       {/* OAuth callback — render blank spinner while AuthContext exchanges the code */}
       <Route path='/auth/google/callback' element={
         <div style={{ minHeight: '100vh', backgroundColor: 'var(--surface-0)', display: 'grid', placeItems: 'center' }}>
@@ -60,6 +63,7 @@ export default function App() {
             <Route path='/write/:id'  element={<WritePage />}     />
             <Route path='/bookmarks'  element={<BookmarksPage />} />
             <Route path='/library'    element={<LibraryPage />}   />
+            <Route path='/notifications' element={<NotificationsPage />} />
             <Route path='/stats'      element={<StatsPage />}     />
             <Route path='/profile'    element={<ProfilePage />}   />
           </Route>

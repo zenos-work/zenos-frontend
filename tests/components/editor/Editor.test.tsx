@@ -1,11 +1,19 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Editor from '../../../src/components/editor/Editor'
+import { marked } from 'marked'
+
+vi.mock('marked', () => ({
+  marked: {
+    parse: vi.fn((source: string) => `<h1>${source}</h1>`),
+  },
+}))
 
 const setImageRunMock = vi.fn()
 const toggleCodeBlockRunMock = vi.fn()
 const setLinkRunMock = vi.fn()
 const unsetLinkRunMock = vi.fn()
+const insertContentRunMock = vi.fn()
 
 let fakeEditor: {
   isDestroyed: boolean
@@ -25,6 +33,7 @@ let fakeEditor: {
     focus: () => ReturnType<typeof fakeEditor.chain>
     setImage: (attrs: Record<string, string>) => ReturnType<typeof fakeEditor.chain>
     toggleCodeBlock: () => ReturnType<typeof fakeEditor.chain>
+    insertContent: (value: string) => ReturnType<typeof fakeEditor.chain>
     setLink: (attrs: Record<string, string>) => ReturnType<typeof fakeEditor.chain>
     unsetLink: () => ReturnType<typeof fakeEditor.chain>
     run: () => boolean
@@ -49,6 +58,7 @@ describe('Editor', () => {
       focus: () => chainApi,
       setImage: () => chainApi,
       toggleCodeBlock: () => chainApi,
+      insertContent: () => chainApi,
       setLink: () => chainApi,
       unsetLink: () => chainApi,
       run: () => true,
@@ -68,6 +78,10 @@ describe('Editor', () => {
     })
     vi.spyOn(chainApi, 'unsetLink').mockImplementation(() => {
       unsetLinkRunMock()
+      return chainApi
+    })
+    vi.spyOn(chainApi, 'insertContent').mockImplementation(value => {
+      insertContentRunMock(value)
       return chainApi
     })
 
@@ -142,5 +156,43 @@ describe('Editor', () => {
 
     expect(setLinkRunMock).toHaveBeenCalledWith({ href: 'https://example.com' })
     expect(unsetLinkRunMock).toHaveBeenCalledTimes(1)
+  })
+  it('imports markdown file and inserts parsed content', async () => {
+    const { container } = render(<Editor content='' onChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByTitle('Insert block'))
+    fireEvent.click(screen.getByTitle('Markdown file'))
+
+    const input = container.querySelector('input[accept=".md,.markdown,text/markdown,text/plain"]') as HTMLInputElement | null
+    expect(input).not.toBeNull()
+
+    const file = new File(['# Heading'], 'note.md', { type: 'text/markdown' })
+    fireEvent.change(input!, { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(marked.parse).toHaveBeenCalledWith('# Heading', {
+        async: false,
+        gfm: true,
+        breaks: true,
+      })
+    })
+    expect(insertContentRunMock).toHaveBeenCalledWith('<h1># Heading</h1>')
+  })
+
+  it('shows inline upload progress and disables media buttons while upload is in progress', () => {
+    render(
+      <Editor
+        content=''
+        onChange={vi.fn()}
+        isInlineUploadInProgress
+        inlineUploadStatusText='Uploading image... 42%'
+      />,
+    )
+
+    fireEvent.click(screen.getByTitle('Insert block'))
+
+    expect(screen.getByText('Uploading image... 42%')).toBeTruthy()
+    expect(screen.getByTitle('Image from device')).toBeDisabled()
+    expect(screen.getByTitle('Video from device')).toBeDisabled()
   })
 })
