@@ -21,8 +21,8 @@ export default function ArticlePage() {
   if (isLoading) return <div className='flex justify-center py-20'><Spinner size='lg' /></div>
   if (error || !article) return (
     <div className='text-center py-20'>
-      <p className='text-gray-400 mb-4'>Article not found</p>
-      <Link to='/' className='text-blue-400 hover:underline'>← Back to home</Link>
+      <p className='mb-4 text-[color:var(--text-secondary)]'>Article not found</p>
+      <Link to='/' className='text-[color:var(--accent)] hover:underline'>← Back to home</Link>
     </div>
   )
 
@@ -30,7 +30,7 @@ export default function ArticlePage() {
   const coverUrl = resolveAssetUrl(article.cover_image_url)
 
   return (
-    <article className='max-w-2xl mx-auto space-y-8'>
+    <article className='mx-auto w-full max-w-4xl space-y-8'>
 
       {/* Cover image */}
       {coverUrl && (
@@ -47,20 +47,20 @@ export default function ArticlePage() {
 
       {/* Title */}
       <header className='space-y-3'>
-        <h1 className='text-3xl font-bold text-white leading-tight'>{article.title}</h1>
+        <h1 className='text-3xl font-bold leading-tight text-[color:var(--text-primary)]'>{article.title}</h1>
         {article.subtitle && (
-          <p className='text-xl text-gray-400 leading-relaxed'>{article.subtitle}</p>
+          <p className='text-xl leading-relaxed text-[color:var(--text-secondary)]'>{article.subtitle}</p>
         )}
       </header>
 
       {/* Author + actions bar */}
-      <div className='flex items-center justify-between py-4 border-y border-gray-800'>
+      <div className='flex items-center justify-between border-y border-[color:var(--border)] py-4'>
         <div className='flex items-center gap-3'>
           <Avatar name={article.author_name ?? '?'} src={article.author_avatar} size='md' />
           <div>
             <div className='flex items-center gap-2'>
               <Link to={`/profile/${article.author_id}`}
-                className='text-sm font-medium text-white hover:text-blue-400 transition-colors'>
+                className='text-sm font-medium text-[color:var(--text-primary)] transition-colors hover:text-[color:var(--accent)]'>
                 {article.author_name}
               </Link>
               {!isOwner && <FollowButton authorId={article.author_id} />}
@@ -71,7 +71,7 @@ export default function ArticlePage() {
         <div className='flex items-center gap-2'>
           {isOwner && article.status !== 'PUBLISHED' && (
             <Link to={`/write/${article.id}`}
-              className='flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border border-gray-700 text-gray-400 hover:text-white transition-colors'>
+              className='flex items-center gap-1.5 rounded-full border border-[color:var(--border-strong)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:var(--accent)] hover:text-[color:var(--text-primary)]'>
               <PenSquare size={13} /> Edit
             </Link>
           )}
@@ -84,7 +84,7 @@ export default function ArticlePage() {
       {article.rejection_note && isOwner && (
         <div className='p-4 rounded-xl border border-red-500/30 bg-red-900/10'>
           <p className='text-sm font-medium text-red-400 mb-1'>Rejection note</p>
-          <p className='text-sm text-gray-300'>{article.rejection_note}</p>
+          <p className='text-sm text-[color:var(--text-secondary)]'>{article.rejection_note}</p>
         </div>
       )}
 
@@ -92,8 +92,8 @@ export default function ArticlePage() {
       <ArticleDetail content={article.content} />
 
       {/* Comments */}
-      <section className='pt-8 border-t border-gray-800'>
-        <h2 className='text-lg font-semibold text-white mb-6'>
+      <section className='border-t border-[color:var(--border)] pt-8'>
+        <h2 className='mb-6 text-lg font-semibold text-[color:var(--text-primary)]'>
           {article.comments_count} {article.comments_count === 1 ? 'Comment' : 'Comments'}
         </h2>
         <CommentList articleId={article.id} />

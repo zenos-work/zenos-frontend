@@ -68,7 +68,7 @@ export default function ArticleCard({ article, showStatus }: Props) {
         )}
 
         {/* Stats row */}
-        <div className='flex items-center gap-4 text-xs text-gray-600'>
+        <div className='flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600'>
           <span className='flex items-center gap-1'>
             <Clock size={11} /> {article.read_time_minutes}m
           </span>
@@ -82,7 +82,7 @@ export default function ArticleCard({ article, showStatus }: Props) {
             <MessageCircle size={11} /> {article.comments_count}
           </span>
           {article.published_at && (
-            <span className='ml-auto'>
+            <span className='w-full sm:w-auto sm:ml-auto text-right break-words'>
               {new Date(article.published_at).toLocaleDateString()}
             </span>
           )}

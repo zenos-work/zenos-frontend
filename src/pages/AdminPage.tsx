@@ -30,10 +30,12 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import type { ArticleDetail } from '../types'
+import type { ArticleDetail, User, UserRole } from '../types'
 
 type Tab = 'stats' | 'queue' | 'users'
 type ModerationAction = 'approve' | 'publish' | 'reject'
+
+const ROLE_OPTIONS: UserRole[] = ['SUPERADMIN', 'APPROVER', 'AUTHOR', 'READER']
 
 export default function AdminPage() {
   const { user } = useAuth()
@@ -47,6 +49,8 @@ export default function AdminPage() {
   const [usersPage, setUsersPage] = useState(1)
   const [rejectArticle, setRejectArticle] = useState<ArticleDetail | null>(null)
   const [rejectNote, setRejectNote] = useState('')
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [selectedRole, setSelectedRole] = useState<UserRole>('READER')
   const [actionState, setActionState] = useState<{
     id: string
     action: ModerationAction
@@ -97,6 +101,15 @@ export default function AdminPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
       qc.invalidateQueries({ queryKey: ['articles'] })
+    },
+  })
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: UserRole }) =>
+      api.put(`/api/users/${userId}/role`, { role }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
     },
   })
 
@@ -197,39 +210,64 @@ export default function AdminPage() {
     }
   }
 
+  const openEditUser = (targetUser: User) => {
+    setEditingUser(targetUser)
+    setSelectedRole(targetUser.role)
+  }
+
+  const saveRole = async () => {
+    if (!editingUser) return
+    if (editingUser.role === selectedRole) {
+      setEditingUser(null)
+      return
+    }
+    try {
+      await updateRoleMutation.mutateAsync({
+        userId: editingUser.id,
+        role: selectedRole,
+      })
+      toast(`Updated role for ${editingUser.name} to ${selectedRole}`, 'success')
+      setEditingUser(null)
+    } catch {
+      toast('Failed to update role', 'error')
+    }
+  }
+
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between gap-3'>
         <div className='flex items-center gap-3'>
-          <Shield size={20} className='text-orange-400' />
-          <h1 className='text-xl font-bold text-white'>Admin</h1>
+          <Shield size={20} className='text-[color:var(--accent)]' />
+          <h1 className='text-xl font-bold text-[color:var(--text-primary)]'>Admin</h1>
         </div>
         <Badge variant='warning'>{user?.role}</Badge>
       </div>
 
       {!isSuperadmin && (
-        <div className='rounded-xl border border-amber-800/40 bg-amber-900/20 px-4 py-3 text-sm text-amber-200'>
+        <div className='rounded-xl border border-[color:rgba(166,124,60,0.32)] bg-[color:rgba(166,124,60,0.14)] px-4 py-3 text-sm text-[color:#8a5b18] dark:text-[#e7bd7a]'>
           <p className='font-medium'>Approver view</p>
-          <p className='text-amber-300/80 mt-0.5'>
+          <p className='mt-0.5 text-[color:var(--text-secondary)]'>
             You can manage article approvals. User governance and global stats are SUPERADMIN-only.
           </p>
         </div>
       )}
 
-      <div className='flex gap-1 border-b border-gray-800 overflow-x-auto'>
+      <div className='flex gap-1 overflow-x-auto border-b border-[color:var(--border)]'>
         {shownTabs.map(({ id, icon: Icon, label, badge }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={[
               'flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
-              tab === id ? 'text-white border-orange-500' : 'text-gray-400 border-transparent hover:text-white',
+              tab === id
+                ? 'border-[color:var(--accent)] text-[color:var(--text-primary)]'
+                : 'border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]',
             ].join(' ')}
           >
             <Icon size={15} />
             {label}
             {badge != null && badge > 0 && (
-              <span className='ml-1 px-1.5 py-0.5 rounded-full text-xs bg-orange-600 text-white'>
+              <span className='ml-1 rounded-full bg-[color:var(--accent)] px-1.5 py-0.5 text-xs text-white'>
                 {badge}
               </span>
             )}
@@ -262,8 +300,8 @@ export default function AdminPage() {
             </div>
 
             <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-              <div className='rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3'>
-                <div className='flex items-center gap-2 text-gray-300'>
+              <div className='space-y-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+                <div className='flex items-center gap-2 text-[color:var(--text-primary)]'>
                   <Users size={15} />
                   <h2 className='text-sm font-semibold'>Users by role</h2>
                 </div>
@@ -274,8 +312,8 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className='rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3'>
-                <div className='flex items-center gap-2 text-gray-300'>
+              <div className='space-y-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+                <div className='flex items-center gap-2 text-[color:var(--text-primary)]'>
                   <Activity size={15} />
                   <h2 className='text-sm font-semibold'>Recent governance activity (7d)</h2>
                 </div>
@@ -289,16 +327,16 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className='rounded-xl border border-gray-800 bg-gray-900 p-4'>
-              <h2 className='text-sm font-semibold text-gray-300 mb-3'>Top articles</h2>
+            <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <h2 className='mb-3 text-sm font-semibold text-[color:var(--text-primary)]'>Top articles</h2>
               {stats.top_articles.length === 0 ? (
-                <p className='text-sm text-gray-500'>No article metrics yet.</p>
+                <p className='text-sm text-[color:var(--text-secondary)]'>No article metrics yet.</p>
               ) : (
                 <div className='space-y-2'>
                   {stats.top_articles.slice(0, 8).map((a) => (
                     <div key={a.id} className='flex items-center gap-3 text-sm'>
-                      <p className='flex-1 truncate text-gray-200'>{a.title}</p>
-                      <span className='inline-flex items-center gap-1 text-gray-500'>
+                      <p className='flex-1 truncate text-[color:var(--text-primary)]'>{a.title}</p>
+                      <span className='inline-flex items-center gap-1 text-[color:var(--text-muted)]'>
                         <Eye size={12} /> {a.views_count}
                       </span>
                     </div>
@@ -314,7 +352,7 @@ export default function AdminPage() {
         queueLoading ? <Spinner /> : queueError ? (
           <ErrorPanel message='Failed to load approval queue.' />
         ) : !queueItems.length ? (
-          <div className='text-center py-16 text-gray-500'>
+          <div className='py-16 text-center text-[color:var(--text-secondary)]'>
             <CheckCircle size={40} className='mx-auto mb-4 opacity-20' />
             <p>Queue is empty — nothing to review.</p>
           </div>
@@ -355,16 +393,19 @@ export default function AdminPage() {
           <>
             <div className='space-y-2'>
               {userItems.map((u) => (
-                <div key={u.id} className='flex items-center gap-4 p-3 rounded-xl bg-gray-900 border border-gray-800'>
+                <div key={u.id} className='flex items-center gap-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-3 shadow-sm'>
                   <Avatar name={u.name} src={u.avatar_url} size='sm' />
                   <div className='flex-1 min-w-0'>
-                    <p className='text-sm font-medium text-white truncate'>{u.name}</p>
-                    <p className='text-xs text-gray-500 truncate'>{u.email}</p>
+                    <p className='truncate text-sm font-medium text-[color:var(--text-primary)]'>{u.name}</p>
+                    <p className='truncate text-xs text-[color:var(--text-secondary)]'>{u.email}</p>
                   </div>
                   <Badge variant={u.is_active ? 'success' : 'danger'}>
                     {u.is_active ? 'Active' : 'Banned'}
                   </Badge>
                   <Badge variant='default'>{u.role}</Badge>
+                  <Button size='sm' variant='secondary' onClick={() => openEditUser(u)}>
+                    Edit
+                  </Button>
                   {u.is_active ? (
                     <Button size='sm' variant='danger' onClick={() => handleBan(u.id, u.name)}>
                       Ban
@@ -409,7 +450,7 @@ export default function AdminPage() {
             onChange={(e) => setRejectNote(e.target.value)}
             placeholder='Reason for rejection (required)...'
             rows={4}
-            className='w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 outline-none resize-none'
+            className='w-full resize-none rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-4 py-3 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none'
           />
 
           <div className='flex justify-end gap-2'>
@@ -426,6 +467,47 @@ export default function AdminPage() {
               }}
             >
               Reject
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        title='Edit user'
+      >
+        <div className='space-y-4'>
+          <div className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 py-2'>
+            <p className='text-sm font-medium text-[color:var(--text-primary)]'>{editingUser?.name}</p>
+            <p className='text-xs text-[color:var(--text-secondary)]'>{editingUser?.email}</p>
+          </div>
+
+          <div className='space-y-1'>
+            <label htmlFor='role-select' className='text-sm font-medium text-[color:var(--text-primary)]'>Role</label>
+            <select
+              id='role-select'
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+              className='w-full rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]'
+            >
+              {ROLE_OPTIONS.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className='flex justify-end gap-2'>
+            <Button variant='ghost' onClick={() => setEditingUser(null)}>Cancel</Button>
+            <Button
+              variant='primary'
+              loading={updateRoleMutation.isPending}
+              disabled={!editingUser || selectedRole === editingUser.role}
+              onClick={saveRole}
+            >
+              Save Role
             </Button>
           </div>
         </div>
@@ -452,11 +534,11 @@ function QueueItem({
   const canReject = article.status === 'SUBMITTED'
 
   return (
-    <div className='p-4 rounded-xl bg-gray-900 border border-gray-800'>
+    <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
       <div className='flex items-start justify-between gap-4'>
         <div className='min-w-0'>
-          <p className='font-medium text-white truncate'>{article.title}</p>
-          <p className='text-sm text-gray-500 mt-0.5'>by {article.author_name}</p>
+          <p className='truncate font-medium text-[color:var(--text-primary)]'>{article.title}</p>
+          <p className='mt-0.5 text-sm text-[color:var(--text-secondary)]'>by {article.author_name}</p>
         </div>
         <Badge variant='warning'>{article.status}</Badge>
       </div>
@@ -498,9 +580,9 @@ function QueueItem({
 
 function StatsCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className='p-4 rounded-xl bg-gray-900 border border-gray-800'>
-      <p className='text-2xl font-bold text-white'>{value}</p>
-      <p className='text-xs text-gray-500 mt-1'>{label}</p>
+    <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4 shadow-sm'>
+      <p className='text-2xl font-bold text-[color:var(--text-primary)]'>{value}</p>
+      <p className='mt-1 text-xs text-[color:var(--text-secondary)]'>{label}</p>
     </div>
   )
 }
@@ -525,14 +607,14 @@ function ChartCard({
   const max = Math.max(1, ...items.map((item) => item.value))
 
   return (
-    <div className='rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-4'>
-      <div className='flex items-center gap-2 text-gray-300'>
+    <div className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+      <div className='flex items-center gap-2 text-[color:var(--text-primary)]'>
         <Icon size={15} />
         <h2 className='text-sm font-semibold'>{title}</h2>
       </div>
 
       {items.length === 0 ? (
-        <p className='text-sm text-gray-500'>No data available yet.</p>
+        <p className='text-sm text-[color:var(--text-secondary)]'>No data available yet.</p>
       ) : (
         <div className='space-y-3'>
           {items.map((item) => (
@@ -553,10 +635,10 @@ function BarRow({ label, value, percent }: { label: string; value: number; perce
   return (
     <div className='space-y-1.5'>
       <div className='flex items-center justify-between gap-3 text-xs'>
-        <span className='text-gray-400 truncate'>{label}</span>
-        <span className='text-white font-medium'>{value}</span>
+        <span className='truncate text-[color:var(--text-secondary)]'>{label}</span>
+        <span className='font-medium text-[color:var(--text-primary)]'>{value}</span>
       </div>
-      <div className='h-2 rounded-full bg-gray-800 overflow-hidden'>
+      <div className='h-2 overflow-hidden rounded-full bg-[color:var(--surface-3)]'>
         <div
           className='h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300'
           style={{ width: `${Math.max(8, percent)}%` }}
@@ -569,8 +651,8 @@ function BarRow({ label, value, percent }: { label: string; value: number; perce
 function StatRow({ label, value }: { label: string; value: number }) {
   return (
     <div className='flex items-center justify-between text-sm'>
-      <span className='text-gray-400'>{label}</span>
-      <span className='text-white font-medium'>{value}</span>
+      <span className='text-[color:var(--text-secondary)]'>{label}</span>
+      <span className='font-medium text-[color:var(--text-primary)]'>{value}</span>
     </div>
   )
 }
@@ -592,21 +674,21 @@ function PaginationBar({
 }) {
   return (
     <div className='flex items-center justify-between pt-2'>
-      <p className='text-xs text-gray-600'>
+      <p className='text-xs text-[color:var(--text-secondary)]'>
         Page {page} of {Math.max(1, pages)} • Total {total}
       </p>
       <div className='flex gap-2'>
         <button
           disabled={page <= 1}
           onClick={onPrev}
-          className='inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm border border-gray-700 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors'
+          className='inline-flex items-center gap-1 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-3 py-1.5 text-sm text-[color:var(--text-primary)] transition-colors hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40'
         >
           <ChevronLeft size={14} /> Previous
         </button>
         <button
           disabled={!hasMore}
           onClick={onNext}
-          className='inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm border border-gray-700 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors'
+          className='inline-flex items-center gap-1 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-3 py-1.5 text-sm text-[color:var(--text-primary)] transition-colors hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40'
         >
           Next <ChevronRight size={14} />
         </button>

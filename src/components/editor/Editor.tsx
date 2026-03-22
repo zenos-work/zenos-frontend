@@ -5,6 +5,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import TextAlign from '@tiptap/extension-text-align'
 import Placeholder from '@tiptap/extension-placeholder'
 import Youtube from '@tiptap/extension-youtube'
+import { marked } from 'marked'
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import {
   Plus,
@@ -24,6 +25,7 @@ import {
   AlignCenter,
   AlignRight,
   AlignJustify,
+  FileText,
 } from 'lucide-react'
 import { FontSize } from './extensions/FontSize'
 import { PrivateNote } from './extensions/PrivateNote'
@@ -34,6 +36,8 @@ interface Props {
   onChange: (value: string) => void
   onInlineImageUpload?: (file: File) => Promise<string>
   onInlineVideoUpload?: (file: File) => Promise<string>
+  isInlineUploadInProgress?: boolean
+  inlineUploadStatusText?: string
 }
 
 const FIXED_EDITOR_FONT = `font-[Georgia,'Times New Roman',serif]`
@@ -79,17 +83,26 @@ export default function Editor({
   onChange,
   onInlineImageUpload,
   onInlineVideoUpload,
+  isInlineUploadInProgress = false,
+  inlineUploadStatusText,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const videoInputRef = useRef<HTMLInputElement | null>(null)
+  const markdownInputRef = useRef<HTMLInputElement | null>(null)
 
   const [showInsertMenu, setShowInsertMenu] = useState(false)
   const [showUnsplashPicker, setShowUnsplashPicker] = useState(false)
   const [unsplashQuery, setUnsplashQuery] = useState('')
+  const [localInlineUploadKind, setLocalInlineUploadKind] = useState<'image' | 'video' | null>(null)
   const [cursorAnchor, setCursorAnchor] = useState<CursorAnchor>({ top: 36 })
   const [hasTextSelection, setHasTextSelection] = useState(false)
   const [selectionToolbarAnchor, setSelectionToolbarAnchor] = useState<SelectionToolbarAnchor>({ top: 8, left: 0 })
+
+  const isInlineUploadBusy = isInlineUploadInProgress || localInlineUploadKind !== null
+  const uploadStatusLabel =
+    inlineUploadStatusText
+    || (localInlineUploadKind ? `Uploading ${localInlineUploadKind}...` : 'Uploading media...')
 
   const unsplashCandidates = useMemo(() => {
     const q = (unsplashQuery || 'writing desk').trim()
@@ -214,16 +227,19 @@ export default function Editor({
 
   const handleInlineImagePick = async (file: File | undefined) => {
     if (!file || !editor || !onInlineImageUpload) return
+    setLocalInlineUploadKind('image')
     try {
       const url = await onInlineImageUpload(file)
       editor.chain().focus().setImage({ src: url, alt: file.name }).run()
     } finally {
+      setLocalInlineUploadKind(null)
       if (imageInputRef.current) imageInputRef.current.value = ''
     }
   }
 
   const handleInlineVideoPick = async (file: File | undefined) => {
     if (!file || !editor) return
+    setLocalInlineUploadKind('video')
     try {
       const src = onInlineVideoUpload
         ? await onInlineVideoUpload(file)
@@ -242,7 +258,20 @@ export default function Editor({
         .insertContent({ type: 'paragraph' })
         .run()
     } finally {
+      setLocalInlineUploadKind(null)
       if (videoInputRef.current) videoInputRef.current.value = ''
+    }
+  }
+
+  const handleMarkdownPick = async (file: File | undefined) => {
+    if (!file || !editor) return
+    try {
+      const markdown = await file.text()
+      const html = marked.parse(markdown, { async: false, gfm: true, breaks: true })
+      editor.chain().focus().insertContent(typeof html === 'string' ? html : String(html)).run()
+      setShowInsertMenu(false)
+    } finally {
+      if (markdownInputRef.current) markdownInputRef.current.value = ''
     }
   }
 
@@ -395,14 +424,17 @@ export default function Editor({
             <button type='button' onClick={insertParagraph} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Add paragraph'>
               <Plus size={14} />
             </button>
-            <button type='button' onClick={() => imageInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Image from device'>
+            <button type='button' disabled={isInlineUploadBusy} onClick={() => imageInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60' title='Image from device'>
               <ImagePlus size={14} />
             </button>
             <button type='button' onClick={() => { setShowUnsplashPicker(v => !v); setUnsplashQuery(editor?.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || '') }} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Search Unsplash image'>
               <Search size={14} />
             </button>
-            <button type='button' onClick={() => videoInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Video from device'>
+            <button type='button' disabled={isInlineUploadBusy} onClick={() => videoInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60' title='Video from device'>
               <Video size={14} />
+            </button>
+            <button type='button' onClick={() => markdownInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Markdown file'>
+              <FileText size={14} />
             </button>
             <button type='button' onClick={insertVideoByUrl} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='YouTube/Vimeo/Dailymotion URL'>
               <Link2 size={14} />
@@ -438,6 +470,12 @@ export default function Editor({
         </div>
       )}
 
+      {isInlineUploadBusy && (
+        <div className='mb-3 inline-flex items-center rounded-full border border-[color:var(--accent)] bg-[color:var(--accent-dim)] px-3 py-1 text-xs font-medium text-[color:var(--text-primary)]'>
+          {uploadStatusLabel}
+        </div>
+      )}
+
       <input
         ref={imageInputRef}
         type='file'
@@ -451,6 +489,13 @@ export default function Editor({
         accept='video/*'
         className='hidden'
         onChange={e => void handleInlineVideoPick(e.target.files?.[0])}
+      />
+      <input
+        ref={markdownInputRef}
+        type='file'
+        accept='.md,.markdown,text/markdown,text/plain'
+        className='hidden'
+        onChange={e => void handleMarkdownPick(e.target.files?.[0])}
       />
       <EditorContent editor={editor} />
     </div>

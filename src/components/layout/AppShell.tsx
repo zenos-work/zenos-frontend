@@ -51,9 +51,9 @@ export default function AppShell() {
         .zenos-content {
           flex: 1;
           width: 100%;
-          max-width: 960px;
+          max-width: 1320px;
           margin: 0 auto;
-          padding: 32px 24px 80px;
+          padding: 24px 20px 80px;
         }
         /* Mobile: hide sidebar, show bottom nav */
         @media (max-width: 767px) {

@@ -157,7 +157,7 @@ export default function Topbar() {
 
           {user ? (
             <>
-              <button className='zenos-icon-btn' onClick={() => navigate('/profile')}>
+              <button className='zenos-icon-btn' onClick={() => navigate('/notifications')} title='Notifications'>
                 <Bell size={16} />
               </button>
 
@@ -198,7 +198,11 @@ export default function Topbar() {
                       ))}
                       <div style={{ borderTop: '1px solid var(--border)', marginTop: 4 }}>
                         <button className='zenos-dropdown-item' style={{ color: '#dc2626' }}
-                          onClick={() => { logout(); setMenu(false) }}>
+                          onClick={async () => {
+                            await logout()
+                            setMenu(false)
+                            navigate('/', { replace: true })
+                          }}>
                           Sign out
                         </button>
                       </div>

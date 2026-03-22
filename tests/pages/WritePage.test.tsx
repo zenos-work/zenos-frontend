@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import WritePage from '../../src/pages/WritePage'
+import api from '../../src/lib/api'
 
 type Tag = { id: string; name: string; slug: string; article_count: number }
 
@@ -55,9 +56,11 @@ const useCreateArticleMock = vi.fn()
 const useUpdateArticleMock = vi.fn()
 const useSubmitArticleMock = vi.fn()
 const useTagsMock = vi.fn()
+const useAuthMock = vi.fn()
 
-const useEditorStoreMock = vi.fn((selector?: (state: typeof mockStore) => unknown) =>
-  selector ? selector(mockStore) : mockStore,
+const useEditorStoreMock = vi.fn(
+  (selector?: (state: typeof mockStore) => unknown) =>
+    selector ? selector(mockStore) : mockStore,
 )
 
 vi.mock('react-router-dom', async () => {
@@ -72,11 +75,13 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@tanstack/react-query', () => ({
   useMutation: () => ({
     mutateAsync: uploadMutateAsyncMock,
+    isPending: false,
   }),
 }))
 
 vi.mock('../../src/stores/editorStore', () => ({
-  useEditorStore: (...args: unknown[]) => useEditorStoreMock(...args),
+  useEditorStore: (selector?: (state: typeof mockStore) => unknown) =>
+    useEditorStoreMock(selector),
 }))
 
 vi.mock('../../src/stores/uiStore', () => ({
@@ -93,6 +98,17 @@ vi.mock('../../src/hooks/useArticles', () => ({
 
 vi.mock('../../src/hooks/useTags', () => ({
   useTags: () => useTagsMock(),
+}))
+
+vi.mock('../../src/hooks/useAuth', () => ({
+  useAuth: () => useAuthMock(),
+}))
+
+vi.mock('../../src/lib/api', () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+  },
 }))
 
 vi.mock('../../src/components/editor/EditorToolbar', () => ({
@@ -161,6 +177,12 @@ describe('WritePage', () => {
         { id: 't2', name: 'Cloud', slug: 'cloud', article_count: 2 },
       ],
     })
+    useAuthMock.mockReturnValue({
+      user: { id: 'u-author', role: 'AUTHOR', name: 'Alex', email: 'alex@zenos.work' },
+    })
+
+    vi.mocked(api.get).mockResolvedValue({ data: { approvers: [] } } as never)
+    vi.mocked(api.post).mockResolvedValue({ data: {} } as never)
 
     createMutateAsyncMock.mockResolvedValue({ id: 'new-article-id' })
     updateMutateAsyncMock.mockResolvedValue({ id: 'existing-id' })
@@ -397,6 +419,115 @@ describe('WritePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Preview: Preview Title')).toBeInTheDocument()
+    expect(screen.getByText('Preview: Preview Title')).toBeTruthy()
+  })
+
+  it('allows author to add a new tag and send approval message to selected approver', async () => {
+    mockParams = { id: 'existing-id' }
+    useArticleMock.mockReturnValue({
+      data: {
+        id: 'existing-id',
+        title: 'Pending Draft',
+        subtitle: 'Needs review',
+        content: '{"type":"doc"}',
+        status: 'SUBMITTED',
+        tags: [],
+      },
+    })
+
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        approvers: [
+          { id: 'ap-1', name: 'Priya Approver', role: 'APPROVER' },
+        ],
+      },
+    } as never)
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({
+        data: { tag: { id: 't9', name: 'FinOps', slug: 'finops', article_count: 0 } },
+      } as never)
+      .mockResolvedValueOnce({ data: { status: 'sent', recipients: 1 } } as never)
+
+    render(
+      <MemoryRouter>
+        <WritePage />
+      </MemoryRouter>,
+    )
+
+    fireEvent.change(screen.getByPlaceholderText('Create a new tag (e.g. fintech or #fintech)'), {
+      target: { value: '#FinOps' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Tag' }))
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/api/tags', { name: 'FinOps' })
+    })
+    expect(toggleTagMock).toHaveBeenCalledWith({
+      id: 't9',
+      name: 'FinOps',
+      slug: 'finops',
+      article_count: 0,
+    })
+
+    fireEvent.click(screen.getByLabelText('Individual'))
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.change(screen.getByPlaceholderText('Write a message to approvers...'), {
+      target: { value: 'Can you prioritize this review?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/api/users/approvers/message', {
+        article_id: 'existing-id',
+        mode: 'individual',
+        recipient_ids: ['ap-1'],
+        message: 'Can you prioritize this review?',
+      })
+    })
+    expect(toastMock).toHaveBeenCalledWith('Message sent to approvers', 'success')
+  })
+
+  it('validates individual approver selection and message content before sending', async () => {
+    mockParams = { id: 'existing-id' }
+    useArticleMock.mockReturnValue({
+      data: {
+        id: 'existing-id',
+        title: 'Pending Draft',
+        subtitle: 'Needs review',
+        content: '{"type":"doc"}',
+        status: 'SUBMITTED',
+        tags: [],
+      },
+    })
+
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: { approvers: [{ id: 'ap-1', name: 'Priya Approver', role: 'APPROVER' }] },
+    } as never)
+
+    render(
+      <MemoryRouter>
+        <WritePage />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByLabelText('Individual'))
+    fireEvent.change(screen.getByPlaceholderText('Write a message to approvers...'), {
+      target: { value: 'Please review asap' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith('Select at least one approver', 'warning')
+    })
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.change(screen.getByPlaceholderText('Write a message to approvers...'), {
+      target: { value: '' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith('Write a message before sending', 'warning')
+    })
   })
 })

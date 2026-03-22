@@ -34,6 +34,7 @@ vi.mock('../../src/stores/uiStore', () => ({
 vi.mock('../../src/lib/api', () => ({
   default: {
     post: vi.fn().mockResolvedValue({ data: {} }),
+    put: vi.fn().mockResolvedValue({ data: {} }),
   },
 }))
 
@@ -43,6 +44,7 @@ describe('AdminPage', () => {
     useUiStoreMock.mockReturnValue(toastMock)
     banMutateAsyncMock.mockResolvedValue({})
     unbanMutateAsyncMock.mockResolvedValue({})
+    vi.mocked(api.put).mockResolvedValue({ data: {} } as never)
     vi.stubGlobal('confirm', vi.fn(() => true))
 
     useAdminStatsMock.mockReturnValue({
@@ -236,5 +238,29 @@ describe('AdminPage', () => {
     await waitFor(() => {
       expect(banMutateAsyncMock).not.toHaveBeenCalled()
     })
+  })
+
+  it('allows superadmin to edit a user and assign a new role', async () => {
+    useAuthMock.mockReturnValue({ user: { id: 'u1', role: 'SUPERADMIN' } })
+
+    const { Wrapper } = createQueryClientWrapper()
+    render(<AdminPage />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('button', { name: /users/i }))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0])
+
+    fireEvent.change(screen.getByLabelText('Role'), {
+      target: { value: 'APPROVER' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save role/i }))
+
+    await waitFor(() => {
+      expect(api.put).toHaveBeenCalledWith('/api/users/u-active/role', {
+        role: 'APPROVER',
+      })
+    })
+    expect(toastMock).toHaveBeenCalledWith('Updated role for Active User to APPROVER', 'success')
   })
 })

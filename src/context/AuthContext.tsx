@@ -82,8 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // NEW: Turn off the loading spinner!
         setLoading(false)
 
-        // Redirect to home page properly
-        window.location.href = '/'
+        // Resume the route the user originally attempted before login.
+        const postLoginPath = sessionStorage.getItem('post_login_redirect') || '/'
+        sessionStorage.removeItem('post_login_redirect')
+        window.location.href = postLoginPath
       } catch (err) {
         console.error('OAuth callback failed', err)
         window.location.href = '/login'

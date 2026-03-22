@@ -96,10 +96,17 @@ describe('HomePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Trending stories to explore')).toBeInTheDocument()
-    expect(screen.getByText('Trending now')).toBeInTheDocument()
+    expect(screen.getByText('Stories worth opening first')).toBeInTheDocument()
+    expect(screen.getByText('Guest Edition')).toBeInTheDocument()
     expect(screen.getByText('Write with confidence')).toBeInTheDocument()
     expect(screen.getByText('Review with clarity')).toBeInTheDocument()
+    expect(screen.getByText('Publish and automate')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next slide' }))
+    expect(screen.getByText('Review with clarity')).toBeInTheDocument()
+    expect(screen.getAllByText('Write with confidence').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Go to slide 3' }))
     expect(screen.getByText('Publish and automate')).toBeInTheDocument()
   })
 

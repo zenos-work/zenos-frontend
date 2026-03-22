@@ -51,7 +51,7 @@ describe('Topbar', () => {
   })
 
   it('renders user menu, shows admin link, and signs out', async () => {
-    const logout = vi.fn()
+    const logout = vi.fn().mockResolvedValue(undefined)
     useAuthMock.mockReturnValue({
       user: {
         name: 'Admin User',
@@ -64,6 +64,9 @@ describe('Topbar', () => {
     useUiStoreMock.mockReturnValue({ toggleTheme: vi.fn(), theme: 'dark' })
 
     render(<Topbar />)
+
+  fireEvent.click(screen.getByTitle('Notifications'))
+  expect(navigateMock).toHaveBeenCalledWith('/notifications')
 
     fireEvent.click(screen.getByText('Admin User').closest('button')!)
 
@@ -80,6 +83,7 @@ describe('Topbar', () => {
 
     await waitFor(() => {
       expect(logout).toHaveBeenCalledTimes(1)
+      expect(navigateMock).toHaveBeenCalledWith('/', { replace: true })
     })
   })
 })

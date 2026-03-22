@@ -1,10 +1,24 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
 export default function LoginPage() {
   const { user, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  const handleGoogleLogin = () => {
+    const from = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from
+    const nextPath = from?.pathname ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}` : '/'
+
+    if (nextPath !== '/') {
+      sessionStorage.setItem('post_login_redirect', nextPath)
+    } else {
+      sessionStorage.removeItem('post_login_redirect')
+    }
+
+    loginWithGoogle()
+  }
 
   useEffect(() => {
     if (user) navigate('/', { replace: true })
@@ -93,7 +107,7 @@ export default function LoginPage() {
 
           {/* Google button */}
           <button
-            onClick={loginWithGoogle}
+            onClick={handleGoogleLogin}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 12, padding: '12px 20px', borderRadius: 12,
@@ -127,10 +141,8 @@ export default function LoginPage() {
             color: 'var(--text-muted)',
             fontFamily: "'DM Sans', system-ui, sans-serif",
           }}>
-            By continuing you agree to our{' '}
-            <a href='/terms' style={{ color: 'var(--accent)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
-              Terms of Service
-            </a>
+            By continuing you agree to our Terms of Service.
+            You will review and accept the writer agreement right after sign-in.
           </p>
         </div>
 
