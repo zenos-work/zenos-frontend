@@ -18,6 +18,8 @@ import AdminPage      from './pages/AdminPage'
 import NotificationsPage from './pages/NotificationsPage'
 import LoginPage      from './pages/LoginPage'
 import TermsPage      from './pages/TermsPage'
+import MembershipPage from './pages/MembershipPage'
+import InfoPage       from './pages/InfoPage'
 import NotFoundPage   from './pages/NotFoundPage'
 
 export default function App() {
@@ -56,6 +58,8 @@ export default function App() {
         <Route path='/search'        element={<SearchPage />}  />
         <Route path='/tag/:slug'     element={<TagPage />}     />
         <Route path='/profile/:id'   element={<ProfilePage />} />
+        <Route path='/membership'    element={<MembershipPage />} />
+        <Route path='/info/:slug'    element={<InfoPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<TermsRoute />}>

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Moon, Sun } from 'lucide-react'
 import { useFeed, useFeatured } from '../hooks/useFeed'
 import { useAuth } from '../hooks/useAuth'
+import { useUiStore } from '../stores/uiStore'
 import { resolveAssetUrl } from '../lib/assets'
 import ArticleCard from '../components/article/ArticleCard'
 import ArticleHero from '../components/article/ArticleHero'
@@ -18,6 +19,7 @@ export default function HomePage() {
   const [tab, setTab] = useState<'home' | 'following' | 'trending'>('home')
   const [guestIndex, setGuestIndex] = useState(0)
   const { user } = useAuth()
+  const { theme, toggleTheme } = useUiStore()
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const guestTrending = useFeed('trending', !user)
@@ -100,27 +102,50 @@ export default function HomePage() {
     }, 5000)
 
     return () => window.clearInterval(timer)
-  }, [user, guestTrendingArticles.length])
+  }, [user, guestTrendingArticles.length, guestFallbackCards.length])
 
   if (!user) {
     const cards = guestTrendingArticles.length > 0 ? guestTrendingArticles : guestFallbackCards
     const currentCard = cards[guestIndex % cards.length]
     const currentArticle = 'slug' in currentCard ? currentCard : null
     const currentCoverUrl = currentArticle ? resolveAssetUrl(currentArticle.cover_image_url) : null
-    const sideCards = cards.filter((_, index) => index !== guestIndex).slice(0, 2)
+    const expandedCards = cards.slice(0, 6)
 
     const goPrev = () => setGuestIndex((current) => (current - 1 + cards.length) % cards.length)
     const goNext = () => setGuestIndex((current) => (current + 1) % cards.length)
 
     return (
-      <div className='space-y-6'>
+      <div className='space-y-8'>
+        <header className='sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--topbar-bg)]/95 px-4 py-3 shadow-sm backdrop-blur-md md:px-6'>
+          <div className='flex items-end gap-1.5 text-[color:var(--text-primary)] leading-none'>
+            <span className="font-['Syne',system-ui,sans-serif] text-[2.05rem] font-extrabold tracking-[-0.065em]">Zenos</span>
+            <span className='mb-[3px] text-[1.05rem] font-semibold tracking-[-0.03em] text-[color:var(--accent)]'>.work</span>
+          </div>
+          <nav className='flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-secondary)] md:gap-3'>
+            <button
+              type='button'
+              onClick={toggleTheme}
+              className='grid h-8 w-8 place-items-center rounded-full border border-[color:var(--border-strong)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
+              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+            >
+              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+            </button>
+            <a href='#our-story' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Our Story</a>
+            <a href='#why-different' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Why Different</a>
+            <a href='#features' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>All Features</a>
+            <a href='#hear-your-story' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Let&apos;s Hear Your Story</a>
+            <Link to='/membership' className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent-dim)] px-3 py-1.5 text-[color:var(--text-primary)]'>Membership</Link>
+            <Link to='/login' className='rounded-full border border-[color:var(--border-strong)] px-3 py-1.5 text-[color:var(--text-primary)]'>Sign in</Link>
+          </nav>
+        </header>
+
         {guestTrending.isLoading ? (
           <div className='flex justify-center py-12'><Spinner /></div>
         ) : (
-          <section className='space-y-4'>
+          <section className='space-y-8'>
             <div className='mb-2 flex items-center justify-between'>
               <div>
-                <p className='text-xs font-semibold uppercase tracking-[0.24em] text-[color:var(--text-muted)]'>Guest Edition</p>
                 <h1 className='mt-2 text-3xl font-semibold tracking-tight text-[color:var(--text-primary)] md:text-4xl'>
                   Stories worth opening first
                 </h1>
@@ -147,7 +172,7 @@ export default function HomePage() {
               )}
             </div>
 
-            <div className='grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_320px]'>
+            <div className='grid gap-6'>
               <article className='relative overflow-hidden rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface-0)] shadow-sm'>
                 {currentArticle ? (
                   <Link to={`/article/${currentArticle.slug}`} className='block'>
@@ -183,22 +208,21 @@ export default function HomePage() {
                 )}
               </article>
 
-              <aside className='grid gap-4 sm:grid-cols-2 xl:grid-cols-1'>
-                {sideCards.map((card, index) => {
+              <section className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+                {expandedCards.map((card) => {
                   const cardArticle = 'slug' in card ? card : null
                   const cardCoverUrl = cardArticle ? resolveAssetUrl(cardArticle.cover_image_url) : null
                   const body = (
-                    <div className='flex h-full flex-col justify-end rounded-[1.6rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
-                      <div className='mb-4 overflow-hidden rounded-[1.2rem] bg-[color:var(--surface-2)]'>
+                    <div className='flex h-full flex-col justify-end rounded-[1.4rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4 transition-transform hover:-translate-y-0.5'>
+                      <div className='mb-4 overflow-hidden rounded-[1rem] bg-[color:var(--surface-2)]'>
                         {cardCoverUrl ? (
-                          <img src={cardCoverUrl} alt={cardArticle?.title || card.title} className='h-36 w-full object-cover' loading='lazy' />
+                          <img src={cardCoverUrl} alt={cardArticle?.title || card.title} className='h-40 w-full object-cover' loading='lazy' />
                         ) : (
-                          <div className='grid h-36 w-full place-items-center bg-gradient-to-br from-[#2b3f53] to-[#5d7896] text-sm font-semibold uppercase tracking-[0.2em] text-white/80'>
+                          <div className='grid h-40 w-full place-items-center bg-gradient-to-br from-[#2b3f53] to-[#5d7896] text-sm font-semibold uppercase tracking-[0.2em] text-white/80'>
                             Zenos
                           </div>
                         )}
                       </div>
-                      <p className='text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-muted)]'>Queue {index + 1}</p>
                       <h3 className='mt-2 text-lg font-semibold leading-tight text-[color:var(--text-primary)]'>
                         {cardArticle?.title || card.title}
                       </h3>
@@ -223,8 +247,76 @@ export default function HomePage() {
                     </button>
                   )
                 })}
-              </aside>
+              </section>
             </div>
+
+            <section id='our-story' className='grid gap-4 rounded-[1.8rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 lg:grid-cols-2'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Our Story</p>
+                <h2 className='mt-2 text-3xl font-semibold text-[color:var(--text-primary)]'>Built for serious writing teams</h2>
+                <p className='mt-3 text-sm leading-7 text-[color:var(--text-secondary)]'>
+                  Zenos started with one question: why do creators still juggle scattered tools for drafting, approvals, and publishing? We built one space where writing quality and editorial velocity can coexist.
+                </p>
+              </div>
+              <div className='rounded-2xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] p-5'>
+                <p className='text-sm font-semibold text-[color:var(--text-primary)]'>From draft to governed publish</p>
+                <p className='mt-2 text-sm leading-7 text-[color:var(--text-secondary)]'>
+                  Writers draft freely, approvers review confidently, and teams publish with policy-aware workflows.
+                </p>
+              </div>
+            </section>
+
+            <section id='why-different' className='grid gap-4 lg:grid-cols-3'>
+              {[
+                ['Clarity over clutter', 'An editor-first experience with strong typography and clean reading rhythm.'],
+                ['Governance without friction', 'Approval flows that stay out of your way until they are needed.'],
+                ['Built for teams', 'Roles, notifications, and analytics aligned with real editorial operations.'],
+              ].map(([title, desc]) => (
+                <article key={title} className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-5'>
+                  <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>{title}</h3>
+                  <p className='mt-2 text-sm leading-7 text-[color:var(--text-secondary)]'>{desc}</p>
+                </article>
+              ))}
+            </section>
+
+            <section id='features' className='rounded-[1.8rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6'>
+              <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>All Features</p>
+              <div className='mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4'>
+                {['Rich editor', 'Inline media', 'Approvals', 'Role-based access', 'Library and bookmarks', 'Notifications', 'Publishing workflows', 'Insightful stats'].map((feature) => (
+                  <div key={feature} className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-3 text-sm font-medium text-[color:var(--text-primary)]'>
+                    {feature}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section
+              id='hear-your-story'
+              className='relative overflow-hidden rounded-[1.8rem] border border-[color:var(--border-strong)] p-6'
+              style={{ background: 'linear-gradient(130deg, var(--surface-3) 0%, var(--surface-2) 54%, var(--surface-1) 100%)' }}
+            >
+              <div className='absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[color:var(--accent-dim)]/55 blur-2xl' />
+              <div className='absolute -bottom-24 left-16 h-56 w-56 rounded-full bg-[color:var(--surface-0)]/35 blur-3xl' />
+              <p className='relative text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--text-muted)]'>Let&apos;s Hear Your Story</p>
+              <h2 className='relative mt-2 text-3xl font-semibold text-[color:var(--text-primary)]'>Tell us what you are building and writing next.</h2>
+              <p className='relative mt-3 max-w-3xl text-sm leading-7 text-[color:var(--text-secondary)]'>
+                Share your publishing goals, team setup, and content vision. We are listening and shaping Zenos with creator feedback.
+              </p>
+              <div className='relative mt-5 flex flex-wrap gap-3'>
+                <Link
+                  to='/membership'
+                  className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(5,20,34,0.18)] hover:opacity-95'
+                >
+                  Explore Membership
+                </Link>
+                <Link
+                  to='/login'
+                  className='rounded-full border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-5 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
+                >
+                  Start Writing
+                </Link>
+              </div>
+            </section>
 
             {cards.length > 1 && (
               <div className='flex items-center justify-center gap-2'>
@@ -246,6 +338,37 @@ export default function HomePage() {
             {!guestTrendingArticles.length && (
               <p className='mt-2 text-xs text-[color:var(--text-muted)]'>Fresh stories will appear here as soon as they are published.</p>
             )}
+
+            <footer className='grid gap-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-5 md:grid-cols-2 xl:grid-cols-4'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Platform</p>
+                <div className='mt-3 flex flex-col gap-2 text-sm'>
+                  <Link to='/info/status' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Status</Link>
+                  <Link to='/info/about' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>About</Link>
+                  <Link to='/membership' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Membership</Link>
+                </div>
+              </div>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Legal</p>
+                <div className='mt-3 flex flex-col gap-2 text-sm'>
+                  <Link to='/info/privacy' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Privacy</Link>
+                  <Link to='/info/rules' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Rules</Link>
+                  <Link to='/info/terms' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Terms</Link>
+                </div>
+              </div>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Accessibility</p>
+                <div className='mt-3 flex flex-col gap-2 text-sm'>
+                  <Link to='/info/text-to-speech' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Text to speech</Link>
+                  <Link to='/info/help' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Help</Link>
+                </div>
+              </div>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Join</p>
+                <p className='mt-3 text-sm leading-6 text-[color:var(--text-secondary)]'>Create an account to publish stories and collaborate with your team.</p>
+                <Link to='/login' className='mt-4 inline-flex rounded-full border border-[color:var(--border-strong)] px-4 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>Sign in</Link>
+              </div>
+            </footer>
           </section>
         )}
       </div>

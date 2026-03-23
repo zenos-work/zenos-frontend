@@ -131,7 +131,12 @@ export default function Topbar() {
       `}</style>
 
       <header className='zenos-topbar'>
-        <button className='zenos-topbar-brand' onClick={() => navigate('/')} title='Go to home'>
+        <button
+          className='zenos-topbar-brand'
+          style={!user ? { display: 'inline-flex' } : undefined}
+          onClick={() => navigate('/')}
+          title='Go to home'
+        >
           <span className='zenos-topbar-brand-wordmark'>
             <span className='zenos-topbar-brand-z'>Z</span>
             <span className='zenos-topbar-brand-enos'>enos</span>

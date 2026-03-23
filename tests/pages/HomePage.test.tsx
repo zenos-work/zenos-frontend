@@ -97,17 +97,16 @@ describe('HomePage', () => {
     )
 
     expect(screen.getByText('Stories worth opening first')).toBeInTheDocument()
-    expect(screen.getByText('Guest Edition')).toBeInTheDocument()
-    expect(screen.getByText('Write with confidence')).toBeInTheDocument()
-    expect(screen.getByText('Review with clarity')).toBeInTheDocument()
-    expect(screen.getByText('Publish and automate')).toBeInTheDocument()
+    expect(screen.getAllByText('Write with confidence').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Review with clarity').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Publish and automate').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('button', { name: 'Next slide' }))
-    expect(screen.getByText('Review with clarity')).toBeInTheDocument()
+    expect(screen.getAllByText('Review with clarity').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Write with confidence').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('button', { name: 'Go to slide 3' }))
-    expect(screen.getByText('Publish and automate')).toBeInTheDocument()
+    expect(screen.getAllByText('Publish and automate').length).toBeGreaterThan(0)
   })
 
   it('loads next page when load more is clicked', async () => {

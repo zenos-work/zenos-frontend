@@ -26,6 +26,13 @@ type ArticleDraftPayload = {
   content: string
   subtitle?: string
   cover_image_url?: string
+  last_verified_at?: string
+  expires_at?: string
+  seo_title?: string
+  seo_description?: string
+  canonical_url?: string
+  og_image_url?: string
+  seo_schema_type?: 'Article' | 'TechArticle' | 'HowTo'
   tag_ids?: string[]
 }
 
@@ -75,6 +82,13 @@ function getWordCount(content: string): number {
   }
 }
 
+function toDateTimeLocal(value?: string): string {
+  if (!value) return ''
+  const trimmed = value.trim()
+  if (trimmed.includes('T')) return trimmed.slice(0, 16)
+  return trimmed.replace(' ', 'T').slice(0, 16)
+}
+
 export default function WritePage() {
   const { id }    = useParams()
   const navigate  = useNavigate()
@@ -84,8 +98,9 @@ export default function WritePage() {
   const resetEditor = useEditorStore(s => s.reset)
   const toast     = useUiStore(s => s.toast)
   const [tagQuery, setTagQuery] = useState('')
-  const [localTags, setLocalTags] = useState<Array<{ id: string; name: string; slug: string; article_count: number }>>([])
+  const [localTags, setLocalTags] = useState<Array<{ id: string; name: string; slug: string; tag_type?: 'topic' | 'outcome'; article_count: number }>>([])
   const [newTagName, setNewTagName] = useState('')
+  const [newTagType, setNewTagType] = useState<'topic' | 'outcome'>('topic')
   const [creatingTag, setCreatingTag] = useState(false)
   const [approvers, setApprovers] = useState<Approver[]>([])
   const [approversLoading, setApproversLoading] = useState(false)
@@ -117,6 +132,13 @@ export default function WritePage() {
       subtitle: existing.subtitle ?? '',
       content: existing.content,
       coverImageUrl: existing.cover_image_url ?? '',
+      lastVerifiedAt: toDateTimeLocal(existing.last_verified_at),
+      expiresAt: toDateTimeLocal(existing.expires_at),
+      seoTitle: existing.seo_title ?? '',
+      seoDescription: existing.seo_description ?? '',
+      canonicalUrl: existing.canonical_url ?? '',
+      ogImageUrl: existing.og_image_url ?? '',
+      seoSchemaType: existing.seo_schema_type ?? 'Article',
       selectedTags: existing.tags,
     })
   }, [existing, hydrateEditor])
@@ -193,9 +215,9 @@ export default function WritePage() {
     }
     setCreatingTag(true)
     try {
-      const res = await api.post<{ tag: { id: string; name: string; slug: string; article_count: number } }>(
+      const res = await api.post<{ tag: { id: string; name: string; slug: string; tag_type?: 'topic' | 'outcome'; article_count: number } }>(
         '/api/tags',
-        { name },
+        { name, tag_type: newTagType },
       )
       const created = res.data.tag
       setLocalTags((prev) => {
@@ -204,6 +226,7 @@ export default function WritePage() {
       })
       store.toggleTag(created)
       setNewTagName('')
+      setNewTagType('topic')
       toast(`Tag created: ${created.name}`, 'success')
     } catch (err) {
       toast(getApiErrorMessage(err) ?? 'Could not create tag', 'error')
@@ -280,6 +303,13 @@ export default function WritePage() {
       const optionalFields = omitEmptyFields({
         subtitle: store.subtitle || undefined,
         cover_image_url: store.coverImageUrl || undefined,
+        last_verified_at: store.lastVerifiedAt || undefined,
+        expires_at: store.expiresAt || undefined,
+        seo_title: store.seoTitle || undefined,
+        seo_description: store.seoDescription || undefined,
+        canonical_url: store.canonicalUrl || undefined,
+        og_image_url: store.ogImageUrl || undefined,
+        seo_schema_type: store.seoSchemaType || undefined,
       })
       Object.assign(payload, optionalFields)
       const targetArticleId = id ?? store.articleId
@@ -323,7 +353,7 @@ export default function WritePage() {
       void handleSave()
     }, AUTO_SAVE_MS)
     return () => window.clearTimeout(timer)
-  }, [store.isDirty, store.title, store.content, store.subtitle, store.coverImageUrl, store.selectedTags, id, store.articleId, handleSave])
+  }, [store.isDirty, store.title, store.content, store.subtitle, store.coverImageUrl, store.lastVerifiedAt, store.expiresAt, store.seoTitle, store.seoDescription, store.canonicalUrl, store.ogImageUrl, store.seoSchemaType, store.selectedTags, id, store.articleId, handleSave])
 
   const uploadImageFile = async (file: File, onProgress?: (pct: number) => void): Promise<string> => {
     if (!file.type.startsWith('image/')) {
@@ -460,6 +490,60 @@ export default function WritePage() {
             className='w-full mb-6 bg-transparent text-lg text-[color:var(--text-secondary)] placeholder-[color:var(--text-muted)] outline-none'
           />
 
+          <div className='mb-6 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+            <p className='mb-3 text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Verification + SEO</p>
+            <div className='grid gap-3 md:grid-cols-2'>
+              <input
+                type='datetime-local'
+                value={store.lastVerifiedAt}
+                onChange={e => store.setLastVerifiedAt(e.target.value)}
+                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
+                placeholder='Last verified at'
+              />
+              <input
+                type='datetime-local'
+                value={store.expiresAt}
+                onChange={e => store.setExpiresAt(e.target.value)}
+                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
+                placeholder='Expires at'
+              />
+              <input
+                value={store.seoTitle}
+                onChange={e => store.setSeoTitle(e.target.value)}
+                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
+                placeholder='SEO title'
+              />
+              <select
+                value={store.seoSchemaType}
+                onChange={e => store.setSeoSchemaType(e.target.value as 'Article' | 'TechArticle' | 'HowTo')}
+                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
+              >
+                <option value='Article'>Article</option>
+                <option value='TechArticle'>TechArticle</option>
+                <option value='HowTo'>HowTo</option>
+              </select>
+              <input
+                value={store.canonicalUrl}
+                onChange={e => store.setCanonicalUrl(e.target.value)}
+                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] md:col-span-2'
+                placeholder='Canonical URL (optional)'
+              />
+              <input
+                value={store.ogImageUrl}
+                onChange={e => store.setOgImageUrl(e.target.value)}
+                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] md:col-span-2'
+                placeholder='Open Graph image URL (optional)'
+              />
+              <textarea
+                rows={2}
+                value={store.seoDescription}
+                onChange={e => store.setSeoDescription(e.target.value)}
+                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] md:col-span-2'
+                placeholder='SEO description (optional)'
+              />
+            </div>
+          </div>
+
           {/* Rich text editor */}
           <Editor
             content={store.content}
@@ -491,6 +575,14 @@ export default function WritePage() {
                   placeholder='Create a new tag (e.g. fintech or #fintech)'
                   className='w-full rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)]'
                 />
+                <select
+                  value={newTagType}
+                  onChange={(e) => setNewTagType(e.target.value as 'topic' | 'outcome')}
+                  className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-xs text-[color:var(--text-secondary)]'
+                >
+                  <option value='topic'>Topic</option>
+                  <option value='outcome'>Outcome</option>
+                </select>
                 <button
                   onClick={() => void handleCreateTag()}
                   disabled={creatingTag || !newTagName.trim()}
@@ -507,10 +599,15 @@ export default function WritePage() {
                   <button
                     key={t.id}
                     onClick={() => store.toggleTag(t)}
-                    className='rounded-full px-3 py-1 text-xs bg-[color:var(--accent-dim)] border border-[color:var(--accent)] text-[color:var(--text-primary)] hover:opacity-90 transition-colors'
+                    className={[
+                      'rounded-full px-3 py-1 text-xs border text-[color:var(--text-primary)] hover:opacity-90 transition-colors',
+                      t.tag_type === 'outcome'
+                        ? 'bg-emerald-500/15 border-emerald-500'
+                        : 'bg-[color:var(--accent-dim)] border-[color:var(--accent)]',
+                    ].join(' ')}
                     title='Click to remove'
                   >
-                    #{t.name}
+                    {t.tag_type === 'outcome' ? 'Outcome' : 'Topic'}: #{t.name}
                   </button>
                 ))}
               </div>

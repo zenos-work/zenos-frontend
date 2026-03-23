@@ -208,14 +208,16 @@ describe('WritePage', () => {
       </MemoryRouter>,
     )
 
-    expect(hydrateMock).toHaveBeenCalledWith({
-      articleId: 'a1',
-      title: 'Existing',
-      subtitle: 'Existing sub',
-      content: '{"type":"doc"}',
-      coverImageUrl: '/cover.png',
-      selectedTags: [{ id: 't9', name: 'Tag9', slug: 'tag9', article_count: 1 }],
-    })
+    expect(hydrateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        articleId: 'a1',
+        title: 'Existing',
+        subtitle: 'Existing sub',
+        content: '{"type":"doc"}',
+        coverImageUrl: '/cover.png',
+        selectedTags: [{ id: 't9', name: 'Tag9', slug: 'tag9', article_count: 1 }],
+      }),
+    )
 
     unmount()
     expect(resetMock).toHaveBeenCalled()
@@ -460,7 +462,7 @@ describe('WritePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Tag' }))
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/api/tags', { name: 'FinOps' })
+      expect(api.post).toHaveBeenCalledWith('/api/tags', { name: 'FinOps', tag_type: 'topic' })
     })
     expect(toggleTagMock).toHaveBeenCalledWith({
       id: 't9',

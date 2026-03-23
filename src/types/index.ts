@@ -20,6 +20,7 @@ export interface Tag {
   id:            string
   name:          string
   slug:          string
+  tag_type?:     'topic' | 'outcome'
   article_count: number
 }
 
@@ -41,6 +42,16 @@ export interface ArticleList {
   published_at?:     string
   created_at:        string
   updated_at?:       string
+  last_verified_at?: string
+  expires_at?:       string
+  moderation_state?: string
+  moderation_note?:  string
+  seo_title?:        string
+  seo_description?:  string
+  canonical_url?:    string
+  og_image_url?:     string
+  seo_schema_type?:  'Article' | 'TechArticle' | 'HowTo'
+  is_expired?:       boolean
   tags:              Tag[]
 }
 

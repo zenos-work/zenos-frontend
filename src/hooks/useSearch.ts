@@ -4,6 +4,12 @@ import type { ArticleList, Tag, User, PaginatedResponse } from '../types'
 
 export type SearchType = 'articles' | 'tags' | 'authors' | 'all'
 
+export type SearchArticleFilters = {
+  status?: 'PUBLISHED' | 'APPROVED' | 'SUBMITTED'
+  outcome_tag?: string
+  verified_only?: boolean
+}
+
 export type SearchAllResponse = {
   query: string
   articles: { items: ArticleList[]; total: number }
@@ -11,26 +17,31 @@ export type SearchAllResponse = {
   authors: { items: User[]; total: number }
 }
 
-export const useSearchAll = (q: string, enabled = true) =>
+export const useSearchAll = (q: string, filters: SearchArticleFilters = {}, enabled = true) =>
   useQuery({
-    queryKey: ['search', 'all', q],
+    queryKey: ['search', 'all', q, filters],
     enabled: enabled && q.trim().length >= 2,
     queryFn: () =>
       api
         .get<SearchAllResponse>('/api/search', {
-          params: { q, type: 'all' },
+          params: { q, type: 'all', ...filters },
         })
         .then((r) => r.data),
   })
 
-export const useSearchArticles = (q: string, page = 1, enabled = true) =>
+export const useSearchArticles = (
+  q: string,
+  page = 1,
+  filters: SearchArticleFilters = {},
+  enabled = true,
+) =>
   useQuery({
-    queryKey: ['search', 'articles', q, page],
+    queryKey: ['search', 'articles', q, page, filters],
     enabled: enabled && q.trim().length >= 2,
     queryFn: () =>
       api
         .get<PaginatedResponse<ArticleList>>('/api/search', {
-          params: { q, type: 'articles', page },
+          params: { q, type: 'articles', page, ...filters },
         })
         .then((r) => r.data),
   })

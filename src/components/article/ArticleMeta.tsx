@@ -21,6 +21,16 @@ export default function ArticleMeta({ article }: { article: ArticleDetail }) {
           <Calendar size={14} /> {new Date(article.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
         </span>
       )}
+      {article.last_verified_at && (
+        <span className='flex items-center gap-1.5'>
+          Verified {new Date(article.last_verified_at).toLocaleDateString('en-US')}
+        </span>
+      )}
+      {article.is_expired && (
+        <span className='rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700'>
+          Verification expired
+        </span>
+      )}
     </div>
   )
 }
