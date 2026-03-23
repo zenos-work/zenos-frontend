@@ -102,7 +102,7 @@ export default function HomePage() {
     }, 5000)
 
     return () => window.clearInterval(timer)
-  }, [user, guestTrendingArticles.length])
+  }, [user, guestTrendingArticles.length, guestFallbackCards.length])
 
   if (!user) {
     const cards = guestTrendingArticles.length > 0 ? guestTrendingArticles : guestFallbackCards
@@ -209,7 +209,7 @@ export default function HomePage() {
               </article>
 
               <section className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-                {expandedCards.map((card, index) => {
+                {expandedCards.map((card) => {
                   const cardArticle = 'slug' in card ? card : null
                   const cardCoverUrl = cardArticle ? resolveAssetUrl(cardArticle.cover_image_url) : null
                   const body = (

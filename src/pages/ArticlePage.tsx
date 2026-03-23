@@ -19,18 +19,9 @@ export default function ArticlePage() {
   const { user }  = useAuth()
   const { data: article, isLoading, error } = useArticle(slug ?? '')
 
-  if (isLoading) return <div className='flex justify-center py-20'><Spinner size='lg' /></div>
-  if (error || !article) return (
-    <div className='text-center py-20'>
-      <p className='mb-4 text-[color:var(--text-secondary)]'>Article not found</p>
-      <Link to='/' className='text-[color:var(--accent)] hover:underline'>← Back to home</Link>
-    </div>
-  )
-
-  const isOwner = user?.id === article.author_id
-  const coverUrl = resolveAssetUrl(article.cover_image_url)
-
   useEffect(() => {
+    if (!article) return
+
     const prevTitle = document.title
     const seoTitle = article.seo_title || article.title
     document.title = seoTitle
@@ -74,6 +65,17 @@ export default function ArticlePage() {
       document.getElementById('article-jsonld')?.remove()
     }
   }, [article])
+
+  if (isLoading) return <div className='flex justify-center py-20'><Spinner size='lg' /></div>
+  if (error || !article) return (
+    <div className='text-center py-20'>
+      <p className='mb-4 text-[color:var(--text-secondary)]'>Article not found</p>
+      <Link to='/' className='text-[color:var(--accent)] hover:underline'>← Back to home</Link>
+    </div>
+  )
+
+  const isOwner = user?.id === article.author_id
+  const coverUrl = resolveAssetUrl(article.cover_image_url)
 
   return (
     <article className='mx-auto w-full max-w-4xl space-y-8'>
