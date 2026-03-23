@@ -10,15 +10,31 @@
  * CSS Grid written inline always works, even if Tailwind isn't loading.
  */
 import { Outlet } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
+import { type CSSProperties } from 'react'
 import Sidebar   from './Sidebar'
 import Topbar    from './Topbar'
 import MobileNav from './MobileNav'
 import ToastContainer from '../ui/Toast'
 import { useUiStore } from '../../stores/uiStore'
+import { useAuth } from '../../hooks/useAuth'
 
 export default function AppShell() {
+  const { user } = useAuth()
+  const location = useLocation()
   const sidebarOpen = useUiStore(s => s.sidebarOpen)
   const sw = sidebarOpen ? 240 : 64   // sidebar width in px
+  const isWriteRoute = location.pathname === '/write' || location.pathname.startsWith('/write/')
+  const isHomeRoute = location.pathname === '/'
+  const isGuest = !user
+  const showSidebar = !isGuest && !isWriteRoute
+  const showTopbar = !isWriteRoute && (!isGuest || !isHomeRoute)
+  const showMobileNav = !isGuest && !isWriteRoute
+
+  const contentStyle: CSSProperties = {
+    maxWidth: isWriteRoute ? '1680px' : isGuest ? '1500px' : '1320px',
+    padding: isWriteRoute ? '20px 28px 32px' : '24px 20px 80px',
+  }
 
   return (
     <>
@@ -51,9 +67,7 @@ export default function AppShell() {
         .zenos-content {
           flex: 1;
           width: 100%;
-          max-width: 1320px;
           margin: 0 auto;
-          padding: 24px 20px 80px;
         }
         /* Mobile: hide sidebar, show bottom nav */
         @media (max-width: 767px) {
@@ -66,20 +80,22 @@ export default function AppShell() {
       <div className='zenos-shell'>
 
         {/* ── Sidebar (desktop) ──────────────────────────────────── */}
-        <aside className='zenos-sidebar' style={{ width: sw }}>
-          <Sidebar />
-        </aside>
+        {showSidebar && (
+          <aside className='zenos-sidebar' style={{ width: sw }}>
+            <Sidebar />
+          </aside>
+        )}
 
         {/* ── Main area ──────────────────────────────────────────── */}
-        <div className='zenos-main' style={{ marginLeft: sw }}>
-          <Topbar />
-          <div className='zenos-content'>
+        <div className='zenos-main' style={{ marginLeft: showSidebar ? sw : 0 }}>
+          {showTopbar && <Topbar />}
+          <div className='zenos-content' style={contentStyle}>
             <Outlet />
           </div>
         </div>
 
         {/* ── Mobile bottom nav ─────────────────────────────────── */}
-        <MobileNav />
+        {showMobileNav && <MobileNav />}
 
         {/* ── Toasts ───────────────────────────────────────────── */}
         <ToastContainer />

@@ -28,9 +28,18 @@ export default function SearchPage() {
   const q = params.get('q') ?? ''
   const type = (params.get('type') as SearchType) || 'all'
   const page = Math.max(1, Number(params.get('page') || '1'))
+  const status = (params.get('status') as 'PUBLISHED' | 'APPROVED' | 'SUBMITTED' | null) ?? 'PUBLISHED'
+  const outcomeTag = params.get('outcome_tag') ?? ''
+  const verifiedOnly = params.get('verified_only') === 'true'
 
-  const searchAll = useSearchAll(q, type === 'all')
-  const searchArticles = useSearchArticles(q, page, type === 'articles')
+  const searchFilters = {
+    status,
+    outcome_tag: outcomeTag || undefined,
+    verified_only: verifiedOnly,
+  }
+
+  const searchAll = useSearchAll(q, searchFilters, type === 'all')
+  const searchArticles = useSearchArticles(q, page, searchFilters, type === 'articles')
   const searchTags = useSearchTags(q, page, type === 'tags')
   const searchAuthors = useSearchAuthors(q, page, type === 'authors')
 
@@ -56,10 +65,16 @@ export default function SearchPage() {
     return authorResult?.total ?? 0
   }, [hasQuery, type, allResult, articleResult, tagResult, authorResult])
 
-  const updateParams = (next: Partial<{ type: SearchType; page: number }>) => {
+  const updateParams = (next: Partial<{ type: SearchType; page: number; status: 'PUBLISHED' | 'APPROVED' | 'SUBMITTED'; outcome_tag: string; verified_only: boolean }>) => {
     const updated = new URLSearchParams(params)
     if (next.type) updated.set('type', next.type)
     if (next.page) updated.set('page', String(next.page))
+    if (next.status) updated.set('status', next.status)
+    if (next.outcome_tag !== undefined) {
+      if (next.outcome_tag) updated.set('outcome_tag', next.outcome_tag)
+      else updated.delete('outcome_tag')
+    }
+    if (next.verified_only !== undefined) updated.set('verified_only', String(next.verified_only))
     setParams(updated)
   }
 
@@ -93,6 +108,36 @@ export default function SearchPage() {
           </button>
         ))}
       </div>
+
+      {(type === 'articles' || type === 'all') && (
+        <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-3'>
+          <div className='flex flex-wrap items-center gap-2'>
+            <select
+              value={status}
+              onChange={(e) => updateParams({ status: e.target.value as 'PUBLISHED' | 'APPROVED' | 'SUBMITTED', page: 1 })}
+              className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-1.5 text-sm text-[color:var(--text-primary)]'
+            >
+              <option value='PUBLISHED'>Published</option>
+              <option value='APPROVED'>Approved</option>
+              <option value='SUBMITTED'>Submitted</option>
+            </select>
+            <input
+              value={outcomeTag}
+              onChange={(e) => updateParams({ outcome_tag: e.target.value, page: 1 })}
+              placeholder='Outcome tag slug (e.g. got-hired)'
+              className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-1.5 text-sm text-[color:var(--text-primary)]'
+            />
+            <label className='inline-flex items-center gap-2 text-sm text-[color:var(--text-secondary)]'>
+              <input
+                type='checkbox'
+                checked={verifiedOnly}
+                onChange={(e) => updateParams({ verified_only: e.target.checked, page: 1 })}
+              />
+              Verified only
+            </label>
+          </div>
+        </div>
+      )}
 
       {!q.trim() ? (
         <p className='text-gray-500'>Enter a search term in the top bar.</p>

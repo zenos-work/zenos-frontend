@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useArticle } from '../hooks/useArticles'
 import { useAuth } from '../hooks/useAuth'
@@ -28,6 +29,51 @@ export default function ArticlePage() {
 
   const isOwner = user?.id === article.author_id
   const coverUrl = resolveAssetUrl(article.cover_image_url)
+
+  useEffect(() => {
+    const prevTitle = document.title
+    const seoTitle = article.seo_title || article.title
+    document.title = seoTitle
+
+    const ensureMeta = (name: string, content: string) => {
+      let tag = document.head.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null
+      if (!tag) {
+        tag = document.createElement('meta')
+        tag.setAttribute('name', name)
+        document.head.appendChild(tag)
+      }
+      tag.setAttribute('content', content)
+    }
+
+    ensureMeta('description', article.seo_description || article.subtitle || '')
+
+    const schema = {
+      '@context': 'https://schema.org',
+      '@type': article.seo_schema_type || 'Article',
+      headline: seoTitle,
+      description: article.seo_description || article.subtitle || '',
+      datePublished: article.published_at,
+      dateModified: article.last_verified_at || article.updated_at,
+      author: {
+        '@type': 'Person',
+        name: article.author_name || '',
+      },
+      image: article.og_image_url || article.cover_image_url || undefined,
+      keywords: (article.tags || []).map((t) => t.name),
+      mainEntityOfPage: article.canonical_url || window.location.href,
+    }
+
+    const script = document.createElement('script')
+    script.type = 'application/ld+json'
+    script.id = 'article-jsonld'
+    script.text = JSON.stringify(schema)
+    document.head.appendChild(script)
+
+    return () => {
+      document.title = prevTitle
+      document.getElementById('article-jsonld')?.remove()
+    }
+  }, [article])
 
   return (
     <article className='mx-auto w-full max-w-4xl space-y-8'>
@@ -85,6 +131,15 @@ export default function ArticlePage() {
         <div className='p-4 rounded-xl border border-red-500/30 bg-red-900/10'>
           <p className='text-sm font-medium text-red-400 mb-1'>Rejection note</p>
           <p className='text-sm text-[color:var(--text-secondary)]'>{article.rejection_note}</p>
+        </div>
+      )}
+
+      {article.is_expired && (
+        <div className='rounded-xl border border-amber-500/40 bg-amber-500/10 p-4'>
+          <p className='text-sm font-semibold text-amber-700'>This article may be outdated.</p>
+          <p className='text-xs text-[color:var(--text-secondary)] mt-1'>
+            Last verified: {article.last_verified_at ? new Date(article.last_verified_at).toLocaleDateString('en-US') : 'not set'}
+          </p>
         </div>
       )}
 

@@ -51,6 +51,13 @@ export const useCreateArticle = () => {
       content:          string
       subtitle?:        string
       cover_image_url?: string
+      last_verified_at?: string
+      expires_at?: string
+      seo_title?: string
+      seo_description?: string
+      canonical_url?: string
+      og_image_url?: string
+      seo_schema_type?: 'Article' | 'TechArticle' | 'HowTo'
       tag_ids?:         string[]
     }) =>
       api.post<{ article: ArticleDetail }>('/api/articles', data)
@@ -70,6 +77,13 @@ export const useUpdateArticle = (articleId: string) => {
       content:          string
       subtitle:         string
       cover_image_url:  string
+      last_verified_at: string
+      expires_at: string
+      seo_title: string
+      seo_description: string
+      canonical_url: string
+      og_image_url: string
+      seo_schema_type: 'Article' | 'TechArticle' | 'HowTo'
       tag_ids:          string[]
     }>) =>
       api.put<{ article: ArticleDetail }>(`/api/articles/${articleId}`, data)
