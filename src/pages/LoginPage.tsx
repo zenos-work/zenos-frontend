@@ -7,7 +7,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = (intent: 'signin' | 'signup') => {
     const from = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from
     const nextPath = from?.pathname ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}` : '/'
 
@@ -16,6 +16,8 @@ export default function LoginPage() {
     } else {
       sessionStorage.removeItem('post_login_redirect')
     }
+
+    sessionStorage.setItem('auth_intent', intent)
 
     loginWithGoogle()
   }
@@ -98,16 +100,16 @@ export default function LoginPage() {
               color: 'var(--text-primary)',
               fontFamily: "'Syne', system-ui, sans-serif",
             }}>
-              Welcome back
+              Sign in or sign up
             </h1>
             <p style={{ fontSize: 14, color: 'var(--text-muted)', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-              Sign in to continue writing
+              Use your Google account to continue
             </p>
           </div>
 
-          {/* Google button */}
+          {/* Sign in button */}
           <button
-            onClick={handleGoogleLogin}
+            onClick={() => handleGoogleLogin('signin')}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 12, padding: '12px 20px', borderRadius: 12,
@@ -133,7 +135,30 @@ export default function LoginPage() {
               <path d='M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z' fill='#FBBC05'/>
               <path d='M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z' fill='#EA4335'/>
             </svg>
-            Continue with Google
+            Sign in with Google
+          </button>
+
+          <button
+            onClick={() => handleGoogleLogin('signup')}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 12, padding: '12px 20px', borderRadius: 12,
+              backgroundColor: 'var(--surface-0)', color: 'var(--text-primary)',
+              border: '1px solid var(--border-strong)',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 10,
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              transition: 'border-color 0.15s, transform 0.15s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'var(--accent)'
+              e.currentTarget.style.transform = 'translateY(-1px)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'var(--border-strong)'
+              e.currentTarget.style.transform = 'translateY(0)'
+            }}
+          >
+            Sign up with Google
           </button>
 
           <p style={{
@@ -141,8 +166,16 @@ export default function LoginPage() {
             color: 'var(--text-muted)',
             fontFamily: "'DM Sans', system-ui, sans-serif",
           }}>
-            By continuing you agree to our Terms of Service.
-            You will review and accept the writer agreement right after sign-in.
+            By continuing you agree to our{' '}
+            <a
+              href='/terms'
+              target='_blank'
+              rel='noreferrer'
+              style={{ color: 'var(--accent)', textDecoration: 'underline' }}
+            >
+              Terms of Service
+            </a>
+            . Sign-in automatically records acceptance.
           </p>
         </div>
 

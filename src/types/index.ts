@@ -4,6 +4,13 @@ export type ArticleStatus =
   | 'DRAFT' | 'SUBMITTED' | 'APPROVED'
   | 'REJECTED' | 'PUBLISHED' | 'ARCHIVED'
 
+export type ArticleContentType = string
+
+export interface ContentTypeOption {
+  slug: ArticleContentType
+  name: string
+}
+
 export interface User {
   id:          string
   name:        string
@@ -21,6 +28,8 @@ export interface Tag {
   name:          string
   slug:          string
   tag_type?:     'topic' | 'outcome'
+  category_slug?: string | null
+  is_onboarding_category?: number
   article_count: number
 }
 
@@ -33,6 +42,7 @@ export interface ArticleList {
   author_name?:      string
   author_avatar?:    string
   subtitle?:         string
+  content_type:      ArticleContentType
   cover_image_url?:  string
   read_time_minutes: number
   views_count:       number
@@ -127,6 +137,38 @@ export interface AdminStats {
       rejected_7d: number
     }
   }
+}
+
+export interface SuccessSignalSnapshot {
+  article_id: string
+  slug: string
+  title: string
+  bucket_hour: string
+  views_count: number
+  likes_count: number
+  comments_count: number
+  outcome_events_count: number
+  outcome_tag_count: number
+  engagement_score: number
+  success_rate: number
+  updated_at?: string
+}
+
+export interface AdminSuccessSignalsResponse {
+  snapshots: SuccessSignalSnapshot[]
+  pagination: PaginationMeta
+}
+
+export interface SuccessSignalHistoryPoint {
+  bucket_hour: string
+  success_rate: number
+  engagement_score: number
+}
+
+export interface AdminSuccessSignalHistoryResponse {
+  article_id: string
+  hours: number
+  points: SuccessSignalHistoryPoint[]
 }
 
 export interface PaginationMeta {

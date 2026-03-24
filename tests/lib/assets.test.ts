@@ -35,4 +35,11 @@ describe('resolveAssetUrl', () => {
     expect(resolveAssetUrl('/api/media/public/uploads/a.png')).toBe('/api/media/public/uploads/a.png')
     vi.unstubAllEnvs()
   })
+
+  it('falls back to original value when URL joining throws', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'not-a-valid-url')
+    const { resolveAssetUrl } = await importResolver()
+    expect(resolveAssetUrl('/api/media/public/uploads/a.png')).toBe('/api/media/public/uploads/a.png')
+    vi.unstubAllEnvs()
+  })
 })

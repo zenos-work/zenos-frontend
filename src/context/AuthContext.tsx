@@ -10,6 +10,8 @@ export interface AuthUser {
   avatar_url?:         string
   is_active?:          number
   terms_accepted_at?:  string | null
+  is_new_user?:        boolean
+  needs_topic_preferences?: boolean
   created_at:          string
   updated_at?:         string
 }
@@ -84,6 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Resume the route the user originally attempted before login.
         const postLoginPath = sessionStorage.getItem('post_login_redirect') || '/'
+        if (res.data.user?.needs_topic_preferences) {
+          sessionStorage.setItem('post_onboarding_redirect', postLoginPath)
+          window.location.href = '/onboarding/preferences'
+          return
+        }
+
         sessionStorage.removeItem('post_login_redirect')
         window.location.href = postLoginPath
       } catch (err) {

@@ -1,9 +1,3 @@
-import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
-import { useMutation } from '@tanstack/react-query'
-import api from '../lib/api'
-
 function Section({ num, title, children }: { num: string; title: string; children: React.ReactNode }) {
   return (
     <section className='mb-10 rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--surface-1)]/90 px-5 py-5 shadow-[var(--shadow)] sm:px-7'>
@@ -51,37 +45,6 @@ const Note = ({ children }: { children: React.ReactNode }) => (
 )
 
 export default function TermsPage() {
-  const { user, refreshUser } = useAuth()
-  const navigate = useNavigate()
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false)
-  const [checked, setChecked] = useState(false)
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-
-    // Instantly enable if there is no scrollbar (content fits on screen)
-    if (el.scrollHeight <= el.clientHeight) {
-        setTimeout(() => setHasScrolledToBottom(true), 0)
-    }
-    const handler = () => {
-      // Just auto-enable the checkbox to avoid screen-size quirks blocking users
-      setHasScrolledToBottom(true)
-    }
-    el.addEventListener('scroll', handler)
-    return () => el.removeEventListener('scroll', handler)
-  }, [])
-
-  const acceptMutation = useMutation({
-    mutationFn: () =>
-      api.put('/api/users/me/accept-terms').then(r => r.data),
-    onSuccess: async () => {
-      await refreshUser()
-      navigate('/', { replace: true })
-    },
-  })
-
   const effectiveDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric',
   })
@@ -126,14 +89,14 @@ export default function TermsPage() {
       {/* Warning banner */}
       <div className='shrink-0 border-b border-[color:rgba(166,124,60,0.18)] bg-[color:var(--accent-dim)] px-5 py-4 sm:px-6'>
         <p className='mx-auto max-w-4xl text-center text-sm leading-6 text-[color:var(--text-primary)]'>
-          <strong>Before you start writing</strong> — please read this agreement. By accepting, you grant
-          zenos.work a permanent, worldwide license to use your content for indexing, ebooks, printed
-          books, AI training, and more. Scroll to the bottom to accept.
+          <strong>Before you start writing</strong> — please read this agreement. Signing in or
+          continuing with zenos.work records acceptance of these terms, including the content
+          license for indexing, ebooks, printed books, AI training, and related use.
         </p>
       </div>
 
       {/* Scrollable content */}
-      <div ref={scrollRef} className='flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-10'>
+      <div className='flex-1 px-4 py-8 sm:px-6 sm:py-10'>
         <div className='mx-auto max-w-4xl'>
 
           <div className='mb-8 rounded-[2rem] border border-[color:var(--border)] bg-[linear-gradient(145deg,rgba(255,255,255,0.38),rgba(255,255,255,0.08))] px-6 py-7 shadow-[var(--shadow)] sm:px-8'>
@@ -143,7 +106,7 @@ export default function TermsPage() {
             <h1 className='mb-3 text-3xl font-bold tracking-tight text-[color:var(--text-primary)] sm:text-4xl'>Writer Content Agreement</h1>
             <p className='max-w-2xl text-sm leading-7 text-[color:var(--text-secondary)] sm:text-base'>
               Clear terms for creators publishing on zenos.work, with the core licensing, royalty, and
-              removal implications surfaced in readable language before you accept.
+              removal implications surfaced in readable language before you sign in or publish.
             </p>
             <div className='mt-5 flex flex-wrap gap-3 text-xs text-[color:var(--text-muted)]'>
               <span className='rounded-full border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 py-1.5'>Ref: ZW-WCA-001</span>
@@ -153,7 +116,7 @@ export default function TermsPage() {
           </div>
 
           <Important>
-            PLEASE READ THIS AGREEMENT CAREFULLY. BY CLICKING "I AGREE" OR SUBMITTING ANY CONTENT,
+            PLEASE READ THIS AGREEMENT CAREFULLY. BY SIGNING IN OR SUBMITTING ANY CONTENT,
             YOU AGREE TO BE BOUND BY ALL TERMS BELOW.
           </Important>
 
@@ -270,10 +233,10 @@ export default function TermsPage() {
                   ))}
                 </div>
                 {[
-                  ['Ebook — solo author','15% net receipts','≥ USD $50'],
-                  ['Ebook — anthology','5% net receipts (pro-rated)','≥ USD $50'],
-                  ['Print book — solo author','10% net receipts','≥ USD $100'],
-                  ['Print book — anthology','3% net receipts (pro-rated)','≥ USD $100'],
+                  ['Ebook — solo author','15% net receipts','Yet to be announced'],
+                  ['Ebook — anthology','5% net receipts (pro-rated)','Yet to be announced'],
+                  ['Print book — solo author','10% net receipts','Yet to be announced'],
+                  ['Print book — anthology','3% net receipts (pro-rated)','Yet to be announced'],
                   ['AI training datasets','No royalty','N/A'],
                   ['Indexing / distribution','No royalty','N/A'],
                 ].map(([t, r, th], i) => (
@@ -312,8 +275,8 @@ export default function TermsPage() {
               breach of this Agreement, or any third-party IP infringement claim related to your Content.</P>
             </Sub>
             <Sub num='7.2' title="Platform's Liability Cap">
-              <P>THE PLATFORM'S MAXIMUM LIABILITY IS THE GREATER OF: (A) USD $100; OR (B) ROYALTIES
-              PAID TO YOU IN THE PAST 12 MONTHS. THE PLATFORM IS NOT LIABLE FOR INDIRECT OR
+              <P>THE PLATFORM'S MAXIMUM LIABILITY CAP IS YET TO BE ANNOUNCED AND WILL BE COMMUNICATED
+              IN A FUTURE POLICY UPDATE. THE PLATFORM IS NOT LIABLE FOR INDIRECT OR
               CONSEQUENTIAL DAMAGES.</P>
             </Sub>
           </Section>
@@ -340,90 +303,15 @@ export default function TermsPage() {
               {' '}· <span className='font-medium text-[color:var(--text-primary)]'>Not legal advice — consult qualified counsel before relying on these terms.</span>
             </p>
           </div>
-          <div className='h-10' />
-        </div>
-      </div>
 
-      {/* Sticky accept footer */}
-      <div className='sticky bottom-0 shrink-0 border-t border-[color:var(--border)] bg-[color:var(--topbar-bg)] px-4 py-5 backdrop-blur-md sm:px-6'>
-        <div className='mx-auto max-w-4xl rounded-[1.75rem] border border-[color:var(--border)] bg-[color:var(--surface-1)]/92 p-4 shadow-[var(--shadow)] sm:p-5'>
-
-          {!hasScrolledToBottom && (
-            <div className='mb-3 flex items-center justify-center gap-2 text-xs font-medium text-[color:var(--accent)]'>
-              <svg className='w-4 h-4 animate-bounce' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
-              </svg>
-              Scroll to the bottom to read the full agreement before accepting.
-            </div>
-          )}
-
-          <label
-            onClick={(e) => {
-              e.preventDefault()
-              if (hasScrolledToBottom) setChecked(v => !v)
-            }}
-            className={[
-              'flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-4 transition-colors',
-              hasScrolledToBottom
-                ? 'border-[color:var(--border-strong)] bg-[color:var(--surface-0)] hover:border-[color:var(--accent)]'
-                : 'pointer-events-none border-[color:var(--border)] bg-[color:var(--surface-2)] opacity-55',
-            ].join(' ')}>
-            <div
-              className={[
-                'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors',
-                checked
-                  ? 'border-[color:var(--accent)] bg-[color:var(--accent)]'
-                  : 'border-[color:var(--border-strong)] bg-[color:var(--surface-1)]',
-              ].join(' ')}
-            >
-              {checked && (
-                <svg className='w-3 h-3 text-white' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
-                  <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={3} d='M5 13l4 4L19 7' />
-                </svg>
-              )}
-            </div>
-
-            <span className='select-none text-sm leading-7 text-[color:var(--text-secondary)]'>
-              I have read the Writer Content Agreement and agree that zenos.work and its affiliates,
-              successors, and future owners may use my content for indexing, ebooks, printed books,
-              AI training, and other purposes as described. I understand this license is{' '}
-              <strong className='text-[color:var(--text-primary)]'>irrevocable and perpetual</strong> and survives account
-              deletion.{' '}
-              {user && (
-                <span className='text-xs text-[color:var(--text-muted)]'>
-                  (Signing as: {user.name} · {user.email})
-                </span>
-              )}
-            </span>
-          </label>
-
-          <div className='mt-4 flex flex-col gap-3 sm:flex-row sm:items-center'>
-            <button
-              disabled={!checked || acceptMutation.isPending}
-              onClick={() => acceptMutation.mutate()}
-              className={[
-                'flex-1 rounded-xl px-5 py-3 text-sm font-bold transition-all duration-150',
-                checked && !acceptMutation.isPending
-                  ? 'bg-[#7a5b2f] text-white shadow-sm hover:bg-[#694d27]'
-                  : 'cursor-not-allowed bg-[color:var(--surface-3)] text-[color:var(--text-muted)]',
-              ].join(' ')}
-            >
-              {acceptMutation.isPending ? 'Recording acceptance...' : 'I Agree — Start Writing'}
-            </button>
-
-            <a
-              href='/login'
-              className='inline-flex items-center justify-center rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-5 py-3 text-sm font-medium text-[color:var(--text-primary)] transition-colors hover:border-[color:var(--accent)] hover:bg-[color:var(--surface-2)]'
-            >
-              Decline & Sign Out
-            </a>
+          <div className='mt-6 rounded-[1.75rem] border border-[color:rgba(166,124,60,0.28)] bg-[color:var(--accent-dim)] px-5 py-5 text-center shadow-sm'>
+            <p className='text-sm leading-7 text-[color:var(--text-primary)]'>
+              No explicit accept or decline action is required on this page. Signing in to zenos.work
+              automatically records acceptance of this agreement for writer workflows.
+            </p>
           </div>
 
-          {acceptMutation.isError && (
-            <p className='mt-3 text-center text-xs font-medium text-[#b42318] dark:text-[#ff9f94]'>
-              Something went wrong. Please try again.
-            </p>
-          )}
+          <div className='h-10' />
         </div>
       </div>
     </div>

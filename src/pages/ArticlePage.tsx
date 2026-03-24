@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useArticle } from '../hooks/useArticles'
 import { useAuth } from '../hooks/useAuth'
@@ -14,10 +14,128 @@ import Spinner       from '../components/ui/Spinner'
 import { PenSquare } from 'lucide-react'
 import { resolveAssetUrl } from '../lib/assets'
 
+type TocHeading = {
+  id: string
+  text: string
+  level: number
+}
+
+type SignalTone = 'success' | 'warning' | 'neutral'
+
+function slugifyHeading(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+function daysSince(dateValue?: string): number | null {
+  if (!dateValue) return null
+  const parsed = Date.parse(dateValue)
+  if (Number.isNaN(parsed)) return null
+  const msPerDay = 1000 * 60 * 60 * 24
+  return Math.floor((Date.now() - parsed) / msPerDay)
+}
+
+function verificationSignal(article: { last_verified_at?: string; is_expired?: boolean }): { label: string; tone: SignalTone } {
+  if (article.is_expired) {
+    return { label: 'Verification expired', tone: 'warning' }
+  }
+  const ageDays = daysSince(article.last_verified_at)
+  if (ageDays === null) {
+    return { label: 'Verification not set', tone: 'neutral' }
+  }
+  if (ageDays <= 30) {
+    return { label: 'Freshly verified', tone: 'success' }
+  }
+  if (ageDays <= 90) {
+    return { label: 'Verified recently', tone: 'success' }
+  }
+  return { label: 'Verification aging', tone: 'warning' }
+}
+
+function engagementSignal(article: { views_count: number; likes_count: number; comments_count: number }): { label: string; score: number } {
+  const score = article.views_count + article.likes_count * 10 + article.comments_count * 15
+  if (score >= 500) return { label: 'High audience traction', score }
+  if (score >= 120) return { label: 'Growing audience traction', score }
+  return { label: 'Early audience traction', score }
+}
+
+function signalToneClasses(tone: SignalTone): string {
+  if (tone === 'success') {
+    return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+  }
+  if (tone === 'warning') {
+    return 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+  }
+  return 'border-[color:var(--border)] bg-[color:var(--surface-1)] text-[color:var(--text-secondary)]'
+}
+
 export default function ArticlePage() {
   const { slug }  = useParams()
   const { user }  = useAuth()
   const { data: article, isLoading, error } = useArticle(slug ?? '')
+  const contentShellRef = useRef<HTMLDivElement | null>(null)
+
+  const toc = useMemo<TocHeading[]>(() => {
+    if (!article?.content) return []
+
+    type JsonNode = {
+      type?: string
+      attrs?: { level?: number }
+      content?: JsonNode[]
+      text?: string
+    }
+
+    const extractText = (node?: JsonNode): string => {
+      if (!node) return ''
+      if (typeof node.text === 'string') return node.text
+      if (!Array.isArray(node.content)) return ''
+      return node.content.map(extractText).join('')
+    }
+
+    const headingNodes: Array<{ text: string; level: number }> = []
+
+    const visit = (node?: JsonNode) => {
+      if (!node) return
+      if (node.type === 'heading') {
+        const text = extractText(node).trim()
+        const level = Number(node.attrs?.level) || 2
+        if (text) headingNodes.push({ text, level })
+      }
+      if (Array.isArray(node.content)) {
+        node.content.forEach(visit)
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(article.content) as JsonNode
+      visit(parsed)
+    } catch {
+      // Keep TOC empty for non-JSON article payloads.
+    }
+
+    const usedIds = new Set<string>()
+    return headingNodes.map((node, index) => {
+      let baseId = slugifyHeading(node.text)
+      if (!baseId) baseId = `section-${index + 1}`
+      let nextId = baseId
+      let i = 2
+      while (usedIds.has(nextId)) {
+        nextId = `${baseId}-${i}`
+        i += 1
+      }
+      usedIds.add(nextId)
+      return {
+        id: nextId,
+        text: node.text,
+        level: node.level,
+      }
+    })
+  }, [article])
 
   useEffect(() => {
     if (!article) return
@@ -65,6 +183,22 @@ export default function ArticlePage() {
       document.getElementById('article-jsonld')?.remove()
     }
   }, [article])
+
+  useEffect(() => {
+    if (!contentShellRef.current || !toc.length) return
+    const root = contentShellRef.current
+    const headingNodes = Array.from(root.querySelectorAll('h1, h2, h3')) as HTMLElement[]
+    headingNodes.forEach((node, index) => {
+      const entry = toc[index]
+      if (!entry) return
+      node.id = entry.id
+    })
+  }, [toc])
+
+  const tocVisible = toc.length >= 2
+  const verification = verificationSignal(article ?? {})
+  const engagement = engagementSignal(article ?? { views_count: 0, likes_count: 0, comments_count: 0 })
+  const outcomeCount = article?.tags?.filter((tag) => tag.tag_type === 'outcome').length ?? 0
 
   if (isLoading) return <div className='flex justify-center py-20'><Spinner size='lg' /></div>
   if (error || !article) return (
@@ -128,6 +262,29 @@ export default function ArticlePage() {
         </div>
       </div>
 
+      {/* SR-011: success signals */}
+      <section className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+        <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Success signals</p>
+        <div className='mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3'>
+          <div className={`rounded-lg border px-3 py-2 text-sm ${signalToneClasses(verification.tone)}`}>
+            <p className='text-xs uppercase tracking-wider opacity-80'>Verification</p>
+            <p className='font-medium'>{verification.label}</p>
+          </div>
+          <div className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-secondary)]'>
+            <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Engagement</p>
+            <p className='font-medium text-[color:var(--text-primary)]'>{engagement.label}</p>
+            <p className='text-xs'>Signal score: {engagement.score.toLocaleString()}</p>
+          </div>
+          <div className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-secondary)]'>
+            <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Outcomes</p>
+            <p className='font-medium text-[color:var(--text-primary)]'>
+              {outcomeCount > 0 ? `${outcomeCount} outcome tag${outcomeCount > 1 ? 's' : ''}` : 'No outcome tags yet'}
+            </p>
+            <p className='text-xs'>Outcome tags mark measurable reader value.</p>
+          </div>
+        </div>
+      </section>
+
       {/* Rejection note for author */}
       {article.rejection_note && isOwner && (
         <div className='p-4 rounded-xl border border-red-500/30 bg-red-900/10'>
@@ -145,8 +302,29 @@ export default function ArticlePage() {
         </div>
       )}
 
-      {/* Content */}
-      <ArticleDetail content={article.content} />
+      {/* Content + TOC */}
+      <div className='grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]'>
+        <div ref={contentShellRef}>
+          <ArticleDetail content={article.content} />
+        </div>
+        {tocVisible && (
+          <aside className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4 lg:sticky lg:top-24 lg:self-start'>
+            <p className='mb-3 text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Table of contents</p>
+            <nav className='space-y-2'>
+              {toc.map((item) => (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  className='block text-sm text-[color:var(--text-secondary)] hover:text-[color:var(--accent)]'
+                  style={{ paddingLeft: `${Math.max(0, item.level - 1) * 10}px` }}
+                >
+                  {item.text}
+                </a>
+              ))}
+            </nav>
+          </aside>
+        )}
+      </div>
 
       {/* Comments */}
       <section className='border-t border-[color:var(--border)] pt-8'>

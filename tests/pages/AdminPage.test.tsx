@@ -7,6 +7,8 @@ import api from '../../src/lib/api'
 
 const useAuthMock = vi.fn()
 const useAdminStatsMock = vi.fn()
+const useAdminSuccessSignalsMock = vi.fn()
+const useAdminSuccessSignalHistoryMock = vi.fn()
 const useApprovalQueueMock = vi.fn()
 const useAdminUsersMock = vi.fn()
 const useUiStoreMock = vi.fn()
@@ -20,6 +22,8 @@ vi.mock('../../src/hooks/useAuth', () => ({
 
 vi.mock('../../src/hooks/useAdmin', () => ({
   useAdminStats: (...args: unknown[]) => useAdminStatsMock(...args),
+  useAdminSuccessSignals: (...args: unknown[]) => useAdminSuccessSignalsMock(...args),
+  useAdminSuccessSignalHistory: (...args: unknown[]) => useAdminSuccessSignalHistoryMock(...args),
   useApprovalQueue: (...args: unknown[]) => useApprovalQueueMock(...args),
   useAdminUsers: (...args: unknown[]) => useAdminUsersMock(...args),
   useBanUser: () => ({ mutateAsync: banMutateAsyncMock }),
@@ -58,6 +62,44 @@ describe('AdminPage', () => {
           moderation: { pending_approvals: 1, flagged_comments: 2, hidden_comments: 1 },
           recent_activity: { notifications_7d: 4, published_7d: 3, approved_7d: 2, rejected_7d: 1 },
         },
+      },
+      isLoading: false,
+      isError: false,
+    })
+
+    useAdminSuccessSignalsMock.mockReturnValue({
+      data: {
+        snapshots: [
+          {
+            article_id: 'a-top',
+            slug: 'top-story',
+            title: 'Top Story',
+            bucket_hour: '2026-03-24 12:00:00',
+            views_count: 100,
+            likes_count: 12,
+            comments_count: 4,
+            outcome_events_count: 1,
+            outcome_tag_count: 2,
+            engagement_score: 252,
+            success_rate: 84,
+            updated_at: '2026-03-24 12:05:00',
+          },
+        ],
+        pagination: { page: 1, pages: 1, total: 1, limit: 10, has_more: false },
+      },
+      isLoading: false,
+      isError: false,
+    })
+
+    useAdminSuccessSignalHistoryMock.mockReturnValue({
+      data: {
+        article_id: 'a-top',
+        hours: 12,
+        points: [
+          { bucket_hour: '2026-03-24 10:00:00', success_rate: 40, engagement_score: 80 },
+          { bucket_hour: '2026-03-24 11:00:00', success_rate: 60, engagement_score: 120 },
+          { bucket_hour: '2026-03-24 12:00:00', success_rate: 84, engagement_score: 252 },
+        ],
       },
       isLoading: false,
       isError: false,
@@ -122,7 +164,8 @@ describe('AdminPage', () => {
 
     expect(screen.getByText('Active users')).toBeInTheDocument()
     expect(screen.getAllByText('Users by role').length).toBeGreaterThan(0)
-    expect(screen.getByText('Top Story')).toBeInTheDocument()
+    expect(screen.getAllByText('Top Story').length).toBeGreaterThan(0)
+    expect(screen.getByText('Success signals (SR-011)')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /users/i })).toBeInTheDocument()
   })
 

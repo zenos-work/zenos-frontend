@@ -11,7 +11,7 @@
  */
 import { Outlet } from 'react-router-dom'
 import { useLocation } from 'react-router-dom'
-import { type CSSProperties } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import Sidebar   from './Sidebar'
 import Topbar    from './Topbar'
 import MobileNav from './MobileNav'
@@ -27,9 +27,98 @@ export default function AppShell() {
   const isWriteRoute = location.pathname === '/write' || location.pathname.startsWith('/write/')
   const isHomeRoute = location.pathname === '/'
   const isGuest = !user
-  const showSidebar = !isGuest && !isWriteRoute
+  const showSidebar = !isGuest
   const showTopbar = !isWriteRoute && (!isGuest || !isHomeRoute)
   const showMobileNav = !isGuest && !isWriteRoute
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/article/')) return
+
+    const defaults = {
+      title: 'Zenos.work | Write, Review, Publish',
+      description: 'Zenos is an editorial platform for writing, approvals, and governed publishing workflows.',
+      image: `${window.location.origin}/favicon.svg`,
+      canonical: `${window.location.origin}${location.pathname}${location.search}`,
+    }
+
+    const routeMeta: Record<string, { title: string; description: string }> = {
+      '/': {
+        title: 'Zenos.work | Stories Worth Opening First',
+        description: 'Discover curated stories and publish with modern editorial governance on Zenos.',
+      },
+      '/search': {
+        title: 'Search | Zenos.work',
+        description: 'Search stories, tags, and authors across the Zenos platform.',
+      },
+      '/library': {
+        title: 'Library | Zenos.work',
+        description: 'Manage your drafts, submitted stories, and published work in one place.',
+      },
+      '/write': {
+        title: 'Write | Zenos.work',
+        description: 'Write and edit stories with built-in SEO, moderation workflow, and publishing controls.',
+      },
+      '/bookmarks': {
+        title: 'Bookmarks | Zenos.work',
+        description: 'Revisit stories you saved for later reading.',
+      },
+      '/membership': {
+        title: 'Membership | Zenos.work',
+        description: 'Explore Zenos membership plans for writers and editorial teams.',
+      },
+      '/notifications': {
+        title: 'Notifications | Zenos.work',
+        description: 'Track approvals, moderation updates, and publishing events.',
+      },
+      '/stats': {
+        title: 'Stats | Zenos.work',
+        description: 'Monitor article performance, engagement, and growth analytics.',
+      },
+      '/admin': {
+        title: 'Admin | Zenos.work',
+        description: 'Admin tools for governance, moderation, and platform operations.',
+      },
+    }
+
+    const matched = Object.entries(routeMeta)
+      .sort((a, b) => b[0].length - a[0].length)
+      .find(([path]) => location.pathname === path || location.pathname.startsWith(`${path}/`))
+
+    const meta = matched?.[1] ?? defaults
+    document.title = meta.title
+
+    const ensureMeta = (key: string, value: string, attr: 'name' | 'property' = 'name') => {
+      let tag = document.head.querySelector(`meta[${attr}="${key}"]`) as HTMLMetaElement | null
+      if (!tag) {
+        tag = document.createElement('meta')
+        tag.setAttribute(attr, key)
+        document.head.appendChild(tag)
+      }
+      tag.setAttribute('content', value)
+    }
+
+    const ensureCanonical = (href: string) => {
+      let tag = document.head.querySelector('link[rel="canonical"]') as HTMLLinkElement | null
+      if (!tag) {
+        tag = document.createElement('link')
+        tag.setAttribute('rel', 'canonical')
+        document.head.appendChild(tag)
+      }
+      tag.setAttribute('href', href)
+    }
+
+    ensureMeta('description', meta.description)
+    ensureMeta('og:title', meta.title, 'property')
+    ensureMeta('og:description', meta.description, 'property')
+    ensureMeta('og:type', 'website', 'property')
+    ensureMeta('og:url', defaults.canonical, 'property')
+    ensureMeta('og:image', defaults.image, 'property')
+    ensureMeta('twitter:card', 'summary_large_image')
+    ensureMeta('twitter:title', meta.title)
+    ensureMeta('twitter:description', meta.description)
+    ensureMeta('twitter:image', defaults.image)
+    ensureCanonical(defaults.canonical)
+  }, [location.pathname, location.search])
 
   const contentStyle: CSSProperties = {
     maxWidth: isWriteRoute ? '1680px' : isGuest ? '1500px' : '1320px',

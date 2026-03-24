@@ -25,6 +25,16 @@ const INFO_CONTENT: Record<string, InfoContent> = {
       'Product direction is shaped directly by creator feedback.',
     ],
   },
+  features: {
+    title: 'Features',
+    subtitle: 'A single place to understand what Zenos offers.',
+    bullets: [
+      'Editorial workflows for drafting, review, and governed publishing.',
+      'Role-based access for authors, approvers, and platform admins.',
+      'Discovery surfaces including feed, search, tags, and reader profiles.',
+      'Analytics and moderation tools to support quality at scale.',
+    ],
+  },
   privacy: {
     title: 'Privacy',
     subtitle: 'How we handle your account and content data.',

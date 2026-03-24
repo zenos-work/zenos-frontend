@@ -4,10 +4,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SearchPage from '../../src/pages/SearchPage'
 import { makeArticle, makePaginatedResponse, makeTag, makeUser } from '../utils/fixtures'
 
+const apiGetMock = vi.fn()
 const useSearchAllMock = vi.fn()
 const useSearchArticlesMock = vi.fn()
 const useSearchTagsMock = vi.fn()
 const useSearchAuthorsMock = vi.fn()
+
+vi.mock('../../src/lib/api', () => ({
+  default: {
+    get: (...args: unknown[]) => apiGetMock(...args),
+  },
+}))
 
 vi.mock('../../src/hooks/useSearch', () => ({
   useSearchAll: (...args: unknown[]) => useSearchAllMock(...args),
@@ -45,8 +52,9 @@ function renderSearch(initialEntry: string) {
 describe('SearchPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    apiGetMock.mockResolvedValue({ data: { content_types: [] } })
 
-    useSearchAllMock.mockImplementation((q: string, enabled: boolean) => ({
+    useSearchAllMock.mockImplementation((q: string, _filters: unknown, enabled: boolean) => ({
       data: enabled && q === 'ai'
         ? {
             query: q,
@@ -58,7 +66,7 @@ describe('SearchPage', () => {
       isLoading: false,
     }))
 
-    useSearchArticlesMock.mockImplementation((q: string, page: number, enabled: boolean) => ({
+    useSearchArticlesMock.mockImplementation((q: string, page: number, _filters: unknown, enabled: boolean) => ({
       data: enabled && q === 'ai'
         ? makePaginatedResponse([
             makeArticle({ id: `article-${page}`, title: page === 1 ? 'Article Page 1' : 'Article Page 2' }),
@@ -118,6 +126,12 @@ describe('SearchPage', () => {
     expect(screen.getByText('Page 2')).toBeInTheDocument()
   })
 
+  it('shows the content type filter for article queries', async () => {
+    renderSearch('/search?q=ai&type=articles&page=1')
+
+    expect(screen.getByDisplayValue('All content types')).toBeInTheDocument()
+  })
+
   it('shows loading state while search is in progress', () => {
     useSearchAllMock.mockReturnValue({ data: undefined, isLoading: true })
     useSearchArticlesMock.mockReturnValue({ data: undefined, isLoading: false })
@@ -162,5 +176,51 @@ describe('SearchPage', () => {
     renderSearch('/search?q=ai&type=authors&page=1')
 
     expect(screen.getByText('No authors found for "ai"')).toBeInTheDocument()
+  })
+
+  it('loads content type options for article search filters', async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: {
+        content_types: [
+          { slug: 'playbook', name: 'Playbook' },
+        ],
+      },
+    })
+
+    renderSearch('/search?q=ai&type=articles&page=1')
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith('/api/articles/content-types')
+    })
+    expect(screen.getByRole('option', { name: 'Playbook' })).toBeInTheDocument()
+  })
+
+  it('keeps default content types when content-type API fails', async () => {
+    apiGetMock.mockRejectedValueOnce(new Error('network error'))
+
+    renderSearch('/search?q=ai&type=articles&page=1')
+
+    await waitFor(() => {
+      expect(apiGetMock).toHaveBeenCalledWith('/api/articles/content-types')
+    })
+    expect(screen.getByRole('option', { name: 'Case study' })).toBeInTheDocument()
+  })
+
+  it('renders empty sections in all-results view', () => {
+    useSearchAllMock.mockReturnValue({
+      data: {
+        query: 'ai',
+        articles: { items: [], total: 0 },
+        tags: { items: [], total: 0 },
+        authors: { items: [], total: 0 },
+      },
+      isLoading: false,
+    })
+
+    renderSearch('/search?q=ai&type=all&page=1')
+
+    expect(screen.getByText('No articles.')).toBeInTheDocument()
+    expect(screen.getByText('No tags.')).toBeInTheDocument()
+    expect(screen.getByText('No authors.')).toBeInTheDocument()
   })
 })

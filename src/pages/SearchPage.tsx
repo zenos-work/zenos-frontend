@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   useSearchAll,
@@ -7,12 +7,13 @@ import {
   useSearchAuthors,
   type SearchType,
 } from '../hooks/useSearch'
+import api from '../lib/api'
 import ArticleCard from '../components/article/ArticleCard'
 import Spinner     from '../components/ui/Spinner'
 import Avatar      from '../components/ui/Avatar'
 import TagChip     from '../components/ui/TagChip'
 import { Search, Users, Tags, FileText } from 'lucide-react'
-import type { Tag, User, ArticleList } from '../types'
+import type { Tag, User, ArticleList, ArticleContentType, ContentTypeOption } from '../types'
 
 type SearchIcon = React.ComponentType<{ size?: number; className?: string }>
 
@@ -23,17 +24,46 @@ const SEARCH_TABS: { id: SearchType; label: string; icon: SearchIcon }[] = [
   { id: 'authors', label: 'Authors', icon: Users },
 ]
 
+const DEFAULT_CONTENT_TYPES: ContentTypeOption[] = [
+  { slug: 'article', name: 'Article' },
+  { slug: 'how-to', name: 'How-to' },
+  { slug: 'case-study', name: 'Case study' },
+  { slug: 'research', name: 'Research' },
+]
+
 export default function SearchPage() {
   const [params, setParams] = useSearchParams()
   const q = params.get('q') ?? ''
   const type = (params.get('type') as SearchType) || 'all'
   const page = Math.max(1, Number(params.get('page') || '1'))
   const status = (params.get('status') as 'PUBLISHED' | 'APPROVED' | 'SUBMITTED' | null) ?? 'PUBLISHED'
+  const contentType = (params.get('content_type') as ArticleContentType | null) ?? null
   const outcomeTag = params.get('outcome_tag') ?? ''
   const verifiedOnly = params.get('verified_only') === 'true'
+  const [contentTypeOptions, setContentTypeOptions] = useState<ContentTypeOption[]>(DEFAULT_CONTENT_TYPES)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadContentTypes = async () => {
+      try {
+        const res = await api.get<{ content_types: ContentTypeOption[] }>('/api/articles/content-types')
+        if (cancelled) return
+        const fetched = (res.data.content_types ?? []).filter((item) => item?.slug)
+        if (!fetched.length) return
+        setContentTypeOptions(fetched)
+      } catch {
+        // Keep default options when API is unavailable.
+      }
+    }
+    void loadContentTypes()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const searchFilters = {
     status,
+    content_type: contentType || undefined,
     outcome_tag: outcomeTag || undefined,
     verified_only: verifiedOnly,
   }
@@ -65,11 +95,15 @@ export default function SearchPage() {
     return authorResult?.total ?? 0
   }, [hasQuery, type, allResult, articleResult, tagResult, authorResult])
 
-  const updateParams = (next: Partial<{ type: SearchType; page: number; status: 'PUBLISHED' | 'APPROVED' | 'SUBMITTED'; outcome_tag: string; verified_only: boolean }>) => {
+  const updateParams = (next: Partial<{ type: SearchType; page: number; status: 'PUBLISHED' | 'APPROVED' | 'SUBMITTED'; content_type: ArticleContentType | ''; outcome_tag: string; verified_only: boolean }>) => {
     const updated = new URLSearchParams(params)
     if (next.type) updated.set('type', next.type)
     if (next.page) updated.set('page', String(next.page))
     if (next.status) updated.set('status', next.status)
+    if (next.content_type !== undefined) {
+      if (next.content_type) updated.set('content_type', next.content_type)
+      else updated.delete('content_type')
+    }
     if (next.outcome_tag !== undefined) {
       if (next.outcome_tag) updated.set('outcome_tag', next.outcome_tag)
       else updated.delete('outcome_tag')
@@ -120,6 +154,16 @@ export default function SearchPage() {
               <option value='PUBLISHED'>Published</option>
               <option value='APPROVED'>Approved</option>
               <option value='SUBMITTED'>Submitted</option>
+            </select>
+            <select
+              value={contentType ?? ''}
+              onChange={(e) => updateParams({ content_type: e.target.value as ArticleContentType | '', page: 1 })}
+              className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-1.5 text-sm text-[color:var(--text-primary)]'
+            >
+              <option value=''>All content types</option>
+              {contentTypeOptions.map((option) => (
+                <option key={option.slug} value={option.slug}>{option.name}</option>
+              ))}
             </select>
             <input
               value={outcomeTag}

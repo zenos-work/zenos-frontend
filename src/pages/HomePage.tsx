@@ -15,6 +15,74 @@ const TABS = [
   { id: 'trending',  label: 'Trending' },
 ] as const
 
+const TOTAL_FEATURE_CARD_COUNT = 4
+
+type FeatureCategory = 'tour' | 'howto' | 'software' | 'spotlight'
+
+type GuestFeatureCard = {
+  id: string
+  title: string
+  subtitle: string
+  image_url: string
+  slug?: string
+  category: FeatureCategory
+}
+
+const DEFAULT_CATEGORY_CARDS: Record<FeatureCategory, GuestFeatureCard> = {
+  tour: {
+    id: 'default-tour',
+    category: 'tour',
+    title: 'Platform Tour: Start in minutes',
+    subtitle: 'Take a quick guided tour of writing, review, and publish workflows.',
+    image_url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1600&q=80',
+    slug: 'platform-tour-start-in-minutes',
+  },
+  howto: {
+    id: 'default-howto',
+    category: 'howto',
+    title: 'How-to Guide: Ship quality content',
+    subtitle: 'Learn the practical steps to draft, review, and publish without bottlenecks.',
+    image_url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1600&q=80',
+    slug: 'how-to-guide-ship-quality-content',
+  },
+  software: {
+    id: 'default-software',
+    category: 'software',
+    title: 'Software Writing: Build docs users trust',
+    subtitle: 'Create clear technical writing with standards, governance, and consistency.',
+    image_url: 'https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=1600&q=80',
+    slug: 'software-writing-build-docs-users-trust',
+  },
+  spotlight: {
+    id: 'default-spotlight',
+    category: 'spotlight',
+    title: 'Editorial Spotlight: Inside the Zenos workflow',
+    subtitle: 'Fresh stories will appear here as your team publishes content.',
+    image_url: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1600&q=80',
+    slug: 'editorial-spotlight-inside-the-zenos-workflow',
+  },
+}
+
+function tagBlob(article: { tags?: { name: string; slug: string }[] }): string {
+  return (article.tags ?? [])
+    .flatMap((t) => [t.name, t.slug])
+    .join(' ')
+    .toLowerCase()
+}
+
+function matchesCategory(article: { title: string; seo_schema_type?: string; tags?: { name: string; slug: string }[] }, category: FeatureCategory): boolean {
+  const title = article.title.toLowerCase()
+  const tags = tagBlob(article)
+  if (category === 'tour') return tags.includes('tour') || title.includes('tour')
+  if (category === 'howto') return article.seo_schema_type === 'HowTo' || tags.includes('how to') || tags.includes('howto') || tags.includes('how-to') || title.includes('how to') || title.includes('how-to')
+  if (category === 'software') return tags.includes('software writing') || tags.includes('software-writing') || tags.includes('software') || title.includes('software writing') || title.includes('software-writing')
+  return true
+}
+
+function isSystemArticle(article: { author_id?: string; author_name?: string }): boolean {
+  return article.author_id === 'system-zenos-author' || (article.author_name ?? '').toLowerCase() === 'zenos system'
+}
+
 export default function HomePage() {
   const [tab, setTab] = useState<'home' | 'following' | 'trending'>('home')
   const [guestIndex, setGuestIndex] = useState(0)
@@ -22,7 +90,7 @@ export default function HomePage() {
   const { theme, toggleTheme } = useUiStore()
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
-  const guestTrending = useFeed('trending', !user)
+  const guestHomeFeed = useFeed('home', !user)
 
   const { data: featuredData } = useFeatured()
   const {
@@ -48,33 +116,77 @@ export default function HomePage() {
   const feedLabel = data?.pages[0]?.feed
   const showFeatured = tab === 'home' && featuredData && featuredData.length > 0
 
-  const guestTrendingArticles = useMemo(() => {
-    const merged = guestTrending.data?.pages.flatMap(p => Array.isArray(p?.articles) ? p.articles : []) ?? []
+  const guestHomeArticles = useMemo(() => {
+    const merged = guestHomeFeed.data?.pages.flatMap(p => Array.isArray(p?.articles) ? p.articles : []) ?? []
     const unique = new Map<string, (typeof merged)[number]>()
     for (const article of merged) {
       if (!article?.id) continue
       unique.set(article.id, article)
     }
-    return [...unique.values()].slice(0, 3)
-  }, [guestTrending.data])
+    return [...unique.values()]
+  }, [guestHomeFeed.data])
 
-  const guestFallbackCards = [
-    {
-      id: 'zenos-write',
-      title: 'Write with confidence',
-      subtitle: 'Craft thoughtful stories with a clean editor and rich embeds.',
-    },
-    {
-      id: 'zenos-review',
-      title: 'Review with clarity',
-      subtitle: 'Collaborate through approval workflows built for editorial teams.',
-    },
-    {
-      id: 'zenos-publish',
-      title: 'Publish and automate',
-      subtitle: 'Ship content fast with governance, analytics, and automation.',
-    },
-  ]
+  const guestFeatureCards = useMemo<GuestFeatureCard[]>(() => {
+    const preferredPool = [
+      ...guestHomeArticles.filter((article) => !isSystemArticle(article)),
+      ...guestHomeArticles.filter((article) => isSystemArticle(article)),
+    ]
+
+    const orderedCategories: FeatureCategory[] = ['tour', 'howto', 'software']
+    const consumedIds = new Set<string>()
+    const picked = orderedCategories.map((category) => {
+      const match = preferredPool.find((article) => !consumedIds.has(article.id) && matchesCategory(article, category))
+      const fallback = DEFAULT_CATEGORY_CARDS[category]
+      if (match) {
+        consumedIds.add(match.id)
+      }
+      if (!match) {
+        const anyArticle = preferredPool.find((article) => !consumedIds.has(article.id))
+        if (!anyArticle) return fallback
+        consumedIds.add(anyArticle.id)
+        return {
+          id: `featured-${category}-${anyArticle.id}`,
+          title: anyArticle.title || fallback.title,
+          subtitle: anyArticle.subtitle || fallback.subtitle,
+          image_url: resolveAssetUrl(anyArticle.cover_image_url) || fallback.image_url,
+          slug: anyArticle.slug,
+          category,
+        }
+      }
+
+      const cover = resolveAssetUrl(match.cover_image_url) || fallback.image_url
+      return {
+        id: `featured-${category}-${match.id}`,
+        title: match.title || fallback.title,
+        subtitle: match.subtitle || fallback.subtitle,
+        image_url: cover,
+        slug: match.slug,
+        category,
+      }
+    })
+
+    const selectedSlugs = new Set(picked.map((card) => card.slug).filter(Boolean))
+    const extras = preferredPool
+      .filter((article) => !selectedSlugs.has(article.slug))
+      .map((article) => ({
+        id: `featured-extra-${article.id}`,
+        title: article.title,
+        subtitle: article.subtitle || 'Explore the latest story from Zenos.',
+        image_url: resolveAssetUrl(article.cover_image_url) || DEFAULT_CATEGORY_CARDS.spotlight.image_url,
+        slug: article.slug,
+        category: 'spotlight' as const,
+      }))
+
+    const cards = [...picked, ...extras]
+    while (cards.length < TOTAL_FEATURE_CARD_COUNT) {
+      cards.push({
+        ...DEFAULT_CATEGORY_CARDS.spotlight,
+        id: `${DEFAULT_CATEGORY_CARDS.spotlight.id}-${cards.length}`,
+      })
+    }
+
+    return cards.slice(0, TOTAL_FEATURE_CARD_COUNT)
+  }, [guestHomeArticles])
 
   useEffect(() => {
     if (!loadMoreRef.current || !hasNextPage || isFetchingNextPage) return
@@ -94,7 +206,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user) return
-    const cardCount = guestTrendingArticles.length > 0 ? guestTrendingArticles.length : guestFallbackCards.length
+    const cardCount = guestFeatureCards.length
     if (cardCount <= 1) return
 
     const timer = window.setInterval(() => {
@@ -102,14 +214,15 @@ export default function HomePage() {
     }, 5000)
 
     return () => window.clearInterval(timer)
-  }, [user, guestTrendingArticles.length, guestFallbackCards.length])
+  }, [user, guestFeatureCards.length])
 
   if (!user) {
-    const cards = guestTrendingArticles.length > 0 ? guestTrendingArticles : guestFallbackCards
+    const cards = guestFeatureCards
     const currentCard = cards[guestIndex % cards.length]
-    const currentArticle = 'slug' in currentCard ? currentCard : null
-    const currentCoverUrl = currentArticle ? resolveAssetUrl(currentArticle.cover_image_url) : null
-    const expandedCards = cards.slice(0, 6)
+    const currentArticle = currentCard.slug ? currentCard : null
+    const currentCoverUrl = currentCard.image_url
+    const heroLink = currentCard.slug ? `/article/${currentCard.slug}` : '/search'
+    const expandedCards = cards.filter((card) => card.id !== currentCard.id).slice(0, TOTAL_FEATURE_CARD_COUNT - 1)
 
     const goPrev = () => setGuestIndex((current) => (current - 1 + cards.length) % cards.length)
     const goNext = () => setGuestIndex((current) => (current + 1) % cards.length)
@@ -131,23 +244,21 @@ export default function HomePage() {
             >
               {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
             </button>
-            <a href='#our-story' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Our Story</a>
-            <a href='#why-different' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Why Different</a>
-            <a href='#features' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>All Features</a>
+            <Link to='/info/about' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Our Story</Link>
             <a href='#hear-your-story' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Let&apos;s Hear Your Story</a>
             <Link to='/membership' className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent-dim)] px-3 py-1.5 text-[color:var(--text-primary)]'>Membership</Link>
             <Link to='/login' className='rounded-full border border-[color:var(--border-strong)] px-3 py-1.5 text-[color:var(--text-primary)]'>Sign in</Link>
           </nav>
         </header>
 
-        {guestTrending.isLoading ? (
+        {guestHomeFeed.isLoading ? (
           <div className='flex justify-center py-12'><Spinner /></div>
         ) : (
           <section className='space-y-8'>
             <div className='mb-2 flex items-center justify-between'>
               <div>
                 <h1 className='mt-2 text-3xl font-semibold tracking-tight text-[color:var(--text-primary)] md:text-4xl'>
-                  Stories worth opening first
+                  Top Stories{currentCard.title ? `: ${currentCard.title}` : ''}
                 </h1>
               </div>
               {cards.length > 1 && (
@@ -185,33 +296,23 @@ export default function HomePage() {
                         </div>
                       )}
                       <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent' />
-                      <div className='absolute inset-x-0 bottom-0 p-6 md:p-8'>
-                        <p className='mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/70'>Spotlight</p>
-                        <h2 className='max-w-3xl text-3xl font-semibold leading-tight text-white md:text-5xl'>
-                          {currentArticle.title}
-                        </h2>
-                        <p className='mt-3 max-w-2xl text-sm leading-6 text-white/85 md:text-base md:leading-7'>
-                          {currentArticle.subtitle || 'Explore the latest story from Zenos.'}
-                        </p>
-                      </div>
                     </div>
                   </Link>
                 ) : (
-                  <div className='relative h-[360px] md:h-[520px] overflow-hidden bg-gradient-to-br from-[#1d2d3f] via-[#35506b] to-[#6b8ba7]'>
+                  <Link to={heroLink} className='block relative h-[360px] md:h-[520px] overflow-hidden bg-gradient-to-br from-[#1d2d3f] via-[#35506b] to-[#6b8ba7]'>
+                    {currentCoverUrl && (
+                      <img src={currentCoverUrl} alt={currentCard.title} className='absolute inset-0 h-full w-full object-cover' loading='lazy' />
+                    )}
+                    <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent' />
                     <div className='absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_38%)]' />
-                    <div className='absolute inset-x-0 bottom-0 p-6 md:p-8'>
-                      <p className='mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-white/70'>Spotlight</p>
-                      <h2 className='max-w-3xl text-3xl font-semibold leading-tight text-white md:text-5xl'>{currentCard.title}</h2>
-                      <p className='mt-3 max-w-2xl text-sm leading-6 text-white/85 md:text-base md:leading-7'>{currentCard.subtitle}</p>
-                    </div>
-                  </div>
+                  </Link>
                 )}
               </article>
 
               <section className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
                 {expandedCards.map((card) => {
-                  const cardArticle = 'slug' in card ? card : null
-                  const cardCoverUrl = cardArticle ? resolveAssetUrl(cardArticle.cover_image_url) : null
+                  const cardArticle = card.slug ? card : null
+                  const cardCoverUrl = card.image_url
                   const body = (
                     <div className='flex h-full flex-col justify-end rounded-[1.4rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4 transition-transform hover:-translate-y-0.5'>
                       <div className='mb-4 overflow-hidden rounded-[1rem] bg-[color:var(--surface-2)]'>
@@ -248,47 +349,24 @@ export default function HomePage() {
                   )
                 })}
               </section>
+
+              {cards.length > 1 && (
+                <div className='flex items-center justify-center gap-2'>
+                  {cards.map((card, index) => (
+                    <button
+                      key={card.id}
+                      type='button'
+                      onClick={() => setGuestIndex(index)}
+                      aria-label={`Go to slide ${index + 1}`}
+                      className={[
+                        'h-2.5 rounded-full transition-all',
+                        index === guestIndex ? 'w-8 bg-[color:var(--accent)]' : 'w-2.5 bg-[color:var(--border-strong)] hover:bg-[color:var(--text-muted)]',
+                      ].join(' ')}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-
-            <section id='our-story' className='grid gap-4 rounded-[1.8rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 lg:grid-cols-2'>
-              <div>
-                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Our Story</p>
-                <h2 className='mt-2 text-3xl font-semibold text-[color:var(--text-primary)]'>Built for serious writing teams</h2>
-                <p className='mt-3 text-sm leading-7 text-[color:var(--text-secondary)]'>
-                  Zenos started with one question: why do creators still juggle scattered tools for drafting, approvals, and publishing? We built one space where writing quality and editorial velocity can coexist.
-                </p>
-              </div>
-              <div className='rounded-2xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] p-5'>
-                <p className='text-sm font-semibold text-[color:var(--text-primary)]'>From draft to governed publish</p>
-                <p className='mt-2 text-sm leading-7 text-[color:var(--text-secondary)]'>
-                  Writers draft freely, approvers review confidently, and teams publish with policy-aware workflows.
-                </p>
-              </div>
-            </section>
-
-            <section id='why-different' className='grid gap-4 lg:grid-cols-3'>
-              {[
-                ['Clarity over clutter', 'An editor-first experience with strong typography and clean reading rhythm.'],
-                ['Governance without friction', 'Approval flows that stay out of your way until they are needed.'],
-                ['Built for teams', 'Roles, notifications, and analytics aligned with real editorial operations.'],
-              ].map(([title, desc]) => (
-                <article key={title} className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-5'>
-                  <h3 className='text-lg font-semibold text-[color:var(--text-primary)]'>{title}</h3>
-                  <p className='mt-2 text-sm leading-7 text-[color:var(--text-secondary)]'>{desc}</p>
-                </article>
-              ))}
-            </section>
-
-            <section id='features' className='rounded-[1.8rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6'>
-              <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>All Features</p>
-              <div className='mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4'>
-                {['Rich editor', 'Inline media', 'Approvals', 'Role-based access', 'Library and bookmarks', 'Notifications', 'Publishing workflows', 'Insightful stats'].map((feature) => (
-                  <div key={feature} className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-3 text-sm font-medium text-[color:var(--text-primary)]'>
-                    {feature}
-                  </div>
-                ))}
-              </div>
-            </section>
 
             <section
               id='hear-your-story'
@@ -318,24 +396,7 @@ export default function HomePage() {
               </div>
             </section>
 
-            {cards.length > 1 && (
-              <div className='flex items-center justify-center gap-2'>
-                {cards.map((card, index) => (
-                  <button
-                    key={card.id}
-                    type='button'
-                    onClick={() => setGuestIndex(index)}
-                    aria-label={`Go to slide ${index + 1}`}
-                    className={[
-                      'h-2.5 rounded-full transition-all',
-                      index === guestIndex ? 'w-8 bg-[color:var(--accent)]' : 'w-2.5 bg-[color:var(--border-strong)] hover:bg-[color:var(--text-muted)]',
-                    ].join(' ')}
-                  />
-                ))}
-              </div>
-            )}
-
-            {!guestTrendingArticles.length && (
+              {!guestHomeArticles.length && (
               <p className='mt-2 text-xs text-[color:var(--text-muted)]'>Fresh stories will appear here as soon as they are published.</p>
             )}
 
@@ -345,6 +406,7 @@ export default function HomePage() {
                 <div className='mt-3 flex flex-col gap-2 text-sm'>
                   <Link to='/info/status' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Status</Link>
                   <Link to='/info/about' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>About</Link>
+                  <Link to='/info/features' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Features</Link>
                   <Link to='/membership' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Membership</Link>
                 </div>
               </div>

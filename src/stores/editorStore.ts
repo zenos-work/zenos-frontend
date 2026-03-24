@@ -1,10 +1,11 @@
 import { create } from 'zustand'
-import type { Tag } from '../types'
+import type { Tag, ArticleContentType } from '../types'
 
 interface EditorState {
   articleId?:     string   // set when editing existing article
   title:          string
   subtitle:       string
+  contentType:    ArticleContentType
   content:        string   // TipTap JSON string
   coverImageUrl:  string
   lastVerifiedAt: string
@@ -22,6 +23,7 @@ interface EditorState {
   setArticleId:   (id: string) => void
   setTitle:       (v: string) => void
   setSubtitle:    (v: string) => void
+  setContentType: (v: ArticleContentType) => void
   setContent:     (v: string) => void
   setCoverImage:  (url: string) => void
   setLastVerifiedAt: (v: string) => void
@@ -37,6 +39,7 @@ interface EditorState {
     articleId?: string
     title: string
     subtitle: string
+    contentType: ArticleContentType
     content: string
     coverImageUrl: string
     lastVerifiedAt: string
@@ -58,6 +61,7 @@ const INITIAL = {
   articleId:    undefined as string | undefined,
   title:        '',
   subtitle:     '',
+  contentType:  'article' as ArticleContentType,
   content:      '',
   coverImageUrl:'',
   selectedTags: [] as Tag[],
@@ -79,6 +83,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   setArticleId:   (articleId) => set({ articleId }),
   setTitle:       (title) => set({ title, isDirty: true }),
   setSubtitle:    (subtitle) => set({ subtitle, isDirty: true }),
+  setContentType: (contentType) => set({ contentType, isDirty: true }),
   setContent:     (content) => set({ content, isDirty: true }),
   setCoverImage:  (coverImageUrl) => set({ coverImageUrl, isDirty: true }),
   setLastVerifiedAt: (lastVerifiedAt) => set({ lastVerifiedAt, isDirty: true }),
@@ -101,6 +106,7 @@ export const useEditorStore = create<EditorState>((set) => ({
     articleId: data.articleId,
     title: data.title,
     subtitle: data.subtitle,
+    contentType: data.contentType,
     content: data.content,
     coverImageUrl: data.coverImageUrl,
     lastVerifiedAt: data.lastVerifiedAt,

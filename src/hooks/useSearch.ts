@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
-import type { ArticleList, Tag, User, PaginatedResponse } from '../types'
+import type { ArticleList, Tag, User, PaginatedResponse, ArticleContentType } from '../types'
 
 export type SearchType = 'articles' | 'tags' | 'authors' | 'all'
 
 export type SearchArticleFilters = {
   status?: 'PUBLISHED' | 'APPROVED' | 'SUBMITTED'
+  content_type?: ArticleContentType
   outcome_tag?: string
   verified_only?: boolean
 }
