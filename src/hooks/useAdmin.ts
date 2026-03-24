@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
-import type { AdminStats, ArticleDetail, User, PaginationMeta, Notification } from '../types'
+import type {
+  AdminStats,
+  AdminSuccessSignalHistoryResponse,
+  AdminSuccessSignalsResponse,
+  ArticleDetail,
+  User,
+  PaginationMeta,
+  Notification,
+} from '../types'
 
 type ApprovalQueueResponse = {
   queue: ArticleDetail[]
@@ -40,6 +48,25 @@ export const useAdminUsers = (page = 1, enabled = true) =>
     queryFn:  () =>
       api.get<AdminUsersResponse>('/api/admin/users', { params: { page } })
          .then(r => r.data),
+  })
+
+export const useAdminSuccessSignals = (page = 1, limit = 10, enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'success-signals', page, limit],
+    enabled,
+    queryFn: () =>
+      api.get<AdminSuccessSignalsResponse>('/api/admin/success-signals', { params: { page, limit } })
+        .then(r => r.data),
+  })
+
+export const useAdminSuccessSignalHistory = (articleId: string, hours = 12, enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'success-signals', 'history', articleId, hours],
+    enabled: enabled && !!articleId,
+    queryFn: () =>
+      api.get<AdminSuccessSignalHistoryResponse>('/api/admin/success-signals/history', {
+        params: { article_id: articleId, hours },
+      }).then(r => r.data),
   })
 
 export const useBanUser = () => {

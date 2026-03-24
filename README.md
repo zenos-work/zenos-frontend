@@ -1,5 +1,15 @@
 # React + TypeScript + Vite
 
+## SR-011 Success Signals
+
+SR-011 is implemented as a hybrid frontend and backend design:
+
+- Frontend computes and renders reader-facing success signals in the article view.
+- Backend records lightweight article interaction events (`VIEW`, `LIKE`, `COMMENT`).
+- A scheduled hourly Worker job aggregates event windows into success snapshots.
+
+See [USECASES.md](USECASES.md) for the updated frontend flow and sequence diagrams.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

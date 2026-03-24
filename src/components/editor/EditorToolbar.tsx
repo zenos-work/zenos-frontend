@@ -1,6 +1,6 @@
-import { Save, Eye, EyeOff, Send, ChevronLeft } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Save, Eye, EyeOff, Send, ChevronLeft, ChevronRight } from 'lucide-react'
 import Button from '../ui/Button'
+import { useUiStore } from '../../stores/uiStore'
 
 interface Props {
   onSave:          () => void
@@ -14,11 +14,20 @@ interface Props {
 export default function EditorToolbar({
   onSave, onSubmit, onTogglePreview, isSaving, isDirty, previewMode,
 }: Props) {
+  const sidebarOpen = useUiStore(s => s.sidebarOpen)
+  const toggleSidebar = useUiStore(s => s.toggleSidebar)
+
   return (
     <div className='flex items-center gap-3 pb-4 border-b border-[color:var(--border)]'>
-      <Link to='/library' className='p-2 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] transition-colors'>
-        <ChevronLeft size={18} />
-      </Link>
+      <button
+        type='button'
+        onClick={toggleSidebar}
+        className='p-2 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] transition-colors'
+        aria-label={sidebarOpen ? 'Minimize sidebar' : 'Expand sidebar'}
+        title={sidebarOpen ? 'Minimize sidebar' : 'Expand sidebar'}
+      >
+        {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+      </button>
 
       <span className='text-sm text-[color:var(--text-muted)] flex-1'>
         {isDirty ? (

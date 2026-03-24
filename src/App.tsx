@@ -20,6 +20,7 @@ import LoginPage      from './pages/LoginPage'
 import TermsPage      from './pages/TermsPage'
 import MembershipPage from './pages/MembershipPage'
 import InfoPage       from './pages/InfoPage'
+import OnboardingPreferencesPage from './pages/OnboardingPreferencesPage'
 import NotFoundPage   from './pages/NotFoundPage'
 
 export default function App() {
@@ -42,15 +43,16 @@ export default function App() {
   return (
     <Routes>
       <Route path='/login' element={<LoginPage />} />
-      <Route element={<ProtectedRoute />}>
-        <Route path='/terms' element={<TermsPage />} />
-      </Route>
+      <Route path='/terms' element={<TermsPage />} />
       {/* OAuth callback — render blank spinner while AuthContext exchanges the code */}
       <Route path='/auth/google/callback' element={
         <div style={{ minHeight: '100vh', backgroundColor: 'var(--surface-0)', display: 'grid', placeItems: 'center' }}>
           <Spinner size='lg' />
         </div>
       } />
+      <Route element={<ProtectedRoute />}>
+        <Route path='/onboarding/preferences' element={<OnboardingPreferencesPage />} />
+      </Route>
 
       <Route element={<AppShell />}>
         <Route index                 element={<HomePage />}    />

@@ -24,16 +24,33 @@ const setIsSavingMock = vi.fn()
 const setCoverImageMock = vi.fn()
 const setTitleMock = vi.fn()
 const setSubtitleMock = vi.fn()
+const setContentTypeMock = vi.fn()
 const setContentMock = vi.fn()
+const setLastVerifiedAtMock = vi.fn()
+const setExpiresAtMock = vi.fn()
+const setSeoTitleMock = vi.fn()
+const setSeoDescriptionMock = vi.fn()
+const setCanonicalUrlMock = vi.fn()
+const setOgImageUrlMock = vi.fn()
+const setSeoSchemaTypeMock = vi.fn()
 const toggleTagMock = vi.fn()
 const togglePreviewMock = vi.fn()
+const setSidebarMock = vi.fn()
 
 let mockStore: {
   articleId?: string
   title: string
   subtitle: string
+  contentType: 'article' | 'how-to' | 'case-study' | 'research'
   content: string
   coverImageUrl: string
+  lastVerifiedAt: string
+  expiresAt: string
+  seoTitle: string
+  seoDescription: string
+  canonicalUrl: string
+  ogImageUrl: string
+  seoSchemaType: 'Article' | 'TechArticle' | 'HowTo'
   selectedTags: Tag[]
   isDirty: boolean
   isSaving: boolean
@@ -46,7 +63,15 @@ let mockStore: {
   setCoverImage: typeof setCoverImageMock
   setTitle: typeof setTitleMock
   setSubtitle: typeof setSubtitleMock
+  setContentType: typeof setContentTypeMock
   setContent: typeof setContentMock
+  setLastVerifiedAt: typeof setLastVerifiedAtMock
+  setExpiresAt: typeof setExpiresAtMock
+  setSeoTitle: typeof setSeoTitleMock
+  setSeoDescription: typeof setSeoDescriptionMock
+  setCanonicalUrl: typeof setCanonicalUrlMock
+  setOgImageUrl: typeof setOgImageUrlMock
+  setSeoSchemaType: typeof setSeoSchemaTypeMock
   toggleTag: typeof toggleTagMock
   togglePreview: typeof togglePreviewMock
 }
@@ -85,8 +110,13 @@ vi.mock('../../src/stores/editorStore', () => ({
 }))
 
 vi.mock('../../src/stores/uiStore', () => ({
-  useUiStore: (selector: (state: { toast: (...args: unknown[]) => void }) => unknown) =>
-    selector({ toast: toastMock }),
+  useUiStore: Object.assign(
+    (selector: (state: { toast: (...args: unknown[]) => void; setSidebar: (open: boolean) => void }) => unknown) =>
+      selector({ toast: toastMock, setSidebar: setSidebarMock }),
+    {
+      getState: () => ({ sidebarOpen: true }),
+    },
+  ),
 }))
 
 vi.mock('../../src/hooks/useArticles', () => ({
@@ -148,8 +178,16 @@ describe('WritePage', () => {
       articleId: undefined,
       title: 'Draft title',
       subtitle: 'Draft subtitle',
+      contentType: 'article',
       content: 'This is sufficiently long content for saving the draft without validation errors.',
       coverImageUrl: '',
+      lastVerifiedAt: '',
+      expiresAt: '',
+      seoTitle: '',
+      seoDescription: '',
+      canonicalUrl: '',
+      ogImageUrl: '',
+      seoSchemaType: 'Article',
       selectedTags: [{ id: 't1', name: 'AI', slug: 'ai', article_count: 1 }],
       isDirty: true,
       isSaving: false,
@@ -162,7 +200,15 @@ describe('WritePage', () => {
       setCoverImage: setCoverImageMock,
       setTitle: setTitleMock,
       setSubtitle: setSubtitleMock,
+      setContentType: setContentTypeMock,
       setContent: setContentMock,
+      setLastVerifiedAt: setLastVerifiedAtMock,
+      setExpiresAt: setExpiresAtMock,
+      setSeoTitle: setSeoTitleMock,
+      setSeoDescription: setSeoDescriptionMock,
+      setCanonicalUrl: setCanonicalUrlMock,
+      setOgImageUrl: setOgImageUrlMock,
+      setSeoSchemaType: setSeoSchemaTypeMock,
       toggleTag: toggleTagMock,
       togglePreview: togglePreviewMock,
     }
@@ -213,6 +259,7 @@ describe('WritePage', () => {
         articleId: 'a1',
         title: 'Existing',
         subtitle: 'Existing sub',
+        contentType: 'article',
         content: '{"type":"doc"}',
         coverImageUrl: '/cover.png',
         selectedTags: [{ id: 't9', name: 'Tag9', slug: 'tag9', article_count: 1 }],
@@ -280,13 +327,14 @@ describe('WritePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
     await waitFor(() => {
-      expect(createMutateAsyncMock).toHaveBeenCalledWith({
-        title: 'Draft title',
-        subtitle: 'Draft subtitle',
-        content: 'This is sufficiently long content for saving the draft without validation errors.',
-        cover_image_url: undefined,
-        tag_ids: ['t1'],
-      })
+      expect(createMutateAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Draft title',
+          subtitle: 'Draft subtitle',
+          content: 'This is sufficiently long content for saving the draft without validation errors.',
+          tag_ids: ['t1'],
+        }),
+      )
     })
 
     expect(setArticleIdMock).toHaveBeenCalledWith('new-article-id')
@@ -439,6 +487,14 @@ describe('WritePage', () => {
 
     vi.mocked(api.get).mockResolvedValueOnce({
       data: {
+        content_types: [
+          { slug: 'article', name: 'Article' },
+          { slug: 'how-to', name: 'How-to' },
+        ],
+      },
+    } as never)
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
         approvers: [
           { id: 'ap-1', name: 'Priya Approver', role: 'APPROVER' },
         ],
@@ -502,6 +558,13 @@ describe('WritePage', () => {
       },
     })
 
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        content_types: [
+          { slug: 'article', name: 'Article' },
+        ],
+      },
+    } as never)
     vi.mocked(api.get).mockResolvedValueOnce({
       data: { approvers: [{ id: 'ap-1', name: 'Priya Approver', role: 'APPROVER' }] },
     } as never)

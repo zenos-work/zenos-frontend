@@ -12,8 +12,16 @@ import Editor        from '../components/editor/Editor'
 import EditorToolbar from '../components/editor/EditorToolbar'
 import PreviewPane   from '../components/editor/PreviewPane'
 import { resolveAssetUrl } from '../lib/assets'
+import type { ArticleContentType, ContentTypeOption } from '../types'
 
 const AUTO_SAVE_MS = 20000
+const LIFELONG_EXPIRES_AT = '5000-12-31T23:59'
+const DEFAULT_CONTENT_TYPES: ContentTypeOption[] = [
+  { slug: 'article', name: 'Article' },
+  { slug: 'how-to', name: 'How-to' },
+  { slug: 'case-study', name: 'Case study' },
+  { slug: 'research', name: 'Research' },
+]
 
 function omitEmptyFields<T extends Record<string, unknown>>(payload: T): Partial<T> {
   return Object.fromEntries(
@@ -25,6 +33,7 @@ type ArticleDraftPayload = {
   title: string
   content: string
   subtitle?: string
+  content_type?: ArticleContentType
   cover_image_url?: string
   last_verified_at?: string
   expires_at?: string
@@ -89,6 +98,44 @@ function toDateTimeLocal(value?: string): string {
   return trimmed.replace(' ', 'T').slice(0, 16)
 }
 
+function toCurrentDateTimeLocal(): string {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = `${now.getMonth() + 1}`.padStart(2, '0')
+  const d = `${now.getDate()}`.padStart(2, '0')
+  const hh = `${now.getHours()}`.padStart(2, '0')
+  const mm = `${now.getMinutes()}`.padStart(2, '0')
+  return `${y}-${m}-${d}T${hh}:${mm}`
+}
+
+function normalizeExpiresForDisplay(value?: string): string {
+  const normalized = toDateTimeLocal(value)
+  if (!normalized) return ''
+  return normalized.startsWith('5000-12-31') ? '' : normalized
+}
+
+function extractPlainText(content: string): string {
+  if (!content) return ''
+  try {
+    const parsed = JSON.parse(content)
+    const text = JSON.stringify(parsed)
+      .replace(/"type":"[^"]+"/g, ' ')
+      .replace(/"attrs":\{[^}]*\}/g, ' ')
+      .replace(/"marks":\[[^\]]*\]/g, ' ')
+      .replace(/[{}[\]",:]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    return text
+  } catch {
+    return content.replace(/\s+/g, ' ').trim()
+  }
+}
+
+function buildSeoDescription(subtitle: string, content: string): string {
+  const preferred = subtitle.trim() || extractPlainText(content)
+  return preferred.slice(0, 300)
+}
+
 export default function WritePage() {
   const { id }    = useParams()
   const navigate  = useNavigate()
@@ -97,6 +144,7 @@ export default function WritePage() {
   const hydrateEditor = useEditorStore(s => s.hydrate)
   const resetEditor = useEditorStore(s => s.reset)
   const toast     = useUiStore(s => s.toast)
+  const setSidebar = useUiStore(s => s.setSidebar)
   const [tagQuery, setTagQuery] = useState('')
   const [localTags, setLocalTags] = useState<Array<{ id: string; name: string; slug: string; tag_type?: 'topic' | 'outcome'; article_count: number }>>([])
   const [newTagName, setNewTagName] = useState('')
@@ -111,6 +159,10 @@ export default function WritePage() {
   const [sendingApprovalMessage, setSendingApprovalMessage] = useState(false)
   const [uploadTarget, setUploadTarget] = useState<'inline-image' | 'cover-image' | null>(null)
   const [uploadProgressPct, setUploadProgressPct] = useState<number | null>(null)
+  const [contentTypeOptions, setContentTypeOptions] = useState<ContentTypeOption[]>(DEFAULT_CONTENT_TYPES)
+  const [newContentTypeName, setNewContentTypeName] = useState('')
+  const [newContentTypeSlug, setNewContentTypeSlug] = useState('')
+  const [creatingContentType, setCreatingContentType] = useState(false)
 
   const {
     data: allTags,
@@ -122,6 +174,25 @@ export default function WritePage() {
     setLocalTags(allTags ?? [])
   }, [allTags])
 
+  useEffect(() => {
+    let cancelled = false
+    const loadContentTypes = async () => {
+      try {
+        const res = await api.get<{ content_types: ContentTypeOption[] }>('/api/articles/content-types')
+        if (cancelled) return
+        const fetched = (res.data.content_types ?? []).filter((item) => item?.slug)
+        if (!fetched.length) return
+        setContentTypeOptions(fetched)
+      } catch {
+        // Keep editor functional with default content types if the endpoint is unavailable.
+      }
+    }
+    void loadContentTypes()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Load existing article when editing
   const { data: existing } = useArticle(id ?? '')
   useEffect(() => {
@@ -130,10 +201,11 @@ export default function WritePage() {
       articleId: existing.id,
       title: existing.title,
       subtitle: existing.subtitle ?? '',
+      contentType: existing.content_type ?? 'article',
       content: existing.content,
       coverImageUrl: existing.cover_image_url ?? '',
       lastVerifiedAt: toDateTimeLocal(existing.last_verified_at),
-      expiresAt: toDateTimeLocal(existing.expires_at),
+      expiresAt: normalizeExpiresForDisplay(existing.expires_at),
       seoTitle: existing.seo_title ?? '',
       seoDescription: existing.seo_description ?? '',
       canonicalUrl: existing.canonical_url ?? '',
@@ -145,6 +217,19 @@ export default function WritePage() {
 
   // Cleanup on unmount
   useEffect(() => () => resetEditor(), [resetEditor])
+
+  // Writer mode always starts with a compact sidebar and restores previous state on exit.
+  useEffect(() => {
+    const previousSidebarState = useUiStore.getState().sidebarOpen
+    setSidebar(false)
+    return () => setSidebar(previousSidebarState)
+  }, [setSidebar])
+
+  useEffect(() => {
+    if (!id && !existing && !store.lastVerifiedAt) {
+      store.setLastVerifiedAt(toCurrentDateTimeLocal())
+    }
+  }, [id, existing, store])
 
   const createMutation = useCreateArticle()
   const updateMutation = useUpdateArticle(id ?? store.articleId ?? '')
@@ -180,6 +265,7 @@ export default function WritePage() {
   }, [localTags, store.selectedTags, tagQuery])
 
   const canManageTags = user?.role === 'AUTHOR' || user?.role === 'APPROVER' || user?.role === 'SUPERADMIN'
+  const canManageSeo = user?.role === 'APPROVER' || user?.role === 'SUPERADMIN'
   const showApprovalPanel = !!existing && (existing.status === 'SUBMITTED' || existing.status === 'APPROVED')
 
   useEffect(() => {
@@ -232,6 +318,37 @@ export default function WritePage() {
       toast(getApiErrorMessage(err) ?? 'Could not create tag', 'error')
     } finally {
       setCreatingTag(false)
+    }
+  }
+
+  const handleCreateContentType = async () => {
+    const name = newContentTypeName.trim()
+    const slug = newContentTypeSlug.trim()
+    if (!name) {
+      toast('Content type name is required', 'warning')
+      return
+    }
+    setCreatingContentType(true)
+    try {
+      const res = await api.post<{ content_type: { slug: string; name: string } }>(
+        '/api/admin/content-types',
+        { name, slug: slug || undefined },
+      )
+      const created = res.data.content_type
+      if (created?.slug) {
+        setContentTypeOptions((prev) => {
+          if (prev.some((item) => item.slug === created.slug)) return prev
+          return [...prev, { slug: created.slug, name: created.name || created.slug }]
+        })
+        store.setContentType(created.slug)
+      }
+      setNewContentTypeName('')
+      setNewContentTypeSlug('')
+      toast('Content type added', 'success')
+    } catch (err) {
+      toast(getApiErrorMessage(err) ?? 'Could not add content type', 'error')
+    } finally {
+      setCreatingContentType(false)
     }
   }
 
@@ -295,20 +412,28 @@ export default function WritePage() {
 
     store.setIsSaving(true)
     try {
+      const fallbackSeoTitle = store.title.trim() || undefined
+      const fallbackSeoDescription = buildSeoDescription(store.subtitle, store.content) || undefined
+      const fallbackCanonicalUrl = existing?.slug
+        ? `${window.location.origin}/article/${existing.slug}`
+        : undefined
+      const fallbackOgImageUrl = store.coverImageUrl || undefined
+
       const payload: ArticleDraftPayload = {
         title:           store.title,
         content:         store.content,
         tag_ids:         store.selectedTags.map(t => t.id),
+        content_type:    store.contentType,
       }
       const optionalFields = omitEmptyFields({
         subtitle: store.subtitle || undefined,
         cover_image_url: store.coverImageUrl || undefined,
         last_verified_at: store.lastVerifiedAt || undefined,
-        expires_at: store.expiresAt || undefined,
-        seo_title: store.seoTitle || undefined,
-        seo_description: store.seoDescription || undefined,
-        canonical_url: store.canonicalUrl || undefined,
-        og_image_url: store.ogImageUrl || undefined,
+        expires_at: store.expiresAt || LIFELONG_EXPIRES_AT,
+        seo_title: store.seoTitle || fallbackSeoTitle,
+        seo_description: store.seoDescription || fallbackSeoDescription,
+        canonical_url: store.canonicalUrl || fallbackCanonicalUrl,
+        og_image_url: store.ogImageUrl || fallbackOgImageUrl,
         seo_schema_type: store.seoSchemaType || undefined,
       })
       Object.assign(payload, optionalFields)
@@ -333,7 +458,7 @@ export default function WritePage() {
     } finally {
       store.setIsSaving(false)
     }
-  }, [store, id, toast, updateMutation, createMutation, navigate])
+  }, [store, id, existing?.slug, toast, updateMutation, createMutation, navigate])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -353,7 +478,7 @@ export default function WritePage() {
       void handleSave()
     }, AUTO_SAVE_MS)
     return () => window.clearTimeout(timer)
-  }, [store.isDirty, store.title, store.content, store.subtitle, store.coverImageUrl, store.lastVerifiedAt, store.expiresAt, store.seoTitle, store.seoDescription, store.canonicalUrl, store.ogImageUrl, store.seoSchemaType, store.selectedTags, id, store.articleId, handleSave])
+  }, [store.isDirty, store.title, store.subtitle, store.contentType, store.content, store.coverImageUrl, store.lastVerifiedAt, store.expiresAt, store.seoTitle, store.seoDescription, store.canonicalUrl, store.ogImageUrl, store.seoSchemaType, store.selectedTags, id, store.articleId, handleSave])
 
   const uploadImageFile = async (file: File, onProgress?: (pct: number) => void): Promise<string> => {
     if (!file.type.startsWith('image/')) {
@@ -490,60 +615,6 @@ export default function WritePage() {
             className='w-full mb-6 bg-transparent text-lg text-[color:var(--text-secondary)] placeholder-[color:var(--text-muted)] outline-none'
           />
 
-          <div className='mb-6 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
-            <p className='mb-3 text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Verification + SEO</p>
-            <div className='grid gap-3 md:grid-cols-2'>
-              <input
-                type='datetime-local'
-                value={store.lastVerifiedAt}
-                onChange={e => store.setLastVerifiedAt(e.target.value)}
-                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
-                placeholder='Last verified at'
-              />
-              <input
-                type='datetime-local'
-                value={store.expiresAt}
-                onChange={e => store.setExpiresAt(e.target.value)}
-                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
-                placeholder='Expires at'
-              />
-              <input
-                value={store.seoTitle}
-                onChange={e => store.setSeoTitle(e.target.value)}
-                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
-                placeholder='SEO title'
-              />
-              <select
-                value={store.seoSchemaType}
-                onChange={e => store.setSeoSchemaType(e.target.value as 'Article' | 'TechArticle' | 'HowTo')}
-                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
-              >
-                <option value='Article'>Article</option>
-                <option value='TechArticle'>TechArticle</option>
-                <option value='HowTo'>HowTo</option>
-              </select>
-              <input
-                value={store.canonicalUrl}
-                onChange={e => store.setCanonicalUrl(e.target.value)}
-                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] md:col-span-2'
-                placeholder='Canonical URL (optional)'
-              />
-              <input
-                value={store.ogImageUrl}
-                onChange={e => store.setOgImageUrl(e.target.value)}
-                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] md:col-span-2'
-                placeholder='Open Graph image URL (optional)'
-              />
-              <textarea
-                rows={2}
-                value={store.seoDescription}
-                onChange={e => store.setSeoDescription(e.target.value)}
-                className='rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] md:col-span-2'
-                placeholder='SEO description (optional)'
-              />
-            </div>
-          </div>
-
           {/* Rich text editor */}
           <Editor
             content={store.content}
@@ -633,6 +704,136 @@ export default function WritePage() {
                 <p className='text-xs text-[color:var(--text-muted)]'>
                   {(localTags?.length ?? 0) === 0 ? 'No tags available yet. Create one above.' : 'No matching tags found.'}
                 </p>
+              )}
+            </div>
+          </div>
+
+          <div className='mt-6 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+            <p className='mb-3 text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>
+              {canManageSeo ? 'Content validity + SEO' : 'Content validity'}
+            </p>
+            <div className='grid gap-3 md:grid-cols-2'>
+              <label className='flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                Content type
+                <select
+                  value={store.contentType}
+                  onChange={e => store.setContentType(e.target.value as ArticleContentType)}
+                  className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
+                >
+                  {contentTypeOptions.map((option) => (
+                    <option key={option.slug} value={option.slug}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {user?.role === 'SUPERADMIN' && (
+                <div className='md:col-span-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] p-3'>
+                  <p className='mb-2 text-xs font-medium text-[color:var(--text-secondary)]'>Add content type (Superadmin)</p>
+                  <div className='grid gap-2 md:grid-cols-[1fr_1fr_auto]'>
+                    <input
+                      value={newContentTypeName}
+                      onChange={(e) => setNewContentTypeName(e.target.value)}
+                      placeholder='Name (e.g. Deep Dive)'
+                      className='h-10 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 text-sm text-[color:var(--text-primary)]'
+                    />
+                    <input
+                      value={newContentTypeSlug}
+                      onChange={(e) => setNewContentTypeSlug(e.target.value.toLowerCase())}
+                      placeholder='Slug (optional, e.g. deep-dive)'
+                      className='h-10 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 text-sm text-[color:var(--text-primary)]'
+                    />
+                    <button
+                      onClick={() => void handleCreateContentType()}
+                      disabled={creatingContentType || !newContentTypeName.trim()}
+                      className='h-10 rounded-lg border border-[color:var(--accent)] px-3 text-xs font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--accent-dim)] disabled:cursor-not-allowed disabled:opacity-50'
+                    >
+                      {creatingContentType ? 'Adding...' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <label className='flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                Start date
+                <input
+                  type='datetime-local'
+                  value={store.lastVerifiedAt}
+                  onChange={e => store.setLastVerifiedAt(e.target.value)}
+                  className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
+                />
+              </label>
+
+              <label className='flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                End date
+                <input
+                  type='datetime-local'
+                  value={store.expiresAt}
+                  onChange={e => store.setExpiresAt(e.target.value)}
+                  className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
+                />
+                <span className='text-[11px] text-[color:var(--text-muted)]'>
+                  {store.expiresAt ? 'Custom end date selected.' : 'Lifelong (no end date selected).'}
+                </span>
+              </label>
+
+              {canManageSeo && (
+                <>
+                  <label className='flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                    SEO title
+                    <input
+                      value={store.seoTitle}
+                      onChange={e => store.setSeoTitle(e.target.value)}
+                      className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
+                      placeholder='Auto: article title'
+                    />
+                  </label>
+
+                  <label className='flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                    Schema type
+                    <select
+                      value={store.seoSchemaType}
+                      onChange={e => store.setSeoSchemaType(e.target.value as 'Article' | 'TechArticle' | 'HowTo')}
+                      className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
+                    >
+                      <option value='Article'>Article</option>
+                      <option value='TechArticle'>TechArticle</option>
+                      <option value='HowTo'>HowTo</option>
+                    </select>
+                  </label>
+
+                  <label className='md:col-span-2 flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                    Canonical URL
+                    <input
+                      value={store.canonicalUrl}
+                      onChange={e => store.setCanonicalUrl(e.target.value)}
+                      className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
+                      placeholder='Auto after save: canonical article URL'
+                    />
+                  </label>
+
+                  <label className='md:col-span-2 flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                    Open Graph image URL
+                    <input
+                      value={store.ogImageUrl}
+                      onChange={e => store.setOgImageUrl(e.target.value)}
+                      className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
+                      placeholder='Auto: cover image URL'
+                    />
+                  </label>
+
+                  <label className='md:col-span-2 flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                    SEO description
+                    <textarea
+                      rows={1}
+                      value={store.seoDescription}
+                      onChange={e => store.setSeoDescription(e.target.value)}
+                      className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
+                      placeholder='Auto: subtitle/content summary'
+                    />
+                  </label>
+                </>
               )}
             </div>
           </div>

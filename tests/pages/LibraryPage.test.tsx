@@ -39,6 +39,19 @@ describe('LibraryPage', () => {
     vi.stubGlobal('confirm', vi.fn(() => true))
   })
 
+  it('shows loading state while library query is in flight', () => {
+    useMyArticlesMock.mockReturnValue({ data: undefined, isLoading: true })
+    useDeleteArticleMock.mockReturnValue({ mutateAsync: vi.fn() })
+
+    render(
+      <MemoryRouter>
+        <LibraryPage />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
+  })
+
   it('renders stats and filters the library by status and search', () => {
     useMyArticlesMock.mockReturnValue({
       data: {
@@ -94,5 +107,77 @@ describe('LibraryPage', () => {
       expect(mutateAsync).toHaveBeenCalledWith('a1')
     })
     expect(toastMock).toHaveBeenCalledWith('Article deleted', 'success')
+  })
+
+  it('does not delete when user cancels confirmation', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('confirm', vi.fn(() => false))
+    useMyArticlesMock.mockReturnValue({
+      data: { items: [makeArticle({ id: 'a1', title: 'Keep Me', status: 'DRAFT' })] },
+      isLoading: false,
+    })
+    useDeleteArticleMock.mockReturnValue({ mutateAsync })
+
+    const { container } = render(
+      <MemoryRouter>
+        <LibraryPage />
+      </MemoryRouter>,
+    )
+
+    const deleteButton = container.querySelector('button[data-variant="danger"]') as HTMLButtonElement | null
+    expect(deleteButton).not.toBeNull()
+    fireEvent.click(deleteButton!)
+
+    await waitFor(() => {
+      expect(mutateAsync).not.toHaveBeenCalled()
+    })
+  })
+
+  it('shows error toast when delete request fails', async () => {
+    const mutateAsync = vi.fn().mockRejectedValue(new Error('failed'))
+    useMyArticlesMock.mockReturnValue({
+      data: { items: [makeArticle({ id: 'a1', title: 'Fail Me', status: 'DRAFT' })] },
+      isLoading: false,
+    })
+    useDeleteArticleMock.mockReturnValue({ mutateAsync })
+
+    const { container } = render(
+      <MemoryRouter>
+        <LibraryPage />
+      </MemoryRouter>,
+    )
+
+    const deleteButton = container.querySelector('button[data-variant="danger"]') as HTMLButtonElement | null
+    expect(deleteButton).not.toBeNull()
+    fireEvent.click(deleteButton!)
+
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalledWith('a1')
+    })
+    expect(toastMock).toHaveBeenCalledWith('Delete failed', 'error')
+  })
+
+  it('shows empty state and resets filters', () => {
+    useMyArticlesMock.mockReturnValue({
+      data: {
+        items: [
+          makeArticle({ id: 'a1', title: 'Only Draft', status: 'DRAFT' }),
+        ],
+      },
+      isLoading: false,
+    })
+    useDeleteArticleMock.mockReturnValue({ mutateAsync: vi.fn() })
+
+    render(
+      <MemoryRouter>
+        <LibraryPage />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /published/i }))
+    expect(screen.getByText(/no articles in this view/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /reset filters/i }))
+    expect(screen.getByText('Only Draft [DRAFT]')).toBeInTheDocument()
   })
 })

@@ -18,6 +18,7 @@ function Consumer() {
     <div>
       <span data-testid='loading'>{String(ctx.loading)}</span>
       <span data-testid='user'>{ctx.user?.name ?? 'none'}</span>
+      <button onClick={ctx.loginWithGoogle}>Login</button>
       <button onClick={() => void ctx.logout()}>Logout</button>
       <button onClick={() => void ctx.refreshUser()}>Refresh</button>
     </div>
@@ -121,5 +122,95 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('user')).toHaveTextContent('none')
     expect(sessionStorage.getItem('access_token')).toBeNull()
     expect(sessionStorage.getItem('refresh_token')).toBeNull()
+  })
+
+  it('starts Google login flow from loginWithGoogle', async () => {
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    )
+
+    expect(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Login' }))
+    }).not.toThrow()
+  })
+
+  it('exchanges OAuth code and stores tokens', async () => {
+    window.history.pushState({}, '', '/auth/google/callback?code=oauth-code')
+    sessionStorage.setItem('post_login_redirect', '/write')
+    vi.mocked(api.post).mockResolvedValueOnce({
+      data: {
+        access_token: 'acc',
+        refresh_token: 'ref',
+        user: { id: 'u7', name: 'Sam', email: 's@x.com', role: 'AUTHOR', created_at: '2026-01-01' },
+      },
+    } as never)
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', { code: 'oauth-code' })
+    })
+    expect(sessionStorage.getItem('access_token')).toBe('acc')
+    expect(sessionStorage.getItem('refresh_token')).toBe('ref')
+    expect(sessionStorage.getItem('post_login_redirect')).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('false')
+      expect(screen.getByTestId('user')).toHaveTextContent('Sam')
+    })
+  })
+
+  it('redirects to login when OAuth exchange fails', async () => {
+    window.history.pushState({}, '', '/auth/google/callback?code=oauth-code')
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('oauth failed'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', { code: 'oauth-code' })
+    })
+    expect(errSpy).toHaveBeenCalled()
+    errSpy.mockRestore()
+  })
+
+  it('redirects to onboarding when callback requires topic preferences', async () => {
+    window.history.pushState({}, '', '/auth/google/callback?code=oauth-code')
+    sessionStorage.setItem('post_login_redirect', '/write')
+    vi.mocked(api.post).mockResolvedValueOnce({
+      data: {
+        access_token: 'acc',
+        refresh_token: 'ref',
+        user: {
+          id: 'u7',
+          name: 'Sam',
+          email: 's@x.com',
+          role: 'AUTHOR',
+          created_at: '2026-01-01',
+          needs_topic_preferences: true,
+        },
+      },
+    } as never)
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', { code: 'oauth-code' })
+    })
+
+    expect(sessionStorage.getItem('post_onboarding_redirect')).toBe('/write')
   })
 })

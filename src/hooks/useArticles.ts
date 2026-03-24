@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
-import type { ArticleList, ArticleDetail, PaginatedResponse } from '../types'
+import type { ArticleList, ArticleDetail, PaginatedResponse, ArticleContentType } from '../types'
 
 // ── Query key factory ──────────────────────────────────────────────────────
 export const articleKeys = {
@@ -16,6 +16,7 @@ export const useArticles = (params: {
   page?: number
   tag?: string
   search?: string
+  content_type?: ArticleContentType
 } = {}) =>
   useQuery({
     queryKey: articleKeys.list(params),
@@ -50,6 +51,7 @@ export const useCreateArticle = () => {
       title:            string
       content:          string
       subtitle?:        string
+      content_type?:    ArticleContentType
       cover_image_url?: string
       last_verified_at?: string
       expires_at?: string
@@ -76,6 +78,7 @@ export const useUpdateArticle = (articleId: string) => {
       title:            string
       content:          string
       subtitle:         string
+      content_type:     ArticleContentType
       cover_image_url:  string
       last_verified_at: string
       expires_at: string

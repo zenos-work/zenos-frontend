@@ -35,10 +35,12 @@ describe('LoginPage', () => {
 
     render(<LoginPage />)
 
-    expect(screen.getByText('Welcome back')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }))
+    expect(screen.getByText('Sign in or sign up')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /terms of service/i })).toHaveAttribute('target', '_blank')
+    fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }))
 
     expect(loginWithGoogle).toHaveBeenCalledTimes(1)
+    expect(sessionStorage.getItem('auth_intent')).toBe('signin')
   })
 
   it('stores the intended route before starting Google sign-in', () => {
@@ -59,9 +61,24 @@ describe('LoginPage', () => {
 
     render(<LoginPage />)
 
-    fireEvent.click(screen.getByRole('button', { name: /continue with google/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }))
 
     expect(sessionStorage.getItem('post_login_redirect')).toBe('/terms')
+    expect(loginWithGoogle).toHaveBeenCalledTimes(1)
+  })
+
+  it('stores signup intent when sign up CTA is used', () => {
+    const loginWithGoogle = vi.fn()
+    useAuthMock.mockReturnValue({
+      user: null,
+      loginWithGoogle,
+    })
+
+    render(<LoginPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /sign up with google/i }))
+
+    expect(sessionStorage.getItem('auth_intent')).toBe('signup')
     expect(loginWithGoogle).toHaveBeenCalledTimes(1)
   })
 
@@ -86,7 +103,7 @@ describe('LoginPage', () => {
 
     render(<LoginPage />)
 
-    const button = screen.getByRole('button', { name: /continue with google/i })
+    const button = screen.getByRole('button', { name: /sign in with google/i })
 
     fireEvent.mouseEnter(button)
     expect(button).toHaveStyle({ backgroundColor: 'rgb(245, 245, 245)' })

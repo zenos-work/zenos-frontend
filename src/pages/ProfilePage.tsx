@@ -1,15 +1,22 @@
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Upload, Trash2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import api from '../lib/api'
-import type { User } from '../types'
+import { useTags } from '../hooks/useTags'
+import { useUpdateUserPrefs, useUserPrefs } from '../hooks/useUserPrefs'
+import type { Tag, User } from '../types'
 import Avatar      from '../components/ui/Avatar'
 import Badge       from '../components/ui/Badge'
 import Spinner     from '../components/ui/Spinner'
 import FollowButton from '../components/social/FollowButton'
 import { useUiStore } from '../stores/uiStore'
+
+function haveSameTopics(left: string[], right: string[]) {
+  if (left.length !== right.length) return false
+  return [...left].sort().every((topic, index) => topic === [...right].sort()[index])
+}
 
 const PRESET_AVATARS = [
   'https://api.dicebear.com/9.x/adventurer/svg?seed=ZenosAtlas',
@@ -53,6 +60,12 @@ export default function ProfilePage() {
   })
 
   const [avatarOverride, setAvatarOverride] = useState<string | null | undefined>(undefined)
+  const [selectedTopicsOverride, setSelectedTopicsOverride] = useState<string[] | null>(null)
+  const [showSavedPreferencesNotice, setShowSavedPreferencesNotice] = useState(false)
+
+  const { data: availableTags = [] } = useTags({ onboarding: true })
+  const { data: prefs } = useUserPrefs()
+  const updatePrefsMutation = useUpdateUserPrefs()
 
   const syncAvatarInCache = (avatarUrl: string | null) => {
     const nextAvatar = avatarUrl ?? undefined
@@ -124,6 +137,55 @@ export default function ProfilePage() {
       toast('Could not remove profile picture', 'error')
     },
   })
+
+  const groupedPreferences = useMemo(() => {
+    const categories = availableTags.filter((tag) => tag.is_onboarding_category)
+    const byCategory = new Map<string, Tag[]>()
+
+    for (const tag of availableTags) {
+      if (!tag.category_slug || tag.is_onboarding_category) continue
+      const items = byCategory.get(tag.category_slug) || []
+      items.push(tag)
+      byCategory.set(tag.category_slug, items)
+    }
+
+    return categories
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((category) => ({
+        category,
+        topics: (byCategory.get(category.slug) || []).sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .filter((group) => group.topics.length > 0)
+  }, [availableTags])
+
+  const selectedTopics = selectedTopicsOverride ?? prefs?.topics ?? []
+  const hasPreferenceChanges = !haveSameTopics(selectedTopics, prefs?.topics ?? [])
+
+  const toggleTopic = (slug: string) => {
+    setShowSavedPreferencesNotice(false)
+    setSelectedTopicsOverride((override) => {
+      const current = override ?? selectedTopics
+      return (
+      current.includes(slug)
+        ? current.filter((item) => item !== slug)
+        : [...current, slug]
+      )
+    })
+  }
+
+  const savePreferences = async () => {
+    const nextPrefs = {
+      topics: selectedTopics,
+      email_notifs: prefs?.email_notifs ?? 1,
+      theme: prefs?.theme ?? 'dark',
+    }
+
+    await updatePrefsMutation.mutateAsync(nextPrefs)
+    qc.setQueryData(['users', 'me', 'prefs'], nextPrefs)
+    setSelectedTopicsOverride(null)
+    setShowSavedPreferencesNotice(true)
+    toast('Preferences updated', 'success')
+  }
 
   if (isLoading) return <div className='flex justify-center py-12'><Spinner /></div>
   if (!profile)  return <p className='text-[color:var(--text-secondary)]'>User not found</p>
@@ -217,6 +279,75 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {isOwnProfile && (
+        <section className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 shadow-sm'>
+          <div className='flex items-start justify-between gap-4'>
+            <div>
+              <h2 className='text-lg font-semibold text-[color:var(--text-primary)]'>Reading preferences</h2>
+              <p className='mt-1 text-sm text-[color:var(--text-secondary)]'>Choose the topics you want to see more often. You can change them any time.</p>
+            </div>
+            <span className='rounded-full border border-[color:var(--border-strong)] px-3 py-1 text-xs text-[color:var(--text-muted)]'>
+              {selectedTopics.length} selected
+            </span>
+          </div>
+
+          <div className='mt-5 space-y-5'>
+            {groupedPreferences.map((group) => (
+              <div key={group.category.slug}>
+                <h3 className='mb-3 text-sm font-semibold text-[color:var(--text-primary)]'>{group.category.name}</h3>
+                <div className='flex flex-wrap gap-2'>
+                  {group.topics.map((topic) => {
+                    const active = selectedTopics.includes(topic.slug)
+                    return (
+                      <button
+                        key={topic.slug}
+                        type='button'
+                        onClick={() => toggleTopic(topic.slug)}
+                        className={[
+                          'rounded-full border px-3 py-1.5 text-sm transition',
+                          active
+                            ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white'
+                            : 'border-[color:var(--border)] bg-[color:var(--surface-0)] text-[color:var(--text-primary)] hover:border-[color:var(--border-strong)]',
+                        ].join(' ')}
+                      >
+                        {topic.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className='mt-6 flex items-center justify-between gap-3'>
+            <span
+              className={[
+                'text-sm',
+                hasPreferenceChanges
+                  ? 'text-[color:#b54708] dark:text-[#f7b267]'
+                  : showSavedPreferencesNotice
+                    ? 'text-[color:#027a48] dark:text-[#75e0a7]'
+                    : 'text-[color:var(--text-muted)]',
+              ].join(' ')}
+            >
+              {hasPreferenceChanges
+                ? 'Unsaved changes'
+                : showSavedPreferencesNotice
+                  ? 'All changes saved'
+                  : 'Preferences are up to date'}
+            </span>
+            <button
+              type='button'
+              onClick={() => void savePreferences()}
+              disabled={updatePrefsMutation.isPending || !hasPreferenceChanges}
+              className='rounded-full bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50'
+            >
+              {updatePrefsMutation.isPending ? 'Saving...' : 'Save preferences'}
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   )
 }

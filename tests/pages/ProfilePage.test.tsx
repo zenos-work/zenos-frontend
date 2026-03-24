@@ -45,6 +45,52 @@ describe('ProfilePage', () => {
     vi.mocked(api.post).mockResolvedValue({ data: { avatar_url: 'https://cdn.test/new-avatar.jpg' } } as never)
     vi.mocked(api.delete).mockResolvedValue({ data: {} } as never)
     vi.mocked(api.put).mockResolvedValue({ data: {} } as never)
+    vi.mocked(api.get).mockImplementation((url: string) => {
+      if (url === '/api/users/me') {
+        return Promise.resolve({
+          data: {
+            user: {
+              id: 'me-1',
+              name: 'Self User',
+              role: 'AUTHOR',
+              created_at: '2026-03-20T00:00:00Z',
+              email: 'self@zenos.work',
+            },
+          },
+        } as never)
+      }
+      if (url === '/api/users/other-1') {
+        return Promise.resolve({
+          data: {
+            user: {
+              id: 'other-1',
+              name: 'Other User',
+              role: 'READER',
+              created_at: '2026-03-20T00:00:00Z',
+              email: 'other@zenos.work',
+            },
+          },
+        } as never)
+      }
+      if (url === '/api/users/me/prefs') {
+        return Promise.resolve({
+          data: { prefs: { topics: ['ai', 'aws'], email_notifs: 1, theme: 'dark' } },
+        } as never)
+      }
+      if (url === '/api/tags') {
+        return Promise.resolve({
+          data: {
+            tags: [
+              { id: 'c1', name: 'Technology', slug: 'technology', is_onboarding_category: 1, article_count: 0 },
+              { id: 't1', name: 'AI', slug: 'ai', category_slug: 'technology', article_count: 3 },
+              { id: 't2', name: 'AWS', slug: 'aws', category_slug: 'technology', article_count: 2 },
+              { id: 't3', name: 'Kubernetes', slug: 'kubernetes', category_slug: 'technology', article_count: 1 },
+            ],
+          },
+        } as never)
+      }
+      return Promise.resolve({ data: {} } as never)
+    })
   })
 
   it('shows own profile when no route id is provided', async () => {
@@ -71,6 +117,9 @@ describe('ProfilePage', () => {
 
     expect(screen.getByText('Self User')).toBeInTheDocument()
     expect(screen.queryByTestId('follow-button')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Reading preferences')).toBeInTheDocument()
+    })
   })
 
   it('shows follow action on another user profile', async () => {
@@ -212,5 +261,56 @@ describe('ProfilePage', () => {
       expect(toastMock).toHaveBeenCalledWith('Please upload JPG, PNG, WEBP, or GIF images only', 'error')
     })
     expect(api.post).not.toHaveBeenCalled()
+  })
+
+  it('allows updating reading preferences on own profile', async () => {
+    useParamsMock.mockReturnValue({})
+    useAuthMock.mockReturnValue({
+      user: { id: 'me-1', name: 'Self User' },
+    })
+
+    const { Wrapper, client } = createQueryClientWrapper()
+    client.setQueryData(['user', 'me-1'], {
+      id: 'me-1',
+      name: 'Self User',
+      role: 'AUTHOR',
+      created_at: '2026-03-20T00:00:00Z',
+      email: 'self@zenos.work',
+    })
+
+    render(
+      <MemoryRouter>
+        <ProfilePage />
+      </MemoryRouter>,
+      { wrapper: Wrapper },
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Reading preferences')).toBeInTheDocument()
+    })
+
+    const saveButton = screen.getByRole('button', { name: /save preferences/i })
+    expect(saveButton).toBeDisabled()
+    expect(screen.getByText('Preferences are up to date')).toBeInTheDocument()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Kubernetes' }))
+    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    expect(saveButton).toBeEnabled()
+
+    fireEvent.click(saveButton)
+
+    await waitFor(() => {
+      expect(api.put).toHaveBeenCalledWith('/api/users/me/prefs', {
+        topics: ['ai', 'aws', 'kubernetes'],
+        email_notifs: 1,
+        theme: 'dark',
+      })
+    })
+
+    expect(toastMock).toHaveBeenCalledWith('Preferences updated', 'success')
+    await waitFor(() => {
+      expect(screen.getByText('All changes saved')).toBeInTheDocument()
+    })
+    expect(saveButton).toBeDisabled()
   })
 })

@@ -5,6 +5,8 @@ import api from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import {
   useAdminStats,
+  useAdminSuccessSignalHistory,
+  useAdminSuccessSignals,
   useApprovalQueue,
   useAdminUsers,
   useBanUser,
@@ -47,6 +49,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('queue')
   const [queuePage, setQueuePage] = useState(1)
   const [usersPage, setUsersPage] = useState(1)
+  const [signalsPage, setSignalsPage] = useState(1)
   const [rejectArticle, setRejectArticle] = useState<ArticleDetail | null>(null)
   const [rejectNote, setRejectNote] = useState('')
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -75,6 +78,11 @@ export default function AdminPage() {
     isLoading: usersLoading,
     isError: usersError,
   } = useAdminUsers(usersPage, isSuperadmin)
+  const {
+    data: successSignals,
+    isLoading: signalsLoading,
+    isError: signalsError,
+  } = useAdminSuccessSignals(signalsPage, 10, isSuperadmin)
 
   const banMutation = useBanUser()
   const unbanMutation = useUnbanUser()
@@ -117,6 +125,8 @@ export default function AdminPage() {
   const queueMeta = queue?.pagination
   const userItems = users?.users ?? []
   const usersMeta = users?.pagination
+  const signalItems = successSignals?.snapshots ?? []
+  const signalMeta = successSignals?.pagination
 
   const statusChart = useMemo(
     () => (stats?.articles_by_status ?? []).map((row) => ({
@@ -342,6 +352,61 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+
+            <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='mb-3 flex items-center justify-between gap-3'>
+                <h2 className='text-sm font-semibold text-[color:var(--text-primary)]'>Success signals (SR-011)</h2>
+                <Badge variant='default'>Hourly snapshots</Badge>
+              </div>
+
+              {signalsLoading ? (
+                <Spinner />
+              ) : signalsError ? (
+                <ErrorPanel message='Failed to load success signal snapshots.' />
+              ) : signalItems.length === 0 ? (
+                <p className='text-sm text-[color:var(--text-secondary)]'>No hourly snapshots yet.</p>
+              ) : (
+                <>
+                  <div className='space-y-2'>
+                    {signalItems.map((snapshot) => (
+                      <div
+                        key={`${snapshot.article_id}-${snapshot.bucket_hour}`}
+                        className='grid grid-cols-1 gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm md:grid-cols-[minmax(0,1fr)_130px_100px_90px_90px] md:items-center'
+                      >
+                        <div className='min-w-0'>
+                          <p className='truncate font-medium text-[color:var(--text-primary)]'>{snapshot.title}</p>
+                          <p className='truncate text-xs text-[color:var(--text-secondary)]'>
+                            Hour: {snapshot.bucket_hour} • v:{snapshot.views_count} l:{snapshot.likes_count} c:{snapshot.comments_count}
+                          </p>
+                        </div>
+                        <SuccessRateSparkline articleId={snapshot.article_id} />
+                        <p className='text-xs text-[color:var(--text-secondary)]'>
+                          Score <span className='font-medium text-[color:var(--text-primary)]'>{snapshot.engagement_score}</span>
+                        </p>
+                        <p className='text-xs text-[color:var(--text-secondary)]'>
+                          Success <span className='font-medium text-[color:var(--text-primary)]'>{snapshot.success_rate}%</span>
+                        </p>
+                        <a
+                          href={`/article/${snapshot.slug}`}
+                          className='text-xs font-medium text-[color:var(--accent)] hover:underline'
+                        >
+                          Open article
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+
+                  <PaginationBar
+                    page={signalMeta?.page ?? signalsPage}
+                    pages={signalMeta?.pages ?? 1}
+                    total={signalMeta?.total ?? signalItems.length}
+                    hasMore={signalMeta?.has_more ?? false}
+                    onPrev={() => setSignalsPage((p) => Math.max(1, p - 1))}
+                    onNext={() => setSignalsPage((p) => p + 1)}
+                  />
+                </>
               )}
             </div>
           </div>
@@ -653,6 +718,48 @@ function StatRow({ label, value }: { label: string; value: number }) {
     <div className='flex items-center justify-between text-sm'>
       <span className='text-[color:var(--text-secondary)]'>{label}</span>
       <span className='font-medium text-[color:var(--text-primary)]'>{value}</span>
+    </div>
+  )
+}
+
+function SuccessRateSparkline({ articleId }: { articleId: string }) {
+  const { data } = useAdminSuccessSignalHistory(articleId, 12, true)
+  const points = data?.points ?? []
+
+  if (points.length < 2) {
+    return <p className='text-xs text-[color:var(--text-muted)]'>Trend n/a</p>
+  }
+
+  const values = points.map((p) => p.success_rate)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const span = Math.max(1, max - min)
+  const width = 90
+  const height = 28
+
+  const path = points
+    .map((point, index) => {
+      const x = (index / (points.length - 1)) * (width - 4) + 2
+      const normalized = (point.success_rate - min) / span
+      const y = (height - 2) - normalized * (height - 6)
+      return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
+    })
+    .join(' ')
+
+  return (
+    <div className='space-y-1'>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className='block'>
+        <path
+          d={path}
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='2'
+          className='text-[color:var(--accent)]'
+          strokeLinecap='round'
+          strokeLinejoin='round'
+        />
+      </svg>
+      <p className='text-[10px] leading-none text-[color:var(--text-muted)]'>12h trend</p>
     </div>
   )
 }

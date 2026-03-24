@@ -118,6 +118,9 @@ describe('ArticlePage', () => {
     expect(screen.getByText('Subtitle')).toBeInTheDocument()
     expect(screen.getByText('Cloud')).toBeInTheDocument()
     expect(screen.getByText('Follow author-1')).toBeInTheDocument()
+    expect(screen.getByText('Success signals')).toBeInTheDocument()
+    expect(screen.getByText('Verification not set')).toBeInTheDocument()
+    expect(screen.getByText('Early audience traction')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /edit/i })).not.toBeInTheDocument()
   })
 

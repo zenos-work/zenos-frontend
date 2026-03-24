@@ -96,17 +96,18 @@ describe('HomePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Stories worth opening first')).toBeInTheDocument()
-    expect(screen.getAllByText('Write with confidence').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Review with clarity').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Publish and automate').length).toBeGreaterThan(0)
+    expect(screen.getByText(/Top Stories/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /Top Stories\s*: Platform Tour: Start in minutes/i }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('How-to Guide: Ship quality content').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Software Writing: Build docs users trust').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('button', { name: 'Next slide' }))
-    expect(screen.getAllByText('Review with clarity').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Write with confidence').length).toBeGreaterThan(0)
+    expect(screen.getByText(/Top Stories:/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Go to slide 3' }))
-    expect(screen.getAllByText('Publish and automate').length).toBeGreaterThan(0)
+    expect(screen.getByText(/Top Stories:/)).toBeInTheDocument()
   })
 
   it('loads next page when load more is clicked', async () => {

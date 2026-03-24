@@ -3,6 +3,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import EditorToolbar from '../../../src/components/editor/EditorToolbar'
 
+vi.mock('../../../src/stores/uiStore', () => ({
+  useUiStore: (selector: (state: { sidebarOpen: boolean; toggleSidebar: () => void }) => unknown) =>
+    selector({ sidebarOpen: true, toggleSidebar: vi.fn() }),
+}))
+
 describe('EditorToolbar', () => {
   it('renders saved state and disables save when form is clean', () => {
     render(
@@ -21,7 +26,7 @@ describe('EditorToolbar', () => {
     expect(screen.getByText(/Saved/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/library')
+    expect(screen.getByRole('button', { name: 'Minimize sidebar' })).toBeInTheDocument()
   })
 
   it('fires action handlers when toolbar buttons are clicked', () => {

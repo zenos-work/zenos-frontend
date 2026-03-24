@@ -9,9 +9,9 @@ const plans = [
   },
   {
     name: 'Creator Pro',
-    price: '$12 / month',
-    description: 'For creators publishing frequently and collaborating with editors.',
-    features: ['Everything in Starter', 'Approval workflows', 'Priority support', 'Advanced publishing controls'],
+    price: 'Free (launch offer)',
+    description: 'For creators publishing frequently and collaborating with editors. Pricing starts after we cross 1,000 active users.',
+    features: ['Everything in Starter', 'Approval workflows', 'Priority support', 'Advanced publishing controls', 'Paid plan activates after 1,000 active users'],
   },
   {
     name: 'Team Suite',
@@ -49,16 +49,21 @@ export default function MembershipPage() {
         ))}
       </section>
 
-      <section className='rounded-2xl border border-[color:var(--border)] bg-gradient-to-br from-[#21374a] via-[#36556f] to-[#5a7c95] p-6 text-white'>
-        <h2 className='text-2xl font-semibold'>Ready to publish with confidence?</h2>
-        <p className='mt-2 max-w-2xl text-sm leading-7 text-white/85'>
+      <section
+        className='relative overflow-hidden rounded-[1.8rem] border border-[color:var(--border-strong)] p-6'
+        style={{ background: 'linear-gradient(130deg, var(--surface-3) 0%, var(--surface-2) 54%, var(--surface-1) 100%)' }}
+      >
+        <div className='absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[color:var(--accent-dim)]/55 blur-2xl' />
+        <div className='absolute -bottom-24 left-16 h-56 w-56 rounded-full bg-[color:var(--surface-0)]/35 blur-3xl' />
+        <h2 className='relative text-2xl font-semibold text-[color:var(--text-primary)]'>Ready to publish with confidence?</h2>
+        <p className='relative mt-2 max-w-2xl text-sm leading-7 text-[color:var(--text-secondary)]'>
           Join Zenos and bring your writing workflow into one connected platform.
         </p>
-        <div className='mt-4 flex flex-wrap gap-3'>
-          <Link to='/login' className='rounded-full bg-white px-5 py-2 text-sm font-semibold text-[#1f3445]'>
+        <div className='relative mt-4 flex flex-wrap gap-3'>
+          <Link to='/login' className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(5,20,34,0.18)] hover:opacity-95'>
             Start now
           </Link>
-          <Link to='/' className='rounded-full border border-white/45 px-5 py-2 text-sm font-semibold text-white'>
+          <Link to='/' className='rounded-full border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-5 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>
             Back to landing
           </Link>
         </div>

@@ -30,6 +30,7 @@ export function makeArticle(overrides: Partial<ArticleList> = {}): ArticleList {
     author_id: 'user-1',
     author_name: 'Alex Writer',
     subtitle: 'Alpha subtitle',
+    content_type: 'article',
     read_time_minutes: 5,
     views_count: 10,
     likes_count: 2,
