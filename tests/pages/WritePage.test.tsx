@@ -528,7 +528,7 @@ describe('WritePage', () => {
     })
 
     fireEvent.click(screen.getByLabelText('Individual'))
-    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(await screen.findByLabelText(/Priya Approver/i))
     fireEvent.change(screen.getByPlaceholderText('Write a message to approvers...'), {
       target: { value: 'Can you prioritize this review?' },
     })
@@ -585,7 +585,7 @@ describe('WritePage', () => {
       expect(toastMock).toHaveBeenCalledWith('Select at least one approver', 'warning')
     })
 
-    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(await screen.findByLabelText(/Priya Approver/i))
     fireEvent.change(screen.getByPlaceholderText('Write a message to approvers...'), {
       target: { value: '' },
     })
