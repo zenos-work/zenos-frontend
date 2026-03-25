@@ -12,9 +12,7 @@ export default function FollowButton({ authorId }: { authorId: string }) {
 
   if (!user || user.id === authorId) return null
 
-  const displayFollowing = mutation.isPending && optimisticFollow !== null
-    ? optimisticFollow
-    : isFollowing
+  const displayFollowing = optimisticFollow !== null ? optimisticFollow : isFollowing
 
   const handle = async () => {
     setOptimisticFollow(!displayFollowing)
