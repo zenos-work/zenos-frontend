@@ -96,6 +96,16 @@ export const useFollow = (targetUserId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['feed', 'following'] })
       qc.invalidateQueries({ queryKey: ['user', targetUserId] })
+      qc.invalidateQueries({ queryKey: ['follow', 'status', targetUserId] })
     },
+  })
+}
+
+export const useFollowStatus = (targetUserId: string) =>
+  useQuery({
+    queryKey: ['follow', 'status', targetUserId],
+    queryFn: () =>
+      api.get<{ is_following: boolean }>(`/api/social/follows/${targetUserId}/check`)
+        .then(r => r.data.is_following),
   })
 }
