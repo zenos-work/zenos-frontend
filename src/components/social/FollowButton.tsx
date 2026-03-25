@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { UserPlus, UserCheck } from 'lucide-react'
 import { useFollow, useFollowStatus } from '../../hooks/useSocial'
 import { useAuth } from '../../hooks/useAuth'
@@ -9,16 +9,12 @@ export default function FollowButton({ authorId }: { authorId: string }) {
   const [optimisticFollow, setOptimisticFollow] = useState<boolean | null>(null)
   const mutation = useFollow(authorId)
 
-  // Reset optimistic state after mutation
-  useEffect(() => {
-    if (!mutation.isPending) {
-      setOptimisticFollow(null)
-    }
-  }, [mutation.isPending])
 
   if (!user || user.id === authorId) return null
 
-  const displayFollowing = optimisticFollow !== null ? optimisticFollow : isFollowing
+  const displayFollowing = mutation.isPending && optimisticFollow !== null
+    ? optimisticFollow
+    : isFollowing
 
   const handle = async () => {
     setOptimisticFollow(!displayFollowing)

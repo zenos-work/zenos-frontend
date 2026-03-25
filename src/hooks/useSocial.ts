@@ -108,4 +108,3 @@ export const useFollowStatus = (targetUserId: string) =>
       api.get<{ is_following: boolean }>(`/api/social/follows/${targetUserId}/check`)
         .then(r => r.data.is_following),
   })
-}
