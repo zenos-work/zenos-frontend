@@ -192,7 +192,7 @@ describe('SearchPage', () => {
     await waitFor(() => {
       expect(apiGetMock).toHaveBeenCalledWith('/api/articles/content-types')
     })
-    expect(screen.getByRole('option', { name: 'Playbook' })).toBeInTheDocument()
+    expect(await screen.findByText('Playbook')).toBeInTheDocument()
   })
 
   it('keeps default content types when content-type API fails', async () => {
@@ -203,7 +203,7 @@ describe('SearchPage', () => {
     await waitFor(() => {
       expect(apiGetMock).toHaveBeenCalledWith('/api/articles/content-types')
     })
-    expect(screen.getByRole('option', { name: 'Case study' })).toBeInTheDocument()
+    expect(await screen.findByText('Case study')).toBeInTheDocument()
   })
 
   it('renders empty sections in all-results view', () => {
