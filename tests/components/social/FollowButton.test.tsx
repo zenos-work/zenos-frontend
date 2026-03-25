@@ -4,6 +4,7 @@ import FollowButton from '../../../src/components/social/FollowButton'
 
 const useAuthMock = vi.fn()
 const useFollowMock = vi.fn()
+const useFollowStatusMock = vi.fn()
 
 vi.mock('../../../src/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -11,6 +12,7 @@ vi.mock('../../../src/hooks/useAuth', () => ({
 
 vi.mock('../../../src/hooks/useSocial', () => ({
   useFollow: (authorId: string) => useFollowMock(authorId),
+  useFollowStatus: (authorId: string) => useFollowStatusMock(authorId),
 }))
 
 describe('FollowButton', () => {
@@ -20,7 +22,8 @@ describe('FollowButton', () => {
 
   it('renders nothing for guests and own profile', () => {
     useAuthMock.mockReturnValue({ user: null })
-    useFollowMock.mockReturnValue({ mutateAsync: vi.fn() })
+    useFollowStatusMock.mockReturnValue({ data: false, isLoading: false })
+    useFollowMock.mockReturnValue({ mutateAsync: vi.fn(), isPending: false })
     const guest = render(<FollowButton authorId='author-1' />)
     expect(guest.container.firstChild).toBeNull()
 
@@ -32,7 +35,8 @@ describe('FollowButton', () => {
   it('toggles follow state for other authors', async () => {
     const mutateAsync = vi.fn().mockResolvedValue(undefined)
     useAuthMock.mockReturnValue({ user: { id: 'user-1' } })
-    useFollowMock.mockReturnValue({ mutateAsync })
+    useFollowStatusMock.mockReturnValue({ data: false, isLoading: false })
+    useFollowMock.mockReturnValue({ mutateAsync, isPending: false })
 
     render(<FollowButton authorId='author-2' />)
 

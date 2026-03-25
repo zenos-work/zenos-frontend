@@ -35,8 +35,8 @@ export default function CommentItem({ comment, articleId }: Props) {
       <div className='flex-1 min-w-0 space-y-1'>
         {/* Header */}
         <div className='flex items-center gap-2 flex-wrap'>
-          <span className='text-sm font-medium text-white'>{comment.author_name}</span>
-          <span className='text-xs text-gray-600'>
+          <span className='text-sm font-medium' style={{ color: 'var(--text-primary)' }}>{comment.author_name}</span>
+          <span className='text-xs' style={{ color: 'var(--text-muted)' }}>
             {new Date(comment.created_at).toLocaleDateString()}
             {wasEdited && ' · edited'}
           </span>
@@ -49,7 +49,18 @@ export default function CommentItem({ comment, articleId }: Props) {
               value={editText}
               onChange={e => setEditText(e.target.value)}
               rows={3}
-              className='w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-gray-600 resize-none'
+              className='w-full rounded-lg px-3 py-2 text-sm outline-none resize-none'
+              style={{
+                backgroundColor: 'var(--surface-1)',
+                borderColor: 'var(--border)',
+                color: 'var(--text-primary)',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-strong)'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)'
+              }}
             />
             <div className='flex gap-2'>
               <Button size='sm' onClick={handleSaveEdit} loading={editMutation.isPending}>
@@ -61,7 +72,7 @@ export default function CommentItem({ comment, articleId }: Props) {
             </div>
           </div>
         ) : (
-          <p className={`text-sm ${isDeleted ? 'text-gray-600 italic' : 'text-gray-300'}`}>
+          <p className='text-sm' style={{ color: isDeleted ? 'var(--text-muted)' : 'var(--text-primary)' }}>
             {isDeleted ? '[deleted]' : comment.content}
           </p>
         )}
@@ -72,7 +83,14 @@ export default function CommentItem({ comment, articleId }: Props) {
             {user && (
               <button
                 onClick={() => setReplying(r => !r)}
-                className='text-xs text-gray-500 hover:text-white transition-colors'
+                className='text-xs transition-colors'
+                style={{ color: 'var(--text-secondary)', cursor: 'pointer' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--text-primary)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--text-secondary)'
+                }}
               >
                 Reply
               </button>
@@ -81,13 +99,27 @@ export default function CommentItem({ comment, articleId }: Props) {
               <>
                 <button
                   onClick={() => { setEditText(comment.content); setEditing(true) }}
-                  className='text-xs text-gray-500 hover:text-white transition-colors'
+                  className='text-xs transition-colors'
+                  style={{ color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--text-primary)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--text-secondary)'
+                  }}
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => deleteMutation.mutate(comment.id)}
-                  className='text-xs text-gray-500 hover:text-red-400 transition-colors'
+                  className='text-xs transition-colors'
+                  style={{ color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#ff6b6b'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--text-secondary)'
+                  }}
                 >
                   Delete
                 </button>
@@ -110,7 +142,7 @@ export default function CommentItem({ comment, articleId }: Props) {
 
         {/* Nested replies */}
         {comment.replies?.length > 0 && (
-          <div className='mt-4 pl-4 border-l border-gray-800 space-y-4'>
+          <div className='mt-4 pl-4 space-y-4' style={{ borderLeft: '1px solid var(--border)' }}>
             {comment.replies.map(r => (
               <CommentItem key={r.id} comment={r} articleId={articleId} />
             ))}

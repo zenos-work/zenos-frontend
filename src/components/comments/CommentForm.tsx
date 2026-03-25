@@ -35,7 +35,18 @@ export default function CommentForm({ articleId, parentId, onDone, placeholder }
           onChange={e => setText(e.target.value)}
           placeholder={placeholder ?? 'Write a comment...'}
           rows={3}
-          className='w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-gray-600 resize-none transition-colors'
+          className='w-full rounded-xl px-4 py-3 text-sm outline-none resize-none transition-colors'
+          style={{
+            backgroundColor: 'var(--surface-1)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-primary)',
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-strong)'
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+          }}
         />
         <div className='flex justify-end gap-2'>
           {onDone && (
