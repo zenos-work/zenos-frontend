@@ -34,6 +34,23 @@ export const useArticle = (idOrSlug: string) =>
     enabled: !!idOrSlug,
   })
 
+export const useAuthorArticles = (
+  authorId: string,
+  params: {
+    page?: number
+    limit?: number
+    status?: string
+  } = {},
+) =>
+  useQuery({
+    queryKey: [...articleKeys.all, 'author', authorId, params] as const,
+    queryFn: () =>
+      api
+        .get<PaginatedResponse<ArticleList>>(`/api/articles/author/${authorId}`, { params })
+        .then((r) => r.data),
+    enabled: !!authorId,
+  })
+
 // My drafts + library — all my articles regardless of status
 export const useMyArticles = () =>
   useQuery({

@@ -121,8 +121,8 @@ export default function AppShell() {
   }, [location.pathname, location.search])
 
   const contentStyle: CSSProperties = {
-    maxWidth: isWriteRoute ? '1680px' : isGuest ? '1500px' : '1320px',
-    padding: isWriteRoute ? '20px 28px 32px' : '24px 20px 80px',
+    maxWidth: isWriteRoute ? '1560px' : isGuest ? '1240px' : '1280px',
+    padding: isWriteRoute ? '24px 28px 40px' : '28px 24px 88px',
   }
 
   return (
@@ -132,7 +132,7 @@ export default function AppShell() {
         .zenos-shell {
           display: flex;
           min-height: 100vh;
-          background-color: var(--surface-0);
+          background-color: transparent;
           color: var(--text-primary);
         }
         .zenos-sidebar {
@@ -141,10 +141,11 @@ export default function AppShell() {
           z-index: 30;
           display: flex;
           flex-direction: column;
-          background-color: var(--surface-1);
+          background-color: var(--surface-5);
           border-right: 1px solid var(--border);
           transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           overflow: hidden;
+          box-shadow: 1px 0 0 var(--border);
         }
         .zenos-main {
           flex: 1;

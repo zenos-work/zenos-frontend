@@ -31,13 +31,8 @@ export default function ArticleDetail({ content }: { content: string }) {
     editorProps: {
       attributes: {
         class: [
-          "font-[Georgia,'Times New Roman',serif]",
-          'prose prose-lg max-w-none',
-          'prose-headings:text-gray-900 prose-p:text-gray-800',
-          'prose-a:text-blue-700 prose-strong:text-gray-950',
-          'prose-code:text-emerald-900 prose-code:bg-emerald-100/80 prose-code:px-1 prose-code:py-0.5 prose-code:rounded',
-          'prose-pre:bg-slate-900 prose-pre:text-slate-200 prose-pre:border prose-pre:border-slate-700',
-          'prose-blockquote:border-l-slate-500 prose-blockquote:text-slate-700',
+          'prose max-w-none',
+          'prose-code:px-1 prose-code:py-0.5 prose-code:rounded',
           'prose-img:rounded-xl prose-img:w-full prose-img:h-auto',
         ].join(' '),
       },

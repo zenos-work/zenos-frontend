@@ -34,6 +34,7 @@ export function makeArticle(overrides: Partial<ArticleList> = {}): ArticleList {
     read_time_minutes: 5,
     views_count: 10,
     likes_count: 2,
+    shares_count: 0,
     comments_count: 1,
     is_featured: 0,
     created_at: '2026-03-20T00:00:00Z',

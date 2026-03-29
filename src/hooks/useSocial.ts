@@ -108,3 +108,29 @@ export const useFollowStatus = (targetUserId: string) =>
       api.get<{ is_following: boolean }>(`/api/social/follows/${targetUserId}/check`)
         .then(r => r.data.is_following),
   })
+
+export const useShare = (articleId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (provider: 'linkedin' = 'linkedin') =>
+      api.post<{ share: { article_id: string; provider: string; share_count: number } }>(
+        `/api/social/shares/${articleId}`,
+        { provider },
+      ),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: articleKeys.detail(articleId) })
+      const prev = qc.getQueryData(articleKeys.detail(articleId))
+      qc.setQueryData(articleKeys.detail(articleId), (old: ArticleList | undefined) =>
+        old ? { ...old, shares_count: (old.shares_count ?? 0) + 1 } : old,
+      )
+      return { prev }
+    },
+    onError: (_err, _provider, ctx) => {
+      qc.setQueryData(articleKeys.detail(articleId), ctx?.prev)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: articleKeys.myList() })
+      qc.invalidateQueries({ queryKey: articleKeys.lists() })
+    },
+  })
+}

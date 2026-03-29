@@ -2,9 +2,12 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import api from '../../src/lib/api'
 import {
+  useAdminRanking,
+  useAdminRankingWeights,
   useAdminStats,
   useAdminUsers,
   useApprovalQueue,
+  useUpdateAdminRankingWeights,
   useBanUser,
   useNotifications,
   useUnbanUser,
@@ -29,6 +32,7 @@ describe('useAdmin hooks', () => {
       data: {
         total_users: 10,
         total_comments: 20,
+        total_shares: 0,
         articles_by_status: [],
         top_articles: [],
       },
@@ -55,6 +59,50 @@ describe('useAdmin hooks', () => {
     expect(statsResult.result.current.fetchStatus).toBe('idle')
     expect(usersResult.result.current.fetchStatus).toBe('idle')
     expect(api.get).not.toHaveBeenCalled()
+  })
+
+  it('fetches ranking data and ranking weights', async () => {
+    vi.mocked(api.get)
+      .mockResolvedValueOnce({
+        data: {
+          weights: {
+            likes_weight: 1,
+            shares_weight: 2,
+            comments_weight: 1.5,
+            dislikes_weight: -1,
+            views_weight: 0.1,
+            recency_weight: 0.25,
+          },
+          content_type_rankings: [],
+          top_category_rankings: [],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          weights: {
+            likes_weight: 1,
+            shares_weight: 2,
+            comments_weight: 1.5,
+            dislikes_weight: -1,
+            views_weight: 0.1,
+            recency_weight: 0.25,
+          },
+        },
+      })
+
+    const ranking = createQueryClientWrapper()
+    const weights = createQueryClientWrapper()
+
+    const rankingResult = renderHook(() => useAdminRanking(8), { wrapper: ranking.Wrapper })
+    const weightsResult = renderHook(() => useAdminRankingWeights(), { wrapper: weights.Wrapper })
+
+    await waitFor(() => {
+      expect(rankingResult.result.current.isSuccess).toBe(true)
+      expect(weightsResult.result.current.isSuccess).toBe(true)
+    })
+
+    expect(api.get).toHaveBeenCalledWith('/api/admin/ranking', { params: { limit: 8 } })
+    expect(api.get).toHaveBeenCalledWith('/api/admin/ranking-weights')
   })
 
   it('fetches approval queue, users, and notifications', async () => {
@@ -114,5 +162,32 @@ describe('useAdmin hooks', () => {
     expect(api.put).toHaveBeenCalledWith('/api/admin/users/user-1/ban')
     expect(api.put).toHaveBeenCalledWith('/api/admin/users/user-1/unban')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['admin', 'users'] })
+  })
+
+  it('updates ranking weights and invalidates ranking queries', async () => {
+    vi.mocked(api.put).mockResolvedValue({
+      data: {
+        weights: {
+          likes_weight: 1,
+          shares_weight: 2.5,
+          comments_weight: 1.5,
+          dislikes_weight: -1,
+          views_weight: 0.1,
+          recency_weight: 0.25,
+        },
+      },
+    })
+
+    const { Wrapper, client } = createQueryClientWrapper()
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    const { result } = renderHook(() => useUpdateAdminRankingWeights(), { wrapper: Wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({ shares_weight: 2.5 })
+    })
+
+    expect(api.put).toHaveBeenCalledWith('/api/admin/ranking-weights', { shares_weight: 2.5 })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['admin', 'ranking-weights'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['admin', 'ranking'] })
   })
 })

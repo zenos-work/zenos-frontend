@@ -1,26 +1,31 @@
-import { useEffect, useMemo, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { useArticle } from '../hooks/useArticles'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useArticle, useAuthorArticles } from '../hooks/useArticles'
 import { useAuth } from '../hooks/useAuth'
 import ArticleDetail from '../components/article/ArticleDetail'
 import ArticleMeta   from '../components/article/ArticleMeta'
 import CommentList   from '../components/comments/CommentList'
-import LikeButton    from '../components/social/LikeButton'
 import BookmarkButton from '../components/social/BookmarkButton'
 import FollowButton  from '../components/social/FollowButton'
+import { useShare } from '../hooks/useSocial'
+import { useUiStore } from '../stores/uiStore'
 import TagChip       from '../components/ui/TagChip'
 import Avatar        from '../components/ui/Avatar'
 import Spinner       from '../components/ui/Spinner'
-import { PenSquare } from 'lucide-react'
+import { Copy, Linkedin, MessageCircle, PenSquare, Share2, Settings } from 'lucide-react'
 import { resolveAssetUrl } from '../lib/assets'
+import { ReadingPreferencesPanel } from '../components/reading/ReadingPreferencesPanel'
+import { EnhancedTableOfContents } from '../components/reading/EnhancedTableOfContents'
+import { ConsolidatedReactions } from '../components/reading/ConsolidatedReactions'
+import { ReadingProgressBar } from '../components/reading/ReadingProgressBar'
+import { useReadingPreferences } from '../hooks/useReadingPreferences'
+import { useArticleReactions } from '../hooks/useReactions'
 
 type TocHeading = {
   id: string
   text: string
   level: number
 }
-
-type SignalTone = 'success' | 'warning' | 'neutral'
 
 function slugifyHeading(value: string): string {
   return value
@@ -32,53 +37,31 @@ function slugifyHeading(value: string): string {
     .replace(/^-|-$/g, '')
 }
 
-function daysSince(dateValue?: string): number | null {
-  if (!dateValue) return null
-  const parsed = Date.parse(dateValue)
-  if (Number.isNaN(parsed)) return null
-  const msPerDay = 1000 * 60 * 60 * 24
-  return Math.floor((Date.now() - parsed) / msPerDay)
-}
-
-function verificationSignal(article: { last_verified_at?: string; is_expired?: boolean }): { label: string; tone: SignalTone } {
-  if (article.is_expired) {
-    return { label: 'Verification expired', tone: 'warning' }
-  }
-  const ageDays = daysSince(article.last_verified_at)
-  if (ageDays === null) {
-    return { label: 'Verification not set', tone: 'neutral' }
-  }
-  if (ageDays <= 30) {
-    return { label: 'Freshly verified', tone: 'success' }
-  }
-  if (ageDays <= 90) {
-    return { label: 'Verified recently', tone: 'success' }
-  }
-  return { label: 'Verification aging', tone: 'warning' }
-}
-
-function engagementSignal(article: { views_count: number; likes_count: number; comments_count: number }): { label: string; score: number } {
-  const score = article.views_count + article.likes_count * 10 + article.comments_count * 15
-  if (score >= 500) return { label: 'High audience traction', score }
-  if (score >= 120) return { label: 'Growing audience traction', score }
-  return { label: 'Early audience traction', score }
-}
-
-function signalToneClasses(tone: SignalTone): string {
-  if (tone === 'success') {
-    return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-  }
-  if (tone === 'warning') {
-    return 'border-amber-500/40 bg-amber-500/10 text-amber-700'
-  }
-  return 'border-[color:var(--border)] bg-[color:var(--surface-1)] text-[color:var(--text-secondary)]'
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 export default function ArticlePage() {
   const { slug }  = useParams()
   const { user }  = useAuth()
+  const navigate = useNavigate()
+  const toast = useUiStore((s) => s.toast)
   const { data: article, isLoading, error } = useArticle(slug ?? '')
+  const { data: authorArticles } = useAuthorArticles(article?.author_id ?? '', {
+    status: 'PUBLISHED',
+    limit: 8,
+    page: 1,
+  })
+  const { preferences } = useReadingPreferences()
+  const { data: reactions, isLoading: reactionsLoading } = useArticleReactions(article?.id ?? '')
   const contentShellRef = useRef<HTMLDivElement | null>(null)
+  const shareMutation = useShare(article?.id ?? '')
+  const [showReadingPrefs, setShowReadingPrefs] = useState(false)
+  const [showShareMenu, setShowShareMenu] = useState(false)
+  const [readingProgress, setReadingProgress] = useState(0)
+  const [readingSeconds, setReadingSeconds] = useState(0)
 
   const toc = useMemo<TocHeading[]>(() => {
     if (!article?.content) return []
@@ -195,10 +178,42 @@ export default function ArticlePage() {
     })
   }, [toc])
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const documentHeight = document.documentElement.scrollHeight - window.innerHeight
+      if (documentHeight <= 0) {
+        setReadingProgress(0)
+        return
+      }
+      const value = (window.scrollY / documentHeight) * 100
+      setReadingProgress(Math.min(100, Math.max(0, value)))
+    }
+
+    handleScroll()
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setReadingSeconds((value) => value + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
   const tocVisible = toc.length >= 2
-  const verification = verificationSignal(article ?? {})
-  const engagement = engagementSignal(article ?? { views_count: 0, likes_count: 0, comments_count: 0 })
-  const outcomeCount = article?.tags?.filter((tag) => tag.tag_type === 'outcome').length ?? 0
+  const articleWidth = {
+    narrow: '580px',
+    medium: '720px',
+    wide: '860px',
+  }[preferences.contentWidth]
+  const articleFontFamily = preferences.fontFamily === 'serif' ? 'var(--font-body)' : 'var(--font-ui)'
+  const articleFontSize = preferences.fontSize === 'sm' ? '18px' : preferences.fontSize === 'lg' ? '22px' : preferences.fontSize === 'xl' ? '24px' : '20px'
+  const articleLineHeight = preferences.lineHeight === 'loose' ? '1.92' : preferences.lineHeight === 'extra-loose' ? '2.06' : '1.82'
+  const readingBackground = {
+    white: 'var(--surface-5)',
+    cream: 'var(--surface-warm)',
+    dark: 'var(--surface-1)',
+  }[preferences.backgroundColor]
+  const readingTextColor = preferences.backgroundColor === 'dark' ? 'var(--text-primary)' : 'var(--text-secondary)'
 
   if (isLoading) return <div className='flex justify-center py-20'><Spinner size='lg' /></div>
   if (error || !article) return (
@@ -210,129 +225,264 @@ export default function ArticlePage() {
 
   const isOwner = user?.id === article.author_id
   const coverUrl = resolveAssetUrl(article.cover_image_url)
+  const nextFromAuthor = [...(authorArticles?.items ?? [])]
+    .filter((item) => item.id !== article.id)
+    .sort((a, b) => {
+      const aTime = new Date(a.published_at ?? a.created_at).getTime()
+      const bTime = new Date(b.published_at ?? b.created_at).getTime()
+      return bTime - aTime
+    })[0]
+  const nextFromAuthorImage = resolveAssetUrl(nextFromAuthor?.cover_image_url)
+
+  const handleLinkedInShare = async () => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+
+    const targetUrl = article.canonical_url || window.location.href
+    const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(targetUrl)}`
+    const shareTab = window.open(linkedinUrl, 'linkedin-share', 'noopener,noreferrer,width=720,height=760')
+    if (!shareTab) {
+      toast('Popup blocked. Please allow popups for LinkedIn sharing.', 'error')
+      return
+    }
+
+    try {
+      await shareMutation.mutateAsync('linkedin')
+      toast('Shared to LinkedIn', 'success')
+    } catch {
+      toast('Could not record share', 'error')
+    }
+
+    setShowShareMenu(false)
+  }
+
+  const handleCopyLink = async () => {
+    const targetUrl = article.canonical_url || window.location.href
+    try {
+      await navigator.clipboard.writeText(targetUrl)
+      toast('Link copied', 'success')
+    } catch {
+      const textArea = document.createElement('textarea')
+      textArea.value = targetUrl
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        toast('Link copied', 'success')
+      } catch {
+        toast('Could not copy link', 'error')
+      } finally {
+        document.body.removeChild(textArea)
+      }
+    }
+
+    setShowShareMenu(false)
+  }
 
   return (
-    <article className='mx-auto w-full max-w-4xl space-y-8'>
+    <>
+      <ReadingProgressBar />
+      <ReadingPreferencesPanel isOpen={showReadingPrefs} onClose={() => setShowReadingPrefs(false)} />
 
-      {/* Cover image */}
-      {coverUrl && (
-        <img src={coverUrl} alt=''
-          className='w-full h-72 object-cover rounded-2xl' />
-      )}
-
-      {/* Tags */}
-      {article.tags?.length > 0 && (
-        <div className='flex flex-wrap gap-2'>
-          {article.tags.map(tag => <TagChip key={tag.id} tag={tag} size='md' />)}
+      <div className='min-h-screen'>
+        <div className='fixed left-8 top-1/3 z-30 hidden w-52 xl:block'>
+          <EnhancedTableOfContents
+            toc={toc}
+            content={article.content}
+            isVisible={tocVisible}
+          />
         </div>
-      )}
 
-      {/* Title */}
-      <header className='space-y-3'>
-        <h1 className='text-3xl font-bold leading-tight text-[color:var(--text-primary)]'>{article.title}</h1>
-        {article.subtitle && (
-          <p className='text-xl leading-relaxed text-[color:var(--text-secondary)]'>{article.subtitle}</p>
-        )}
-      </header>
+        <article className='mx-auto px-6 py-10' style={{ maxWidth: articleWidth }}>
+          <div className='space-y-8'>
+            {article.tags?.length > 0 && (
+              <div className='mt-2 flex flex-wrap items-center gap-2'>
+                {article.tags.slice(0, 1).map((tag) => <TagChip key={tag.id} tag={tag} size='md' />)}
+              </div>
+            )}
 
-      {/* Author + actions bar */}
-      <div className='flex items-center justify-between border-y border-[color:var(--border)] py-4'>
-        <div className='flex items-center gap-3'>
-          <Avatar name={article.author_name ?? '?'} src={article.author_avatar} size='md' />
-          <div>
-            <div className='flex items-center gap-2'>
-              <Link to={`/profile/${article.author_id}`}
-                className='text-sm font-medium text-[color:var(--text-primary)] transition-colors hover:text-[color:var(--accent)]'>
-                {article.author_name}
-              </Link>
-              {!isOwner && <FollowButton authorId={article.author_id} />}
+            <header className='space-y-4'>
+              <h1 className='font-display text-3xl font-bold leading-tight tracking-tight text-[color:var(--text-primary)] md:text-[42px] md:leading-[1.15]'>
+                {article.title}
+              </h1>
+              {article.subtitle && (
+                <p className='font-body text-xl leading-relaxed text-[color:var(--text-secondary)]'>
+                  {article.subtitle}
+                </p>
+              )}
+            </header>
+
+            <div className='flex items-center gap-3'>
+              <Avatar name={article.author_name ?? '?'} src={article.author_avatar} size='md' />
+              <div className='flex-1'>
+                <div className='flex items-center gap-2'>
+                  <Link to={`/profile/${article.author_id}`} className='text-sm font-medium text-[color:var(--text-primary)] hover:text-[color:var(--accent)]'>
+                    {article.author_name}
+                  </Link>
+                  {!isOwner && <FollowButton authorId={article.author_id} />}
+                </div>
+                <ArticleMeta article={article} />
+              </div>
             </div>
-            <ArticleMeta article={article} />
-          </div>
-        </div>
-        <div className='flex items-center gap-2'>
-          {isOwner && article.status !== 'PUBLISHED' && (
-            <Link to={`/write/${article.id}`}
-              className='flex items-center gap-1.5 rounded-full border border-[color:var(--border-strong)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:var(--accent)] hover:text-[color:var(--text-primary)]'>
-              <PenSquare size={13} /> Edit
-            </Link>
-          )}
-          <LikeButton articleId={article.id} count={article.likes_count} />
-          <BookmarkButton articleId={article.id} />
-        </div>
-      </div>
 
-      {/* SR-011: success signals */}
-      <section className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
-        <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Success signals</p>
-        <div className='mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3'>
-          <div className={`rounded-lg border px-3 py-2 text-sm ${signalToneClasses(verification.tone)}`}>
-            <p className='text-xs uppercase tracking-wider opacity-80'>Verification</p>
-            <p className='font-medium'>{verification.label}</p>
-          </div>
-          <div className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-secondary)]'>
-            <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Engagement</p>
-            <p className='font-medium text-[color:var(--text-primary)]'>{engagement.label}</p>
-            <p className='text-xs'>Signal score: {engagement.score.toLocaleString()}</p>
-          </div>
-          <div className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-secondary)]'>
-            <p className='text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Outcomes</p>
-            <p className='font-medium text-[color:var(--text-primary)]'>
-              {outcomeCount > 0 ? `${outcomeCount} outcome tag${outcomeCount > 1 ? 's' : ''}` : 'No outcome tags yet'}
-            </p>
-            <p className='text-xs'>Outcome tags mark measurable reader value.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Rejection note for author */}
-      {article.rejection_note && isOwner && (
-        <div className='p-4 rounded-xl border border-red-500/30 bg-red-900/10'>
-          <p className='text-sm font-medium text-red-400 mb-1'>Rejection note</p>
-          <p className='text-sm text-[color:var(--text-secondary)]'>{article.rejection_note}</p>
-        </div>
-      )}
-
-      {article.is_expired && (
-        <div className='rounded-xl border border-amber-500/40 bg-amber-500/10 p-4'>
-          <p className='text-sm font-semibold text-amber-700'>This article may be outdated.</p>
-          <p className='text-xs text-[color:var(--text-secondary)] mt-1'>
-            Last verified: {article.last_verified_at ? new Date(article.last_verified_at).toLocaleDateString('en-US') : 'not set'}
-          </p>
-        </div>
-      )}
-
-      {/* Content + TOC */}
-      <div className='grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]'>
-        <div ref={contentShellRef}>
-          <ArticleDetail content={article.content} />
-        </div>
-        {tocVisible && (
-          <aside className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4 lg:sticky lg:top-24 lg:self-start'>
-            <p className='mb-3 text-xs uppercase tracking-wider text-[color:var(--text-muted)]'>Table of contents</p>
-            <nav className='space-y-2'>
-              {toc.map((item) => (
-                <a
-                  key={item.id}
-                  href={`#${item.id}`}
-                  className='block text-sm text-[color:var(--text-secondary)] hover:text-[color:var(--accent)]'
-                  style={{ paddingLeft: `${Math.max(0, item.level - 1) * 10}px` }}
+            <div className='flex items-center justify-between border-y divider py-3'>
+              <ConsolidatedReactions articleId={article.id} reactions={reactions?.reactions} isLoading={reactionsLoading} />
+              <div className='flex items-center gap-2'>
+                {isOwner && article.status !== 'PUBLISHED' && (
+                  <Link to={`/write/${article.id}`} className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:var(--text-primary)] hover:text-[color:var(--text-primary)]'>
+                    <PenSquare size={13} /> Edit
+                  </Link>
+                )}
+                <button
+                  onClick={() => setShowReadingPrefs(true)}
+                  className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:var(--text-primary)] hover:text-[color:var(--text-primary)]'
+                  title='Reading preferences'
                 >
-                  {item.text}
-                </a>
-              ))}
-            </nav>
-          </aside>
-        )}
-      </div>
+                  <Settings size={14} />
+                  <span className='hidden sm:inline'>Customize</span>
+                </button>
+                <div className='relative'>
+                  <button
+                    onClick={() => setShowShareMenu((v) => !v)}
+                    className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[#0a66c2] hover:text-[#0a66c2]'
+                    aria-haspopup='menu'
+                    aria-expanded={showShareMenu}
+                  >
+                    <Share2 size={14} />
+                    <span className='hidden sm:inline'>Share</span>
+                  </button>
 
-      {/* Comments */}
-      <section className='border-t border-[color:var(--border)] pt-8'>
-        <h2 className='mb-6 text-lg font-semibold text-[color:var(--text-primary)]'>
-          {article.comments_count} {article.comments_count === 1 ? 'Comment' : 'Comments'}
-        </h2>
-        <CommentList articleId={article.id} />
-      </section>
-    </article>
+                  {showShareMenu && (
+                    <>
+                      <button
+                        type='button'
+                        className='fixed inset-0 z-30 cursor-default'
+                        onClick={() => setShowShareMenu(false)}
+                        aria-label='Close share menu'
+                      />
+                      <div className='absolute right-0 top-[calc(100%+8px)] z-40 w-48 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-5)] p-1 shadow-[var(--shadow)]'>
+                        <button
+                          type='button'
+                          onClick={handleCopyLink}
+                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)]'
+                        >
+                          <Copy size={14} />
+                          Copy link
+                        </button>
+                        <button
+                          type='button'
+                          onClick={handleLinkedInShare}
+                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[#0a66c2]'
+                        >
+                          <Linkedin size={14} />
+                          Share to LinkedIn
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <BookmarkButton articleId={article.id} />
+              </div>
+            </div>
+
+            {coverUrl && (
+              <img src={coverUrl} alt='' className='w-full rounded object-cover' style={{ maxHeight: 460 }} />
+            )}
+
+            <div className='article-body mt-10' style={{ background: readingBackground, color: readingTextColor, padding: '2rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+              <div
+                ref={contentShellRef}
+                style={{
+                  fontFamily: articleFontFamily,
+                  fontSize: articleFontSize,
+                  lineHeight: articleLineHeight,
+                }}
+              >
+                <ArticleDetail content={article.content} />
+              </div>
+            </div>
+
+            <div className='flex items-center justify-between text-xs text-[color:var(--text-muted)]'>
+              <span>Time spent reading: {formatElapsed(readingSeconds)}</span>
+              <span>{Math.round(readingProgress)}% complete</span>
+            </div>
+
+            {article.tags?.length > 0 && (
+              <div className='flex flex-wrap gap-2'>
+                {article.tags.map((tag) => (
+                  <TagChip key={tag.id} tag={tag} size='md' />
+                ))}
+              </div>
+            )}
+
+            <div className='flex items-center justify-between border-y divider py-4'>
+              <ConsolidatedReactions articleId={article.id} reactions={reactions?.reactions} isLoading={reactionsLoading} />
+              <div className='flex items-center gap-2'>
+                <button className='inline-flex items-center gap-1.5 text-[color:var(--text-muted)] transition-colors hover:text-[color:var(--text-primary)]'>
+                  <MessageCircle size={18} />
+                  <span className='text-sm'>{article.comments_count}</span>
+                </button>
+                <BookmarkButton articleId={article.id} />
+              </div>
+            </div>
+
+            {article.rejection_note && isOwner && (
+              <div className='rounded-[1.25rem] border border-red-500/30 bg-red-500/5 p-4'>
+                <p className='mb-1 text-sm font-medium text-red-500'>Rejection note</p>
+                <p className='text-sm text-[color:var(--text-secondary)]'>{article.rejection_note}</p>
+              </div>
+            )}
+
+            {article.is_expired && (
+              <div className='rounded-[1.25rem] border border-amber-500/40 bg-amber-500/10 p-4'>
+                <p className='text-sm font-semibold text-amber-700'>This article may be outdated.</p>
+                <p className='mt-1 text-xs text-[color:var(--text-secondary)]'>
+                  Last verified: {article.last_verified_at ? new Date(article.last_verified_at).toLocaleDateString('en-US') : 'not set'}
+                </p>
+              </div>
+            )}
+
+            <section className='border-t divider pt-8'>
+              <h2 className='mb-6 text-2xl font-bold text-[color:var(--text-primary)]'>
+                {article.comments_count} {article.comments_count === 1 ? 'Comment' : 'Comments'}
+              </h2>
+              <CommentList articleId={article.id} />
+            </section>
+
+            {nextFromAuthor && (
+              <section className='border-t divider pt-8'>
+                <h2 className='mb-5 text-xl font-bold text-[color:var(--text-primary)]'>
+                  Next from {article.author_name}
+                </h2>
+                <Link to={`/article/${nextFromAuthor.slug}`} className='group block rounded-xl border border-[color:var(--border)] p-4 transition-colors hover:border-[color:var(--accent)]/50'>
+                  {nextFromAuthorImage && (
+                    <img
+                      src={nextFromAuthorImage}
+                      alt=''
+                      className='h-44 w-full rounded object-cover'
+                    />
+                  )}
+                  <h3 className='mt-3 font-display text-xl font-semibold leading-snug text-[color:var(--text-primary)] transition-colors group-hover:text-[color:var(--accent)]'>
+                    {nextFromAuthor.title}
+                  </h3>
+                  {nextFromAuthor.subtitle && (
+                    <p className='mt-1 text-sm leading-relaxed text-[color:var(--text-secondary)]'>
+                      {nextFromAuthor.subtitle}
+                    </p>
+                  )}
+                  <p className='mt-2 text-xs text-[color:var(--text-muted)]'>
+                    {nextFromAuthor.published_at ? new Date(nextFromAuthor.published_at).toLocaleDateString() : 'Draft'} · {nextFromAuthor.read_time_minutes} min read
+                  </p>
+                </Link>
+              </section>
+            )}
+          </div>
+        </article>
+      </div>
+    </>
   )
 }

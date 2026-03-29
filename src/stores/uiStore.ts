@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+const THEME_STORAGE_KEY = 'zenos_theme'
+
 interface Toast {
   id:      string
   type:    'success' | 'error' | 'info' | 'warning'
@@ -21,17 +23,32 @@ interface UiState {
 
 /** Apply theme class to <html> — called on init and every theme change */
 function applyTheme(theme: 'light' | 'dark') {
+  if (typeof document === 'undefined') return
   const html = document.documentElement
   html.classList.remove('light', 'dark')
   html.classList.add(theme)
 }
 
-// Apply light theme immediately on module load (before React renders)
-applyTheme('light')
+function getInitialTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined') return 'light'
+
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
+    if (stored === 'light' || stored === 'dark') return stored
+  } catch {
+    // Ignore storage access failures.
+  }
+
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+const initialTheme = getInitialTheme()
+
+applyTheme(initialTheme)
 
 export const useUiStore = create<UiState>((set) => ({
   sidebarOpen: true,
-  theme:       'light',   // ← default LIGHT
+  theme:       initialTheme,
   toasts:      [],
 
   toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
@@ -39,12 +56,22 @@ export const useUiStore = create<UiState>((set) => ({
 
   setTheme: (theme) => {
     applyTheme(theme)
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+    } catch {
+      // Ignore storage access failures.
+    }
     set({ theme })
   },
 
   toggleTheme: () => set(s => {
     const next = s.theme === 'light' ? 'dark' : 'light'
     applyTheme(next)
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, next)
+    } catch {
+      // Ignore storage access failures.
+    }
     return { theme: next }
   }),
 

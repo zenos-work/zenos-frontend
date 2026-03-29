@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import api from '../../src/lib/api'
 import { articleKeys } from '../../src/hooks/useArticles'
-import { useBookmark, useBookmarks, useFollow, useLike } from '../../src/hooks/useSocial'
+import { useBookmark, useBookmarks, useFollow, useLike, useShare } from '../../src/hooks/useSocial'
 import { createQueryClientWrapper } from '../utils/queryClient'
 import { makeArticle } from '../utils/fixtures'
 
@@ -172,5 +172,25 @@ describe('useSocial hooks', () => {
     expect(api.delete).toHaveBeenCalledWith('/api/social/follows/user-50')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['feed', 'following'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['user', 'user-50'] })
+  })
+
+  it('records linkedin share and optimistically updates article share count', async () => {
+    const articleId = 'article-77'
+    const original = makeArticle({ id: articleId, shares_count: 2 })
+    vi.mocked(api.post).mockResolvedValue({ data: { share: { article_id: articleId, provider: 'linkedin', share_count: 3 } } })
+
+    const { Wrapper, client } = createQueryClientWrapper()
+    client.setQueryData(articleKeys.detail(articleId), original)
+
+    const { result } = renderHook(() => useShare(articleId), { wrapper: Wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync('linkedin')
+    })
+
+    expect(api.post).toHaveBeenCalledWith(`/api/social/shares/${articleId}`, { provider: 'linkedin' })
+    expect(client.getQueryData(articleKeys.detail(articleId))).toEqual(
+      makeArticle({ id: articleId, shares_count: 3 }),
+    )
   })
 })

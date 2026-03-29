@@ -7,6 +7,9 @@ import api from '../../src/lib/api'
 
 const useAuthMock = vi.fn()
 const useAdminStatsMock = vi.fn()
+const useAdminRankingMock = vi.fn()
+const useAdminRankingWeightsMock = vi.fn()
+const useUpdateAdminRankingWeightsMock = vi.fn()
 const useAdminSuccessSignalsMock = vi.fn()
 const useAdminSuccessSignalHistoryMock = vi.fn()
 const useApprovalQueueMock = vi.fn()
@@ -22,6 +25,9 @@ vi.mock('../../src/hooks/useAuth', () => ({
 
 vi.mock('../../src/hooks/useAdmin', () => ({
   useAdminStats: (...args: unknown[]) => useAdminStatsMock(...args),
+  useAdminRanking: (...args: unknown[]) => useAdminRankingMock(...args),
+  useAdminRankingWeights: (...args: unknown[]) => useAdminRankingWeightsMock(...args),
+  useUpdateAdminRankingWeights: (...args: unknown[]) => useUpdateAdminRankingWeightsMock(...args),
   useAdminSuccessSignals: (...args: unknown[]) => useAdminSuccessSignalsMock(...args),
   useAdminSuccessSignalHistory: (...args: unknown[]) => useAdminSuccessSignalHistoryMock(...args),
   useApprovalQueue: (...args: unknown[]) => useApprovalQueueMock(...args),
@@ -55,6 +61,7 @@ describe('AdminPage', () => {
       data: {
         total_users: 10,
         total_comments: 25,
+        total_shares: 8,
         articles_by_status: [{ status: 'PUBLISHED', c: 3 }],
         top_articles: [makeArticleDetail({ id: 'a-top', title: 'Top Story' })],
         governance: {
@@ -89,6 +96,66 @@ describe('AdminPage', () => {
       },
       isLoading: false,
       isError: false,
+    })
+
+    useAdminRankingMock.mockReturnValue({
+      data: {
+        weights: {
+          likes_weight: 1,
+          shares_weight: 2,
+          comments_weight: 1.5,
+          dislikes_weight: -1,
+          views_weight: 0.1,
+          recency_weight: 0.25,
+        },
+        content_type_rankings: [
+          {
+            content_type: 'article',
+            articles_count: 3,
+            total_score: 240,
+            avg_score: 80,
+            likes_count: 20,
+            dislikes_count: 2,
+            shares_count: 8,
+            comments_count: 9,
+            views_count: 200,
+          },
+        ],
+        top_category_rankings: [
+          {
+            category_slug: 'fintech',
+            category_name: 'Fintech',
+            articles_count: 2,
+            total_score: 180,
+            avg_score: 90,
+            likes_count: 15,
+            dislikes_count: 1,
+            shares_count: 6,
+            comments_count: 7,
+            views_count: 140,
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    })
+
+    useAdminRankingWeightsMock.mockReturnValue({
+      data: {
+        likes_weight: 1,
+        shares_weight: 2,
+        comments_weight: 1.5,
+        dislikes_weight: -1,
+        views_weight: 0.1,
+        recency_weight: 0.25,
+      },
+      isLoading: false,
+      isError: false,
+    })
+
+    useUpdateAdminRankingWeightsMock.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
     })
 
     useAdminSuccessSignalHistoryMock.mockReturnValue({
@@ -165,6 +232,8 @@ describe('AdminPage', () => {
     expect(screen.getByText('Active users')).toBeInTheDocument()
     expect(screen.getAllByText('Users by role').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Top Story').length).toBeGreaterThan(0)
+    expect(screen.getByText('Engagement ranking (weighted)')).toBeInTheDocument()
+    expect(screen.getByText('Top categories')).toBeInTheDocument()
     expect(screen.getByText('Success signals (SR-011)')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /users/i })).toBeInTheDocument()
   })

@@ -7,6 +7,7 @@ import { useUiStore } from '../stores/uiStore'
 import { resolveAssetUrl } from '../lib/assets'
 import ArticleCard from '../components/article/ArticleCard'
 import ArticleHero from '../components/article/ArticleHero'
+import { DiscoverySidebar } from '../components/reading/DiscoverySidebar'
 import Spinner     from '../components/ui/Spinner'
 
 const TABS = [
@@ -437,88 +438,117 @@ export default function HomePage() {
     )
   }
 
+  const featuredIds = new Set(featuredData?.map((article) => article.id) ?? [])
+  const visibleArticles = tab === 'home'
+    ? articles.filter((article) => !featuredIds.has(article.id))
+    : articles
+
   return (
-    <div className='space-y-10'>
-
-      {/* Featured carousel */}
-      {showFeatured && (
-        <section>
-          <h2 className='text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4'>
-            Featured
-          </h2>
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            {featuredData.slice(0, 2).map(a => (
-              <ArticleHero key={a.id} article={a} />
-            ))}
+    <div className='space-y-8'>
+      <section className='overflow-hidden rounded-[2rem] border border-[color:var(--border)] surface-warm'>
+        <div className='mx-auto flex max-w-[1200px] flex-col items-start gap-4 px-6 py-14 md:py-18'>
+          <h1 className='font-display text-5xl font-bold tracking-tight text-[color:var(--text-primary)] md:text-7xl'>
+            Stay curious.
+          </h1>
+          <p className='max-w-2xl font-body text-lg leading-relaxed text-[color:var(--text-secondary)]'>
+            Discover stories, product thinking, and expert insight from teams publishing through Zenos.
+          </p>
+          <div className='flex flex-wrap items-center gap-3'>
+            <Link to='/explore' className='rounded-full bg-[color:var(--surface-ink)] px-6 py-2.5 text-sm font-semibold text-[color:var(--surface-ink-foreground)] transition-opacity hover:opacity-90'>
+              Start reading
+            </Link>
+            <Link to='/write' className='rounded-full border border-[color:var(--border-strong)] px-6 py-2.5 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-5)]'>
+              Write a story
+            </Link>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
-      {/* Feed tabs */}
-      <div>
-        <div className='flex items-center gap-1 border-b border-gray-800 mb-6'>
-          {TABS.map(t => (
+      <div className='border-b divider'>
+        <div className='flex items-center gap-2 overflow-x-auto pb-3'>
+          {TABS.map((item) => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={item.id}
+              onClick={() => setTab(item.id)}
               className={[
-                'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
-                tab === t.id
-                  ? 'text-white border-blue-500'
-                  : 'text-gray-400 border-transparent hover:text-white',
+                'whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-semibold transition-colors',
+                tab === item.id
+                  ? 'bg-[color:var(--surface-ink)] text-[color:var(--surface-ink-foreground)]'
+                  : 'text-[color:var(--text-muted)] hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)]',
               ].join(' ')}
             >
-              {t.label}
+              {item.label}
             </button>
           ))}
           {feedLabel === 'personalised' && (
-            <span className='ml-auto text-xs text-blue-500/70 pr-1'>✦ Personalised</span>
+            <span className='ml-auto whitespace-nowrap rounded-full bg-[color:var(--accent-dim)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--accent)]'>
+              Personalised
+            </span>
+          )}
+        </div>
+      </div>
+
+      <main className='grid gap-12 lg:grid-cols-[minmax(0,1fr)_320px]'>
+        <div className='space-y-8'>
+          {showFeatured && tab === 'home' && featuredData.length > 0 && (
+            <section className='space-y-8'>
+              {featuredData.slice(0, 1).map((article) => (
+                <ArticleCard key={article.id} article={article} featured />
+              ))}
+              {featuredData.slice(1, 2).map((article) => (
+                <ArticleHero key={article.id} article={article} />
+              ))}
+            </section>
+          )}
+
+          {tab === 'following' && !user ? (
+            <div className='rounded-[1.5rem] border border-[color:var(--border)] bg-[color:var(--surface-5)] px-6 py-12 text-center shadow-[var(--shadow)]'>
+              <p className='mb-3 text-[color:var(--text-secondary)]'>Sign in to view articles from authors you follow.</p>
+              <Link
+                to='/login'
+                className='inline-flex items-center rounded-full bg-[color:var(--surface-ink)] px-5 py-2 text-sm font-semibold text-[color:var(--surface-ink-foreground)]'
+              >
+                Go to login
+              </Link>
+            </div>
+          ) : isLoading ? (
+            <div className='flex justify-center py-12'><Spinner /></div>
+          ) : isError ? (
+            <div className='rounded-[1.5rem] border border-red-500/30 bg-red-500/5 px-6 py-10 text-center text-red-500'>
+              Failed to load feed{error instanceof Error ? `: ${error.message}` : '.'}
+            </div>
+          ) : visibleArticles.length === 0 ? (
+            <div className='rounded-[1.5rem] border border-[color:var(--border)] bg-[color:var(--surface-5)] px-6 py-12 text-center text-[color:var(--text-muted)]'>
+              {tab === 'following'
+                ? 'Follow some authors to see their articles here.'
+                : tab === 'trending'
+                  ? 'No trending articles yet.'
+                  : 'No articles yet.'
+              }
+            </div>
+          ) : (
+            <section className='space-y-8'>
+              {visibleArticles.map((article) => <ArticleCard key={article.id} article={article} />)}
+            </section>
+          )}
+
+          {hasNextPage && (
+            <div className='flex justify-center pt-2' ref={loadMoreRef}>
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className='rounded-full border border-[color:var(--border)] px-6 py-2.5 text-sm font-medium text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:opacity-50'
+              >
+                {isFetchingNextPage ? 'Loading...' : 'Load more'}
+              </button>
+            </div>
           )}
         </div>
 
-        {tab === 'following' && !user ? (
-          <div className='text-center py-14 rounded-2xl border border-gray-800 bg-gray-900/40'>
-            <p className='text-gray-300 mb-3'>Sign in to view articles from authors you follow.</p>
-            <Link
-              to='/login'
-              className='inline-flex items-center rounded-full px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white transition-colors'
-            >
-              Go to login
-            </Link>
-          </div>
-        ) : isLoading ? (
-          <div className='flex justify-center py-12'><Spinner /></div>
-        ) : isError ? (
-          <div className='text-center py-16 text-red-400'>
-            Failed to load feed{error instanceof Error ? `: ${error.message}` : '.'}
-          </div>
-        ) : articles.length === 0 ? (
-          <div className='text-center py-16 text-gray-500'>
-            {tab === 'following'
-              ? 'Follow some authors to see their articles here.'
-              : tab === 'trending'
-                ? 'No trending articles yet.'
-              : 'No articles yet.'
-            }
-          </div>
-        ) : (
-          <div className='space-y-3'>
-            {articles.map(a => <ArticleCard key={a.id} article={a} />)}
-          </div>
-        )}
-
-        {hasNextPage && (
-          <div className='flex justify-center pt-8' ref={loadMoreRef}>
-            <button
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className='px-6 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-full text-sm text-gray-300 disabled:opacity-50 transition-colors'
-            >
-              {isFetchingNextPage ? 'Loading...' : 'Load more'}
-            </button>
-          </div>
-        )}
-      </div>
+        <div className='hidden lg:block'>
+          <DiscoverySidebar />
+        </div>
+      </main>
     </div>
   )
 }
