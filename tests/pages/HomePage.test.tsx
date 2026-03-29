@@ -25,6 +25,10 @@ vi.mock('../../src/components/article/ArticleHero', () => ({
   default: ({ article }: { article: { title: string } }) => <div data-testid='hero'>{article.title}</div>,
 }))
 
+vi.mock('../../src/components/reading/DiscoverySidebar', () => ({
+  DiscoverySidebar: () => <div data-testid='discovery-sidebar'>Discovery Sidebar</div>,
+}))
+
 vi.mock('../../src/components/ui/Spinner', () => ({
   default: () => <div>Loading...</div>,
 }))
@@ -68,13 +72,14 @@ describe('HomePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Featured')).toBeInTheDocument()
+    expect(screen.getByText('Stay curious.')).toBeInTheDocument()
+    expect(screen.getByText('Featured A')).toBeInTheDocument()
     const heroCards = screen.getAllByTestId('hero')
-    expect(heroCards[0]).toHaveTextContent('Featured A')
-    expect(heroCards[1]).toHaveTextContent('Featured B')
+    expect(heroCards[0]).toHaveTextContent('Featured B')
     expect(screen.getByText('Feed A')).toBeInTheDocument()
     expect(screen.getByText('Feed B')).toBeInTheDocument()
     expect(screen.getByText(/Personalised/)).toBeInTheDocument()
+    expect(screen.getByTestId('discovery-sidebar')).toBeInTheDocument()
   })
 
   it('shows guest trending landing when user is not signed in', () => {

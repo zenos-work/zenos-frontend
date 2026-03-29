@@ -3,8 +3,10 @@ import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ArticlePage from '../../src/pages/ArticlePage'
 import { makeArticleDetail, makeTag } from '../utils/fixtures'
+import { createQueryClientWrapper } from '../utils/queryClient'
 
 const useArticleMock = vi.fn()
+const useAuthorArticlesMock = vi.fn()
 const useAuthMock = vi.fn()
 
 vi.mock('react-router-dom', async () => {
@@ -17,6 +19,7 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../../src/hooks/useArticles', () => ({
   useArticle: (...args: unknown[]) => useArticleMock(...args),
+  useAuthorArticles: (...args: unknown[]) => useAuthorArticlesMock(...args),
 }))
 
 vi.mock('../../src/hooks/useAuth', () => ({
@@ -33,10 +36,6 @@ vi.mock('../../src/components/article/ArticleMeta', () => ({
 
 vi.mock('../../src/components/comments/CommentList', () => ({
   default: ({ articleId }: { articleId: string }) => <div>Comments for {articleId}</div>,
-}))
-
-vi.mock('../../src/components/social/LikeButton', () => ({
-  default: () => <button>LikeButton</button>,
 }))
 
 vi.mock('../../src/components/social/BookmarkButton', () => ({
@@ -59,19 +58,67 @@ vi.mock('../../src/components/ui/Spinner', () => ({
   default: () => <div>Loading</div>,
 }))
 
+vi.mock('../../src/components/reading/DiscoverySidebar', () => ({
+  DiscoverySidebar: () => <div>Discovery Sidebar</div>,
+}))
+
+vi.mock('../../src/components/reading/EnhancedTableOfContents', () => ({
+  EnhancedTableOfContents: () => <div>TOC</div>,
+}))
+
+vi.mock('../../src/components/reading/ConsolidatedReactions', () => ({
+  ConsolidatedReactions: () => <div>Reactions</div>,
+}))
+
+vi.mock('../../src/components/reading/ReadingProgressBar', () => ({
+  ReadingProgressBar: () => <div>Progress</div>,
+}))
+
+vi.mock('../../src/components/reading/ReadingPreferencesPanel', () => ({
+  ReadingPreferencesPanel: () => null,
+}))
+
+vi.mock('../../src/hooks/useReadingPreferences', () => ({
+  useReadingPreferences: () => ({
+    preferences: {
+      fontSize: 'base',
+      fontFamily: 'sans',
+      lineHeight: 'relaxed',
+      contentWidth: 'medium',
+      backgroundColor: 'white',
+    },
+  }),
+}))
+
+vi.mock('../../src/hooks/useReactions', () => ({
+  useArticleReactions: () => ({ data: { reactions: undefined }, isLoading: false }),
+}))
+
+vi.mock('../../src/hooks/useSocial', () => ({
+  useShare: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+
+vi.mock('../../src/stores/uiStore', () => ({
+  useUiStore: (selector: (state: { toast: (message: string, type?: string) => void }) => unknown) =>
+    selector({ toast: vi.fn() }),
+}))
+
 describe('ArticlePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useAuthorArticlesMock.mockReturnValue({ data: { items: [] } })
   })
 
   it('shows loading state', () => {
     useAuthMock.mockReturnValue({ user: null })
     useArticleMock.mockReturnValue({ data: undefined, isLoading: true, error: null })
+    const { Wrapper } = createQueryClientWrapper()
 
     render(
       <MemoryRouter>
         <ArticlePage />
       </MemoryRouter>,
+      { wrapper: Wrapper },
     )
 
     expect(screen.getByText('Loading')).toBeInTheDocument()
@@ -80,11 +127,13 @@ describe('ArticlePage', () => {
   it('shows not found state when article is missing', () => {
     useAuthMock.mockReturnValue({ user: null })
     useArticleMock.mockReturnValue({ data: undefined, isLoading: false, error: new Error('missing') })
+    const { Wrapper } = createQueryClientWrapper()
 
     render(
       <MemoryRouter>
         <ArticlePage />
       </MemoryRouter>,
+      { wrapper: Wrapper },
     )
 
     expect(screen.getByText('Article not found')).toBeInTheDocument()
@@ -107,20 +156,39 @@ describe('ArticlePage', () => {
       isLoading: false,
       error: null,
     })
+    useAuthorArticlesMock.mockReturnValue({
+      data: {
+        items: [
+          makeArticleDetail({
+            id: 'a2',
+            slug: 'other-story',
+            title: 'Second Story',
+            author_id: 'author-1',
+            author_name: 'Article Author',
+            content: 'Body',
+            status: 'PUBLISHED',
+          }),
+        ],
+      },
+    })
+    const { Wrapper } = createQueryClientWrapper()
 
     render(
       <MemoryRouter>
         <ArticlePage />
       </MemoryRouter>,
+      { wrapper: Wrapper },
     )
 
     expect(screen.getByText('Article Title')).toBeInTheDocument()
     expect(screen.getByText('Subtitle')).toBeInTheDocument()
-    expect(screen.getByText('Cloud')).toBeInTheDocument()
+    expect(screen.getAllByText('Cloud').length).toBeGreaterThan(0)
     expect(screen.getByText('Follow author-1')).toBeInTheDocument()
-    expect(screen.getByText('Success signals')).toBeInTheDocument()
-    expect(screen.getByText('Verification not set')).toBeInTheDocument()
-    expect(screen.getByText('Early audience traction')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument()
+    expect(screen.getByText('TOC')).toBeInTheDocument()
+    expect(screen.getByText(/Time spent reading:/i)).toBeInTheDocument()
+    expect(screen.getByText('Next from Article Author')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /second story/i })).toHaveAttribute('href', '/article/other-story')
     expect(screen.queryByRole('link', { name: /edit/i })).not.toBeInTheDocument()
   })
 
@@ -139,11 +207,13 @@ describe('ArticlePage', () => {
       isLoading: false,
       error: null,
     })
+    const { Wrapper } = createQueryClientWrapper()
 
     render(
       <MemoryRouter>
         <ArticlePage />
       </MemoryRouter>,
+      { wrapper: Wrapper },
     )
 
     expect(screen.getByRole('link', { name: /edit/i })).toHaveAttribute('href', '/write/a2')

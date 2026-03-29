@@ -30,7 +30,8 @@ export default function MobileNav() {
           position: fixed;
           bottom: 0; left: 0; right: 0;
           z-index: 30;
-          background: var(--surface-1);
+          background: color-mix(in srgb, var(--surface-5) 92%, transparent);
+          backdrop-filter: blur(14px);
           border-top: 1px solid var(--border);
           padding-bottom: env(safe-area-inset-bottom, 0);
         }
@@ -46,10 +47,10 @@ export default function MobileNav() {
           padding: 10px 4px;
           gap: 2px;
           font-size: 10px;
-          font-weight: 500;
+          font-weight: 600;
           color: var(--text-muted);
           text-decoration: none;
-          font-family: 'DM Sans', system-ui, sans-serif;
+          font-family: var(--font-ui);
           transition: color 0.15s;
         }
         .zenos-mobile-nav a.active,

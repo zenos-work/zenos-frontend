@@ -17,37 +17,25 @@ import Avatar from '../ui/Avatar'
 
 function LogoMark({ open }: { open: boolean }) {
   return open ? (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, userSelect: 'none' }}>
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, userSelect: 'none' }}>
       <span
         style={{
-          fontFamily: "'Syne', system-ui, sans-serif",
-          fontWeight: 750,
-          fontSize: 23,
-          letterSpacing: '-0.06em',
-          color: 'var(--text-primary)',
-          lineHeight: 1,
-        }}
-      >
-        Z
-      </span>
-      <span
-        style={{
-          fontFamily: "'Syne', system-ui, sans-serif",
+          fontFamily: 'var(--font-display)',
           fontWeight: 700,
-          fontSize: 20,
-          letterSpacing: '-0.04em',
+          fontSize: 30,
+          letterSpacing: '-0.05em',
           color: 'var(--text-primary)',
           lineHeight: 1,
         }}
       >
-        ENOS
+        Zenos
       </span>
       <span
         style={{
-          fontFamily: "'Syne', system-ui, sans-serif",
-          fontWeight: 500,
-          fontSize: 15,
-          letterSpacing: '-0.02em',
+          fontFamily: 'var(--font-display)',
+          fontWeight: 600,
+          fontSize: 20,
+          letterSpacing: '-0.03em',
           color: 'var(--accent)',
           lineHeight: 1,
         }}
@@ -58,10 +46,10 @@ function LogoMark({ open }: { open: boolean }) {
   ) : (
     <span
       style={{
-        fontFamily: "'Syne', system-ui, sans-serif",
-        fontWeight: 800,
-        fontSize: 20,
-        letterSpacing: '-0.06em',
+        fontFamily: 'var(--font-display)',
+        fontWeight: 700,
+        fontSize: 24,
+        letterSpacing: '-0.04em',
         color: 'var(--text-primary)',
         userSelect: 'none',
       }}
@@ -88,16 +76,16 @@ const navStyle = (open: boolean, active: boolean): React.CSSProperties => ({
   alignItems: 'center',
   gap: open ? 10 : 0,
   justifyContent: open ? 'flex-start' : 'center',
-  padding: open ? '9px 12px' : '9px',
-  borderRadius: 8,
-  marginBottom: 2,
-  fontSize: 14,
-  fontFamily: "'DM Sans', system-ui, sans-serif",
+  padding: open ? '10px 14px' : '10px',
+  borderRadius: 999,
+  marginBottom: 6,
+  fontSize: 13,
+  fontFamily: 'var(--font-ui)',
   fontWeight: active ? 500 : 400,
   color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-  backgroundColor: active ? 'var(--surface-3)' : 'transparent',
+  backgroundColor: active ? 'var(--surface-2)' : 'transparent',
   textDecoration: 'none',
-  transition: 'background-color 0.15s, color 0.15s',
+  transition: 'background-color 0.15s, color 0.15s, transform 0.15s',
 })
 
 export default function Sidebar() {
@@ -109,7 +97,7 @@ export default function Sidebar() {
   const navItems = user ? AUTH_NAV : GUEST_NAV
 
   return (
-    <nav style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <nav style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--surface-5)' }}>
       <div
         style={{
           height: 56,
@@ -127,7 +115,7 @@ export default function Sidebar() {
       </div>
 
       {canWrite && (
-        <div style={{ padding: open ? '14px 10px 6px' : '14px 8px 6px', flexShrink: 0 }}>
+        <div style={{ padding: open ? '16px 12px 10px' : '16px 8px 10px', flexShrink: 0 }}>
           <NavLink
             to='/write'
             style={({ isActive }) => ({
@@ -135,15 +123,14 @@ export default function Sidebar() {
               alignItems: 'center',
               gap: open ? 8 : 0,
               justifyContent: open ? 'flex-start' : 'center',
-              padding: open ? '9px 14px' : '9px',
-              borderRadius: 8,
-              backgroundColor: isActive ? 'var(--accent)' : 'var(--accent-dim)',
-              color: isActive ? '#fff' : 'var(--accent)',
-              border: '1px solid',
-              borderColor: isActive ? 'var(--accent)' : 'rgba(166,124,60,0.3)',
+              padding: open ? '10px 16px' : '10px',
+              borderRadius: 999,
+              backgroundColor: isActive ? 'var(--surface-ink)' : 'var(--surface-warm)',
+              color: isActive ? 'var(--surface-ink-foreground)' : 'var(--text-primary)',
+              border: '1px solid transparent',
               fontSize: 13,
               fontWeight: 600,
-              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontFamily: 'var(--font-ui)',
               textDecoration: 'none',
               transition: 'all 0.15s',
             })}
@@ -154,7 +141,12 @@ export default function Sidebar() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: open ? '4px 8px' : '4px 6px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: open ? '8px 10px' : '8px 6px' }}>
+        {open && (
+          <p style={{ padding: '0 10px 10px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 700 }}>
+            Workspace
+          </p>
+        )}
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} style={({ isActive }) => navStyle(open, isActive)}>
             {({ isActive }) => (
@@ -188,16 +180,17 @@ export default function Sidebar() {
       </div>
 
       {user && (
-        <div style={{ borderTop: '1px solid var(--border)', padding: open ? '10px' : '8px', flexShrink: 0 }}>
+        <div style={{ borderTop: '1px solid var(--border)', padding: open ? '12px' : '8px', flexShrink: 0 }}>
           <NavLink
             to='/profile'
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '6px 8px',
-              borderRadius: 8,
+              padding: '10px 12px',
+              borderRadius: 18,
               textDecoration: 'none',
+              background: 'var(--surface-1)',
             }}
           >
             <Avatar name={user.name} src={user.avatar_url} size='sm' />
@@ -211,7 +204,7 @@ export default function Sidebar() {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontFamily: 'var(--font-ui)',
                   }}
                 >
                   {user.name}
@@ -223,7 +216,7 @@ export default function Sidebar() {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontFamily: 'var(--font-ui)',
                   }}
                 >
                   {user.role}
@@ -243,7 +236,7 @@ export default function Sidebar() {
           justifyContent: 'center',
           borderTop: '1px solid var(--border)',
           color: 'var(--text-muted)',
-          background: 'none',
+          background: 'var(--surface-5)',
           cursor: 'pointer',
           flexShrink: 0,
           transition: 'color 0.15s',

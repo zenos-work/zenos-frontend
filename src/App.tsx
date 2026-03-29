@@ -7,6 +7,7 @@ import TermsRoute     from './routes/TermsRoute'
 import Spinner        from './components/ui/Spinner'
 import HomePage       from './pages/HomePage'
 import ArticlePage    from './pages/ArticlePage'
+import ExplorePage    from './pages/ExplorePage'
 import WritePage      from './pages/WritePage'
 import ProfilePage    from './pages/ProfilePage'
 import BookmarksPage  from './pages/BookmarksPage'
@@ -57,6 +58,7 @@ export default function App() {
       <Route element={<AppShell />}>
         <Route index                 element={<HomePage />}    />
         <Route path='/article/:slug' element={<ArticlePage />} />
+        <Route path='/explore'       element={<ExplorePage />} />
         <Route path='/search'        element={<SearchPage />}  />
         <Route path='/tag/:slug'     element={<TagPage />}     />
         <Route path='/profile/:id'   element={<ProfilePage />} />

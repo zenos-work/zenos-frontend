@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Bell, LogIn, Sun, Moon } from 'lucide-react'
+import { Search, Bell, LogIn, Sun, Moon, PenSquare, Bookmark, BarChart3 } from 'lucide-react'
 import { useAuth }    from '../../hooks/useAuth'
 import { useUiStore } from '../../stores/uiStore'
 import Avatar         from '../ui/Avatar'
@@ -23,126 +23,155 @@ export default function Topbar() {
     <>
       <style>{`
         .zenos-topbar {
-          position: sticky; top: 0; z-index: 20;
-          height: 56px; display: flex; align-items: center;
-          gap: 12px; padding: 0 24px;
-          /* Uses CSS var — adapts to light/dark theme */
+          position: sticky;
+          top: 0;
+          z-index: 20;
+          height: 56px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 0 24px;
           background-color: var(--topbar-bg);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
           border-bottom: 1px solid var(--border);
           flex-shrink: 0;
-          box-shadow: var(--shadow);
+          box-shadow: 0 1px 0 var(--border);
         }
         .zenos-topbar-brand {
-          display: none;
+          display: inline-flex;
           align-items: center;
           flex-shrink: 0;
-          border: none;
-          background: none;
-          padding: 0;
-          cursor: pointer;
-          user-select: none;
+          font-family: var(--font-display);
+          font-size: 1.8rem;
+          font-weight: 700;
+          letter-spacing: -0.05em;
+          color: var(--text-primary);
         }
         .zenos-topbar-brand-wordmark {
           display: inline-flex;
           align-items: baseline;
-          gap: 1px;
+          gap: 0;
           line-height: 1;
         }
-        .zenos-topbar-brand-z {
-          font-family: 'Syne', system-ui, sans-serif;
-          font-weight: 800;
-          font-size: 22px;
-          letter-spacing: -0.06em;
-          color: var(--text-primary);
-        }
-        .zenos-topbar-brand-enos {
-          font-family: 'Syne', system-ui, sans-serif;
-          font-weight: 700;
-          font-size: 15px;
-          letter-spacing: -0.04em;
-          color: var(--text-primary);
-        }
         .zenos-topbar-brand-work {
-          font-family: 'Syne', system-ui, sans-serif;
-          font-weight: 500;
-          font-size: 13px;
-          letter-spacing: -0.02em;
           color: var(--accent);
         }
-        .zenos-search-wrap { flex: 1; min-width: 0; max-width: 380px; position: relative; }
+        .zenos-search-wrap {
+          flex: 1;
+          min-width: 0;
+          max-width: 420px;
+          position: relative;
+        }
         .zenos-search-icon {
-          position: absolute; left: 10px; top: 50%;
+          position: absolute; left: 14px; top: 50%;
           transform: translateY(-50%);
-          color: var(--text-muted); pointer-events: none;
+          color: var(--text-muted);
+          pointer-events: none;
         }
         .zenos-search-input {
-          width: 100%; padding: 7px 14px 7px 34px;
-          border-radius: 8px; font-size: 13px;
-          font-family: 'DM Sans', system-ui, sans-serif;
-          background: var(--surface-2);
+          width: 100%;
+          padding: 8px 16px 8px 38px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-family: var(--font-ui);
+          background: var(--surface-1);
           border: 1px solid var(--border);
-          color: var(--text-primary); outline: none;
+          color: var(--text-primary);
+          outline: none;
           transition: border-color 0.15s, background-color 0.15s;
         }
         .zenos-search-input::placeholder { color: var(--text-muted); }
         .zenos-search-input:focus {
           border-color: var(--accent);
-          background: var(--surface-1);
+          background: var(--surface-5);
         }
-        .zenos-topbar-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-        .zenos-icon-btn {
-          width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-          border-radius: 8px; cursor: pointer;
-          color: var(--text-secondary); background: none; border: none;
+        .zenos-topbar-right {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-left: auto;
+        }
+        .zenos-topbar-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border-radius: 999px;
+          padding: 7px 12px;
+          color: var(--text-muted);
           transition: background-color 0.15s, color 0.15s;
         }
-        .zenos-icon-btn:hover { background-color: var(--surface-3); color: var(--text-primary); }
-        .zenos-dropdown {
-          position: absolute; right: 0; top: 46px; z-index: 50;
-          width: 200px; border-radius: 12px; overflow: hidden;
+        .zenos-topbar-link:hover {
           background: var(--surface-1);
+          color: var(--text-primary);
+        }
+        .zenos-icon-btn {
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          cursor: pointer;
+          color: var(--text-muted);
+          background: none;
+          border: none;
+          transition: background-color 0.15s, color 0.15s;
+        }
+        .zenos-icon-btn:hover {
+          background-color: var(--surface-1);
+          color: var(--text-primary);
+        }
+        .zenos-dropdown {
+          position: absolute;
+          right: 0;
+          top: 46px;
+          z-index: 50;
+          width: 220px;
+          border-radius: 14px;
+          overflow: hidden;
+          background: var(--surface-5);
           border: 1px solid var(--border-strong);
           box-shadow: var(--shadow);
-          font-family: 'DM Sans', system-ui, sans-serif;
+          font-family: var(--font-ui);
         }
         .zenos-dropdown-item {
-          display: block; width: 100%; text-align: left;
-          padding: 9px 16px; font-size: 13px;
-          color: var(--text-secondary); background: none; border: none; cursor: pointer;
+          display: block;
+          width: 100%;
+          text-align: left;
+          padding: 10px 16px;
+          font-size: 13px;
+          color: var(--text-secondary);
+          background: none;
+          border: none;
+          cursor: pointer;
           transition: background-color 0.1s;
         }
-        .zenos-dropdown-item:hover { background-color: var(--surface-2); }
+        .zenos-dropdown-item:hover { background-color: var(--surface-1); }
         .zenos-signin-btn {
-          display: flex; align-items: center; gap: 6px;
-          padding: 7px 14px; border-radius: 8px;
-          font-size: 13px; font-weight: 500; cursor: pointer;
-          font-family: 'DM Sans', system-ui, sans-serif;
-          background: var(--accent-dim); color: var(--accent);
-          border: 1px solid rgba(166,124,60,0.25);
-          transition: background-color 0.15s;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: var(--font-ui);
+          background: var(--surface-ink);
+          color: var(--surface-ink-foreground);
+          border: 1px solid transparent;
+          transition: opacity 0.15s;
         }
-        .zenos-signin-btn:hover { background: rgba(166,124,60,0.18); }
+        .zenos-signin-btn:hover { opacity: 0.92; }
         @media (max-width: 767px) {
           .zenos-topbar { padding: 0 16px; }
-          .zenos-topbar-brand { display: inline-flex; }
+          .zenos-search-wrap { max-width: none; }
+          .zenos-topbar-link span { display: none; }
         }
       `}</style>
 
       <header className='zenos-topbar'>
-        <button
-          className='zenos-topbar-brand'
-          style={!user ? { display: 'inline-flex' } : undefined}
-          onClick={() => navigate('/')}
-          title='Go to home'
-        >
-          <span className='zenos-topbar-brand-wordmark'>
-            <span className='zenos-topbar-brand-z'>Z</span>
-            <span className='zenos-topbar-brand-enos'>enos</span>
-            <span className='zenos-topbar-brand-work'>.work</span>
-          </span>
-        </button>
 
         <form onSubmit={search} className='zenos-search-wrap'>
           <Search size={13} className='zenos-search-icon' />
@@ -155,6 +184,21 @@ export default function Topbar() {
         </form>
 
         <div className='zenos-topbar-right'>
+          {user && (
+            <>
+              <button className='zenos-topbar-link' onClick={() => navigate('/write')} title='Write'>
+                <PenSquare size={15} />
+                <span>Write</span>
+              </button>
+              <button className='zenos-icon-btn' onClick={() => navigate('/bookmarks')} title='Bookmarks'>
+                <Bookmark size={16} />
+              </button>
+              <button className='zenos-icon-btn' onClick={() => navigate('/stats')} title='Stats'>
+                <BarChart3 size={16} />
+              </button>
+            </>
+          )}
+
           {/* Theme toggle */}
           <button className='zenos-icon-btn' onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}>
             {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}

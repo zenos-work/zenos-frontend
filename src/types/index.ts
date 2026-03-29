@@ -47,6 +47,8 @@ export interface ArticleList {
   read_time_minutes: number
   views_count:       number
   likes_count:       number
+  dislikes_count?:   number
+  shares_count:      number
   comments_count:    number
   is_featured:       number
   published_at?:     string
@@ -121,6 +123,7 @@ export interface UserPrefs {
 export interface AdminStats {
   total_users:        number
   total_comments:     number
+  total_shares:       number
   articles_by_status: { status: ArticleStatus; c: number }[]
   top_articles:       ArticleList[]
   governance?: {
@@ -177,6 +180,48 @@ export interface PaginationMeta {
   total: number
   pages: number
   has_more: boolean
+}
+
+export interface RankingWeights {
+  likes_weight: number
+  shares_weight: number
+  comments_weight: number
+  dislikes_weight: number
+  views_weight: number
+  recency_weight: number
+  updated_by?: string | null
+  updated_at?: string | null
+}
+
+export interface RankedContentType {
+  content_type: string
+  articles_count: number
+  total_score: number
+  avg_score: number
+  likes_count: number
+  dislikes_count: number
+  shares_count: number
+  comments_count: number
+  views_count: number
+}
+
+export interface RankedCategory {
+  category_slug: string
+  category_name: string
+  articles_count: number
+  total_score: number
+  avg_score: number
+  likes_count: number
+  dislikes_count: number
+  shares_count: number
+  comments_count: number
+  views_count: number
+}
+
+export interface AdminRankingResponse {
+  weights: RankingWeights
+  content_type_rankings: RankedContentType[]
+  top_category_rankings: RankedCategory[]
 }
 
 export interface ApiError {

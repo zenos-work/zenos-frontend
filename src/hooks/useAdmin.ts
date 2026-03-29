@@ -4,6 +4,8 @@ import type {
   AdminStats,
   AdminSuccessSignalHistoryResponse,
   AdminSuccessSignalsResponse,
+  AdminRankingResponse,
+  RankingWeights,
   ArticleDetail,
   User,
   PaginationMeta,
@@ -32,6 +34,34 @@ export const useAdminStats = (enabled = true) =>
     queryFn:  () =>
       api.get<AdminStats>('/api/admin/stats').then(r => r.data),
   })
+
+export const useAdminRanking = (limit = 10, enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'ranking', limit],
+    enabled,
+    queryFn: () =>
+      api.get<AdminRankingResponse>('/api/admin/ranking', { params: { limit } }).then(r => r.data),
+  })
+
+export const useAdminRankingWeights = (enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'ranking-weights'],
+    enabled,
+    queryFn: () =>
+      api.get<{ weights: RankingWeights }>('/api/admin/ranking-weights').then(r => r.data.weights),
+  })
+
+export const useUpdateAdminRankingWeights = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (weights: Partial<RankingWeights>) =>
+      api.put<{ weights: RankingWeights }>('/api/admin/ranking-weights', weights).then(r => r.data.weights),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'ranking-weights'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'ranking'] })
+    },
+  })
+}
 
 export const useApprovalQueue = (page = 1) =>
   useQuery({

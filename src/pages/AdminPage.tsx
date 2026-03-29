@@ -5,6 +5,9 @@ import api from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import {
   useAdminStats,
+  useAdminRanking,
+  useAdminRankingWeights,
+  useUpdateAdminRankingWeights,
   useAdminSuccessSignalHistory,
   useAdminSuccessSignals,
   useApprovalQueue,
@@ -29,10 +32,14 @@ import {
   AlertTriangle,
   Activity,
   Eye,
+  Heart,
+  MessageCircle,
+  Share2,
+  ThumbsDown,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import type { ArticleDetail, User, UserRole } from '../types'
+import type { ArticleDetail, RankingWeights, User, UserRole } from '../types'
 
 type Tab = 'stats' | 'queue' | 'users'
 type ModerationAction = 'approve' | 'publish' | 'reject'
@@ -58,6 +65,7 @@ export default function AdminPage() {
     id: string
     action: ModerationAction
   } | null>(null)
+  const [weightForm, setWeightForm] = useState<RankingWeights | null>(null)
 
   useEffect(() => {
     if (!isSuperadmin && tab !== 'queue') setTab('queue')
@@ -83,9 +91,23 @@ export default function AdminPage() {
     isLoading: signalsLoading,
     isError: signalsError,
   } = useAdminSuccessSignals(signalsPage, 10, isSuperadmin)
+  const {
+    data: rankingData,
+    isLoading: rankingLoading,
+    isError: rankingError,
+  } = useAdminRanking(8, isSuperadmin)
+  const {
+    data: rankingWeights,
+    isLoading: rankingWeightsLoading,
+  } = useAdminRankingWeights(isSuperadmin)
 
   const banMutation = useBanUser()
   const unbanMutation = useUnbanUser()
+  const updateWeightsMutation = useUpdateAdminRankingWeights()
+
+  useEffect(() => {
+    if (rankingWeights) setWeightForm(rankingWeights)
+  }, [rankingWeights])
 
   const approveMutation = useMutation({
     mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/approve`),
@@ -243,6 +265,23 @@ export default function AdminPage() {
     }
   }
 
+  const saveWeights = async () => {
+    if (!weightForm) return
+    try {
+      await updateWeightsMutation.mutateAsync({
+        likes_weight: Number(weightForm.likes_weight),
+        shares_weight: Number(weightForm.shares_weight),
+        comments_weight: Number(weightForm.comments_weight),
+        dislikes_weight: Number(weightForm.dislikes_weight),
+        views_weight: Number(weightForm.views_weight),
+        recency_weight: Number(weightForm.recency_weight),
+      })
+      toast('Ranking weights updated', 'success')
+    } catch {
+      toast('Failed to update ranking weights', 'error')
+    }
+  }
+
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between gap-3'>
@@ -290,9 +329,10 @@ export default function AdminPage() {
           <ErrorPanel message='Failed to load admin stats.' />
         ) : stats ? (
           <div className='space-y-6'>
-            <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
+            <div className='grid grid-cols-2 sm:grid-cols-5 gap-4'>
               <StatsCard label='Active users' value={stats.total_users} />
               <StatsCard label='Comments' value={stats.total_comments} />
+              <StatsCard label='Shares' value={stats.total_shares} />
               <StatsCard label='Pending approvals' value={stats.governance?.moderation?.pending_approvals ?? 0} />
               <StatsCard label='Notifications (7d)' value={stats.governance?.recent_activity?.notifications_7d ?? 0} />
             </div>
@@ -351,6 +391,74 @@ export default function AdminPage() {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            <div className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='flex items-center justify-between gap-3'>
+                <h2 className='text-sm font-semibold text-[color:var(--text-primary)]'>Engagement ranking (weighted)</h2>
+                <Badge variant='default'>SUPERADMIN controls</Badge>
+              </div>
+
+              {rankingWeightsLoading ? (
+                <Spinner />
+              ) : weightForm ? (
+                <>
+                  <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+                    <WeightField label='Likes' value={weightForm.likes_weight} onChange={(v) => setWeightForm((prev) => prev ? { ...prev, likes_weight: v } : prev)} />
+                    <WeightField label='Shares' value={weightForm.shares_weight} onChange={(v) => setWeightForm((prev) => prev ? { ...prev, shares_weight: v } : prev)} />
+                    <WeightField label='Comments' value={weightForm.comments_weight} onChange={(v) => setWeightForm((prev) => prev ? { ...prev, comments_weight: v } : prev)} />
+                    <WeightField label='Dislikes' value={weightForm.dislikes_weight} onChange={(v) => setWeightForm((prev) => prev ? { ...prev, dislikes_weight: v } : prev)} />
+                    <WeightField label='Views' value={weightForm.views_weight} onChange={(v) => setWeightForm((prev) => prev ? { ...prev, views_weight: v } : prev)} />
+                    <WeightField label='Recency' value={weightForm.recency_weight} onChange={(v) => setWeightForm((prev) => prev ? { ...prev, recency_weight: v } : prev)} />
+                  </div>
+                  <div className='flex justify-end'>
+                    <Button size='sm' variant='primary' loading={updateWeightsMutation.isPending} onClick={saveWeights}>
+                      Save weights
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+
+              {rankingLoading ? (
+                <Spinner />
+              ) : rankingError ? (
+                <ErrorPanel message='Failed to load weighted rankings.' />
+              ) : (
+                <div className='grid grid-cols-1 gap-4 xl:grid-cols-2'>
+                  <div className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] p-3'>
+                    <h3 className='mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]'>By article type</h3>
+                    <div className='space-y-2'>
+                      {(rankingData?.content_type_rankings ?? []).map((row) => (
+                        <RankingRow
+                          key={row.content_type}
+                          label={row.content_type}
+                          score={row.avg_score}
+                          likes={row.likes_count}
+                          dislikes={row.dislikes_count}
+                          shares={row.shares_count}
+                          comments={row.comments_count}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] p-3'>
+                    <h3 className='mb-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--text-secondary)]'>Top categories</h3>
+                    <div className='space-y-2'>
+                      {(rankingData?.top_category_rankings ?? []).map((row) => (
+                        <RankingRow
+                          key={row.category_slug}
+                          label={row.category_name || row.category_slug}
+                          score={row.avg_score}
+                          likes={row.likes_count}
+                          dislikes={row.dislikes_count}
+                          shares={row.shares_count}
+                          comments={row.comments_count}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -577,6 +685,60 @@ export default function AdminPage() {
           </div>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+function WeightField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <label className='space-y-1'>
+      <span className='text-xs text-[color:var(--text-secondary)]'>{label} weight</span>
+      <input
+        type='number'
+        step='0.1'
+        value={Number.isFinite(value) ? value : 0}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className='w-full rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]'
+      />
+    </label>
+  )
+}
+
+function RankingRow({
+  label,
+  score,
+  likes,
+  dislikes,
+  shares,
+  comments,
+}: {
+  label: string
+  score: number
+  likes: number
+  dislikes: number
+  shares: number
+  comments: number
+}) {
+  return (
+    <div className='rounded-md border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 py-2'>
+      <div className='flex items-center justify-between gap-3'>
+        <p className='truncate text-sm font-medium text-[color:var(--text-primary)]'>{label}</p>
+        <p className='text-xs font-semibold text-[color:var(--accent)]'>Score {score.toFixed(2)}</p>
+      </div>
+      <div className='mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[color:var(--text-secondary)]'>
+        <span className='inline-flex items-center gap-1'><Heart size={11} /> {likes}</span>
+        <span className='inline-flex items-center gap-1'><ThumbsDown size={11} /> {dislikes}</span>
+        <span className='inline-flex items-center gap-1'><Share2 size={11} /> {shares}</span>
+        <span className='inline-flex items-center gap-1'><MessageCircle size={11} /> {comments}</span>
+      </div>
     </div>
   )
 }

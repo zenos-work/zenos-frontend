@@ -5,6 +5,19 @@ import ArticleCard from '../../../src/components/article/ArticleCard'
 import { resolveAssetUrl } from '../../../src/lib/assets'
 import { makeArticle, makeTag } from '../../utils/fixtures'
 
+vi.mock('../../../src/hooks/useAuth', () => ({
+  useAuth: () => ({ user: null }),
+}))
+
+vi.mock('../../../src/hooks/useSocial', () => ({
+  useShare: () => ({ isPending: false, mutateAsync: vi.fn() }),
+}))
+
+vi.mock('../../../src/stores/uiStore', () => ({
+  useUiStore: (selector: (state: { toast: (message: string, type?: string) => void }) => unknown) =>
+    selector({ toast: vi.fn() }),
+}))
+
 vi.mock('../../../src/components/ui/Avatar', () => ({
   default: ({ name }: { name: string }) => <div data-testid='avatar'>{name}</div>,
 }))
@@ -38,10 +51,11 @@ describe('ArticleCard', () => {
     expect(screen.getByText('Useful subtitle')).toBeInTheDocument()
     expect(screen.getByTestId('avatar')).toHaveTextContent('Alex Writer')
     expect(screen.getByTestId('badge')).toHaveTextContent('PUBLISHED')
-    expect(screen.getAllByTestId('tag-chip')).toHaveLength(2)
+    expect(screen.getAllByTestId('tag-chip')).toHaveLength(1)
+    expect(screen.getByText('AI')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Testing Article Card' })).toHaveAttribute('href', '/article/alpha-article')
     expect(container.querySelector('img')).toHaveAttribute('src', resolveAssetUrl('/uploads/cover.png'))
-    expect(screen.getByText(/5m/)).toBeInTheDocument()
+    expect(screen.getByText(/5 min read/i)).toBeInTheDocument()
     expect(screen.getByText(/10/)).toBeInTheDocument()
   })
 
