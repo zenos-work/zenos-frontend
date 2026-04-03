@@ -163,7 +163,7 @@ export default function LibraryPage() {
         <div className='space-y-3'>
           {filtered.map(a => (
             <div key={a.id} className='group relative'>
-              <ArticleCard article={a} showStatus />
+              <ArticleCard article={a} showStatus compact />
               <div className='absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
                 {a.status !== 'PUBLISHED' && (
                   <Link to={`/write/${a.id}`}>

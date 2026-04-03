@@ -98,6 +98,10 @@ vi.mock('react-router-dom', async () => {
 })
 
 vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({
+    data: [],
+    isLoading: false,
+  }),
   useMutation: () => ({
     mutateAsync: uploadMutateAsyncMock,
     isPending: false,
@@ -362,7 +366,9 @@ describe('WritePage', () => {
       expect(submitMutateAsyncMock).toHaveBeenCalled()
     })
 
-    expect(toastMock).toHaveBeenCalledWith('Submitted for review!', 'success')
+    expect(screen.getByText('Submitted for review!')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /view in my library/i }))
     expect(navigateMock).toHaveBeenCalledWith('/library')
   })
 
@@ -455,7 +461,7 @@ describe('WritePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit for review' }))
 
     await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith('Submit failed', 'error')
+      expect(toastMock).toHaveBeenCalledWith('submit-failed', 'error')
     })
   })
 

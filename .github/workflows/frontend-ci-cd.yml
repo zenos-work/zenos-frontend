@@ -25,5 +25,5 @@ jobs:
       environment: ${{ github.ref == 'refs/heads/staging' && 'staging' || github.ref == 'refs/heads/master' && 'production' || 'staging' }}
       # Deploy only when push is to staging (from dev→staging merge) or master (from staging→master merge)
       run_deploy: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/master' }}
-      min_coverage: ${{ vars.FRONTEND_MIN_COVERAGE || '80' }}
+      min_coverage: ${{ vars.FRONTEND_MIN_COVERAGE || '82' }}
     secrets: inherit

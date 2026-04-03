@@ -4,15 +4,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import NotificationsPage from '../../src/pages/NotificationsPage'
 
 const useNotificationsMock = vi.fn()
+const useMarkAllNotificationsReadMock = vi.fn()
+const useMarkNotificationReadMock = vi.fn()
 
 vi.mock('../../src/hooks/useAdmin', () => ({
   useNotifications: () => useNotificationsMock(),
-  useAdmin: vi.fn(),
+  useMarkAllNotificationsRead: () => useMarkAllNotificationsReadMock(),
+  useMarkNotificationRead: () => useMarkNotificationReadMock(),
 }))
 
 describe('NotificationsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useMarkAllNotificationsReadMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    useMarkNotificationReadMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
   })
 
   it('shows spinner while loading', () => {
@@ -46,8 +51,8 @@ describe('NotificationsPage', () => {
         <NotificationsPage />
       </MemoryRouter>,
     )
-    expect(screen.getByText(/no notifications yet/i)).toBeInTheDocument()
-    expect(screen.getByText(/you will see approvals/i)).toBeInTheDocument()
+    expect(screen.getByText(/no notifications in this view/i)).toBeInTheDocument()
+    expect(screen.getByText(/try another filter or check back soon/i)).toBeInTheDocument()
   })
 
   it('renders notification items with type and message', () => {
@@ -72,7 +77,7 @@ describe('NotificationsPage', () => {
         <NotificationsPage />
       </MemoryRouter>,
     )
-    expect(screen.getByText('APPROVED')).toBeInTheDocument()
+    expect(screen.getByText('system')).toBeInTheDocument()
     expect(screen.getByText('Your article was approved')).toBeInTheDocument()
     expect(screen.getByText('New')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open related article/i })).toHaveAttribute(

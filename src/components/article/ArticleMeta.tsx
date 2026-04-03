@@ -1,4 +1,4 @@
-import { Clock, Eye, Heart, MessageCircle, Calendar } from 'lucide-react'
+import { Clock, Eye, Heart, MessageCircle, Calendar, GraduationCap } from 'lucide-react'
 import type { ArticleDetail } from '../../types'
 
 export default function ArticleMeta({ article }: { article: ArticleDetail }) {
@@ -7,6 +7,12 @@ export default function ArticleMeta({ article }: { article: ArticleDetail }) {
       <span className='flex items-center gap-1.5'>
         <Clock size={14} /> {article.read_time_minutes} min read
       </span>
+            {article.reading_level && (
+              <span className='inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800'>
+                <GraduationCap size={14} />
+                {article.reading_level}
+              </span>
+            )}
       <span className='flex items-center gap-1.5'>
         <Eye size={14} /> {article.views_count.toLocaleString()} views
       </span>

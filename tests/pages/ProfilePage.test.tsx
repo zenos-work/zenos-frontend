@@ -115,10 +115,10 @@ describe('ProfilePage', () => {
       { wrapper: Wrapper },
     )
 
-    expect(screen.getByText('Self User')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Self User' })).toBeInTheDocument()
     expect(screen.queryByTestId('follow-button')).not.toBeInTheDocument()
     await waitFor(() => {
-      expect(screen.getByText('Reading preferences')).toBeInTheDocument()
+      expect(screen.getAllByText('Reading preferences').length).toBeGreaterThan(0)
     })
   })
 
@@ -286,7 +286,7 @@ describe('ProfilePage', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Reading preferences')).toBeInTheDocument()
+      expect(screen.getAllByText('Reading preferences').length).toBeGreaterThan(0)
     })
 
     const saveButton = screen.getByRole('button', { name: /save preferences/i })

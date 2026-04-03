@@ -154,7 +154,10 @@ describe('AuthContext', () => {
     )
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', { code: 'oauth-code' })
+      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', {
+        code: 'oauth-code',
+        intent: 'signin',
+      })
     })
     expect(sessionStorage.getItem('access_token')).toBe('acc')
     expect(sessionStorage.getItem('refresh_token')).toBe('ref')
@@ -177,7 +180,10 @@ describe('AuthContext', () => {
     )
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', { code: 'oauth-code' })
+      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', {
+        code: 'oauth-code',
+        intent: 'signin',
+      })
     })
     expect(errSpy).toHaveBeenCalled()
     errSpy.mockRestore()
@@ -208,7 +214,10 @@ describe('AuthContext', () => {
     )
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', { code: 'oauth-code' })
+      expect(api.post).toHaveBeenCalledWith('/auth/google/callback', {
+        code: 'oauth-code',
+        intent: 'signin',
+      })
     })
 
     expect(sessionStorage.getItem('post_onboarding_redirect')).toBe('/write')

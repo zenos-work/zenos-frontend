@@ -54,10 +54,10 @@ export function EnhancedTableOfContents({
   if (!isVisible) return null
 
   return (
-    <aside className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4 lg:sticky lg:top-24 lg:self-start'>
+    <aside className='max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)]/95 p-4 shadow-sm backdrop-blur-sm'>
       {/* Header */}
-      <div className='mb-4 space-y-3 pb-4 border-b border-[color:var(--border)]'>
-        <h3 className='text-xs uppercase tracking-widest font-semibold text-[color:var(--text-primary)]'>
+      <div className='mb-4 space-y-3 border-b border-[color:var(--border)] pb-4'>
+        <h3 className='text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-primary)]'>
           On this page
         </h3>
 
@@ -82,7 +82,7 @@ export function EnhancedTableOfContents({
             </div>
             <div className='h-1.5 rounded-full bg-[color:var(--surface-0)] overflow-hidden'>
               <div
-                className='h-full bg-gradient-to-r from-[color:var(--accent)] to-blue-500 transition-all duration-300'
+                className='h-full bg-gradient-to-r from-[color:var(--accent)] to-[color:var(--accent-strong)] transition-all duration-300'
                 style={{ width: `${readingProgress}%` }}
               />
             </div>
@@ -96,7 +96,7 @@ export function EnhancedTableOfContents({
           <a
             key={item.id}
             href={`#${item.id}`}
-            className='block text-sm text-[color:var(--text-secondary)] hover:text-[color:var(--accent)] transition-colors duration-200 line-clamp-2 break-words'
+            className='block rounded-md px-2 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors duration-200 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--accent)] line-clamp-2 break-words'
             style={{
               paddingLeft: `${Math.max(0, item.level - 1) * 12}px`,
               marginLeft: Math.max(0, item.level - 1) * 2,

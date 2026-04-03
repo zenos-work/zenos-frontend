@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, Heart, MessageCircle, Clock, Share2 } from 'lucide-react'
-import { Copy, Linkedin } from 'lucide-react'
-import type { ArticleList } from '../../types'
+import { Eye, Heart, MessageCircle, Clock, Share2, Download, FileText, FileCode2 } from 'lucide-react'
+import { Copy, Facebook, Linkedin, Twitter } from 'lucide-react'
+import type { ArticleDetail, ArticleList } from '../../types'
+import { GraduationCap } from 'lucide-react'
 import Avatar  from '../ui/Avatar'
 import TagChip from '../ui/TagChip'
 import Badge   from '../ui/Badge'
@@ -10,6 +11,8 @@ import { resolveAssetUrl } from '../../lib/assets'
 import { useShare } from '../../hooks/useSocial'
 import { useAuth } from '../../hooks/useAuth'
 import { useUiStore } from '../../stores/uiStore'
+import api from '../../lib/api'
+import { exportArticle, type ExportFormat } from '../../lib/articleExport'
 
 const STATUS_VARIANT: Record<string, 'default' | 'warning' | 'info' | 'danger' | 'success'> = {
   DRAFT:     'default',
@@ -24,33 +27,46 @@ interface Props {
   article:    ArticleList
   showStatus?: boolean  // for library view
   featured?: boolean
+  compact?: boolean
 }
 
-export default function ArticleCard({ article, showStatus, featured = false }: Props) {
+export default function ArticleCard({ article, showStatus, featured = false, compact = false }: Props) {
   const coverUrl = resolveAssetUrl(article.cover_image_url)
   const { user } = useAuth()
   const navigate = useNavigate()
   const toast = useUiStore((s) => s.toast)
   const shareMutation = useShare(article.id)
   const [showShareMenu, setShowShareMenu] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null)
 
   const handleLinkedInShare = async () => {
+    await handleSocialShare('linkedin')
+  }
+
+  const handleSocialShare = async (provider: 'linkedin' | 'x' | 'facebook') => {
     if (!user) {
       navigate('/login')
       return
     }
 
     const targetUrl = article.canonical_url || `${window.location.origin}/article/${article.slug}`
-    const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(targetUrl)}`
-    const shareTab = window.open(linkedinUrl, 'linkedin-share', 'noopener,noreferrer,width=720,height=760')
+    const providerLabel = provider === 'x' ? 'X' : provider === 'facebook' ? 'Facebook' : 'LinkedIn'
+    const shareUrl = provider === 'x'
+      ? `https://twitter.com/intent/tweet?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(article.title)}`
+      : provider === 'facebook'
+        ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(targetUrl)}`
+        : `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(targetUrl)}`
+
+    const shareTab = window.open(shareUrl, `${provider}-share`, 'noopener,noreferrer,width=720,height=760')
     if (!shareTab) {
-      toast('Popup blocked. Please allow popups for LinkedIn sharing.', 'error')
+      toast(`Popup blocked. Please allow popups for ${providerLabel} sharing.`, 'error')
       return
     }
 
     try {
-      await shareMutation.mutateAsync('linkedin')
-      toast('Shared to LinkedIn', 'success')
+      await shareMutation.mutateAsync(provider)
+      toast(`Shared to ${providerLabel}`, 'success')
     } catch {
       toast('Could not record share', 'error')
     }
@@ -59,6 +75,8 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
   }
 
   const handleCopyLink = async () => {
+    if (!user) return
+
     const targetUrl = article.canonical_url || `${window.location.origin}/article/${article.slug}`
     try {
       await navigator.clipboard.writeText(targetUrl)
@@ -83,6 +101,22 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
     setShowShareMenu(false)
   }
 
+  const handleExport = async (format: ExportFormat) => {
+    if (!user) return
+
+    setExportingFormat(format)
+    try {
+      const response = await api.get<{ article: ArticleDetail }>(`/api/articles/${article.id}`)
+      await exportArticle(format, response.data.article)
+      toast(`Exported as ${format.toUpperCase()}`, 'success')
+    } catch {
+      toast('Could not export article', 'error')
+    } finally {
+      setExportingFormat(null)
+      setShowExportMenu(false)
+    }
+  }
+
   if (featured && coverUrl) {
     return (
       <article className='group grid gap-6 border-b divider pb-8 md:grid-cols-5'>
@@ -104,6 +138,12 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
             </p>
           )}
           <div className='flex flex-wrap items-center gap-3 text-sm text-[color:var(--text-muted)]'>
+            {article.reading_level && (
+              <span className='inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[color:var(--surface-2)] text-[color:var(--text-secondary)]'>
+                <GraduationCap className='h-3 w-3' />
+                {article.reading_level}
+              </span>
+            )}
             <span>{article.published_at ? new Date(article.published_at).toLocaleDateString() : 'Draft'}</span>
             <span>·</span>
             <span>{article.read_time_minutes} min read</span>
@@ -123,8 +163,11 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
   }
 
   return (
-    <article className='group flex gap-5 border-b divider pb-8'>
-      <div className='flex min-w-0 flex-1 flex-col gap-2'>
+    <article className={[
+      'group border-b divider pb-8',
+      compact ? 'grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,780px)_152px] sm:justify-start' : 'flex gap-5',
+    ].join(' ')}>
+      <div className={compact ? 'flex min-w-0 flex-col gap-2' : 'flex min-w-0 flex-1 flex-col gap-2'}>
         <div className='flex items-center gap-2'>
           <Avatar name={article.author_name ?? '?'} src={article.author_avatar} size='sm' />
           <span className='truncate text-xs font-medium text-[color:var(--text-primary)]'>{article.author_name}</span>
@@ -149,6 +192,12 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
           <span>·</span>
           <span>{article.read_time_minutes} min read</span>
           {article.tags?.[0] && <span className='tag-pill ml-1'>{article.tags[0].name}</span>}
+                  {article.reading_level && (
+                    <span className='inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[color:var(--surface-2)] text-[color:var(--text-secondary)]'>
+                      <GraduationCap className='h-3 w-3' />
+                      {article.reading_level}
+                    </span>
+                  )}
         </div>
 
         <div className='flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--text-muted)]'>
@@ -159,7 +208,10 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
           <div className='relative'>
             <button
               type='button'
-              onClick={() => setShowShareMenu((v) => !v)}
+              onClick={() => {
+                setShowShareMenu((v) => !v)
+                setShowExportMenu(false)
+              }}
               className='inline-flex items-center gap-1 text-[color:var(--accent)] transition-colors hover:text-[color:var(--accent-strong)]'
               aria-label={`Share ${article.title}`}
               aria-haspopup='menu'
@@ -180,7 +232,9 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
                   <button
                     type='button'
                     onClick={handleCopyLink}
-                    className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)]'
+                    disabled={!user}
+                    className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'
+                    title={user ? 'Copy link' : 'Login required'}
                   >
                     <Copy size={14} />
                     Copy link
@@ -193,6 +247,82 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
                   >
                     <Linkedin size={14} />
                     Share to LinkedIn
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => void handleSocialShare('x')}
+                    disabled={shareMutation.isPending}
+                    className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60'
+                  >
+                    <Twitter size={14} />
+                    Share to X
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => void handleSocialShare('facebook')}
+                    disabled={shareMutation.isPending}
+                    className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[#1877f2] disabled:cursor-not-allowed disabled:opacity-60'
+                  >
+                    <Facebook size={14} />
+                    Share to Facebook
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <div className='relative'>
+            <button
+              type='button'
+              onClick={() => {
+                setShowExportMenu((v) => !v)
+                setShowShareMenu(false)
+              }}
+              className='inline-flex items-center gap-1 text-[color:var(--accent)] transition-colors hover:text-[color:var(--accent-strong)]'
+              aria-label={`Export ${article.title}`}
+              aria-haspopup='menu'
+              aria-expanded={showExportMenu}
+            >
+              <Download size={11} />
+            </button>
+
+            {showExportMenu && (
+              <>
+                <button
+                  type='button'
+                  className='fixed inset-0 z-30 cursor-default'
+                  onClick={() => setShowExportMenu(false)}
+                  aria-label='Close export menu'
+                />
+                <div className='absolute right-0 top-[calc(100%+8px)] z-40 w-52 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-5)] p-1 shadow-[var(--shadow)]'>
+                  <button
+                    type='button'
+                    onClick={() => void handleExport('pdf')}
+                    disabled={!user || exportingFormat !== null}
+                    className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'
+                    title={user ? 'Export PDF' : 'Login required'}
+                  >
+                    <FileText size={14} />
+                    Export as PDF
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => void handleExport('word')}
+                    disabled={!user || exportingFormat !== null}
+                    className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'
+                    title={user ? 'Export Word' : 'Login required'}
+                  >
+                    <FileText size={14} />
+                    Export as Word
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => void handleExport('markdown')}
+                    disabled={!user || exportingFormat !== null}
+                    className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'
+                    title={user ? 'Export Markdown' : 'Login required'}
+                  >
+                    <FileCode2 size={14} />
+                    Export as Markdown
                   </button>
                 </div>
               </>
@@ -208,8 +338,13 @@ export default function ArticleCard({ article, showStatus, featured = false }: P
       </div>
 
       {coverUrl && (
-        <Link to={`/article/${article.slug}`} className='hidden sm:block'>
-          <img src={coverUrl} alt='' className='h-24 w-32 flex-shrink-0 rounded object-cover' loading='lazy' />
+        <Link to={`/article/${article.slug}`} className={compact ? 'hidden sm:block sm:self-start' : 'hidden sm:block'}>
+          <img
+            src={coverUrl}
+            alt=''
+            className={compact ? 'h-24 w-[152px] rounded object-cover' : 'h-24 w-32 flex-shrink-0 rounded object-cover'}
+            loading='lazy'
+          />
         </Link>
       )}
     </article>

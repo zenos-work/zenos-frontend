@@ -1,21 +1,27 @@
 import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { Upload } from 'lucide-react'
+import { Upload, CheckCircle2, BookOpen, PenSquare as PenSquareIcon, Share2 as Share2Icon, Plus, X } from 'lucide-react'
 import api from '../lib/api'
+import Modal from '../components/ui/Modal'
 import { useEditorStore }  from '../stores/editorStore'
 import { useUiStore }      from '../stores/uiStore'
 import { useArticle, useCreateArticle, useUpdateArticle, useSubmitArticle } from '../hooks/useArticles'
 import { useTags }         from '../hooks/useTags'
 import { useAuth }         from '../hooks/useAuth'
+import { useAssignArticleToSeries } from '../hooks/useSeries'
 import Editor        from '../components/editor/Editor'
 import EditorToolbar from '../components/editor/EditorToolbar'
 import PreviewPane   from '../components/editor/PreviewPane'
+import SeriesSelector from '../components/editor/SeriesSelector'
+import Spinner from '../components/ui/Spinner'
 import { resolveAssetUrl } from '../lib/assets'
 import type { ArticleContentType, ContentTypeOption } from '../types'
+import type { Series } from '../hooks/useSeries'
 
 const AUTO_SAVE_MS = 20000
 const LIFELONG_EXPIRES_AT = '5000-12-31T23:59'
+const ACTION_TIMEOUT_MS = 45000
 const DEFAULT_CONTENT_TYPES: ContentTypeOption[] = [
   { slug: 'article', name: 'Article' },
   { slug: 'how-to', name: 'How-to' },
@@ -36,11 +42,13 @@ type ArticleDraftPayload = {
   content_type?: ArticleContentType
   cover_image_url?: string
   last_verified_at?: string
+  reading_level?: 'Beginner' | 'Intermediate' | 'Advanced'
   expires_at?: string
   seo_title?: string
   seo_description?: string
   canonical_url?: string
   og_image_url?: string
+  citations?: string[]
   seo_schema_type?: 'Article' | 'TechArticle' | 'HowTo'
   tag_ids?: string[]
 }
@@ -50,6 +58,14 @@ type Approver = {
   name: string
   role: 'SUPERADMIN' | 'APPROVER' | 'AUTHOR' | 'READER'
   avatar_url?: string
+}
+
+type PendingActionKind = 'inline-image' | 'cover-image' | 'save-draft' | 'submit-review'
+
+type PendingAction = {
+  kind: PendingActionKind
+  label: string
+  timeoutMs: number
 }
 
 function getApiErrorMessage(err: unknown): string | null {
@@ -72,6 +88,21 @@ function getApiErrorMessage(err: unknown): string | null {
 
 function normalizeTagName(raw: string): string {
   return raw.trim().replace(/^#+\s*/, '')
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs)
+  })
+
+  try {
+    return await Promise.race([promise, timeoutPromise]) as T
+  } finally {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId)
+    }
+  }
 }
 
 function getWordCount(content: string): number {
@@ -163,6 +194,9 @@ export default function WritePage() {
   const [newContentTypeName, setNewContentTypeName] = useState('')
   const [newContentTypeSlug, setNewContentTypeSlug] = useState('')
   const [creatingContentType, setCreatingContentType] = useState(false)
+  const [showPublishSuccess, setShowPublishSuccess] = useState(false)
+  const [publishedArticleSlug, setPublishedArticleSlug] = useState<string | undefined>(undefined)
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
 
   const {
     data: allTags,
@@ -210,6 +244,8 @@ export default function WritePage() {
       seoDescription: existing.seo_description ?? '',
       canonicalUrl: existing.canonical_url ?? '',
       ogImageUrl: existing.og_image_url ?? '',
+      citations: existing.citations ?? [],
+        readingLevel: existing.reading_level as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
       seoSchemaType: existing.seo_schema_type ?? 'Article',
       selectedTags: existing.tags,
     })
@@ -234,6 +270,7 @@ export default function WritePage() {
   const createMutation = useCreateArticle()
   const updateMutation = useUpdateArticle(id ?? store.articleId ?? '')
   const submitMutation = useSubmitArticle()
+  const assignSeriesMutation = useAssignArticleToSeries()
   const uploadMutation = useMutation({
     mutationFn: async ({ file, onProgress }: { file: File; onProgress?: (pct: number) => void }) => {
       const res = await api.post<{ url: string; key: string }>(
@@ -277,7 +314,6 @@ export default function WritePage() {
       setApproversError(null)
       try {
         const res = await api.get<{ approvers: Approver[] }>('/api/users/approvers')
-        if (cancelled) return
         setApprovers(res.data.approvers ?? [])
       } catch {
         if (cancelled) return
@@ -393,7 +429,7 @@ export default function WritePage() {
     }
   }
 
-  const handleSave = useCallback(async (): Promise<string | undefined> => {
+  const handleSave = useCallback(async (options?: { showOverlay?: boolean }): Promise<string | undefined> => {
     if (!store.title.trim()) {
       toast('Title is required', 'error')
       return undefined
@@ -410,6 +446,9 @@ export default function WritePage() {
       return undefined
     }
 
+    if (options?.showOverlay) {
+      setPendingAction({ kind: 'save-draft', label: 'Saving draft...', timeoutMs: ACTION_TIMEOUT_MS })
+    }
     store.setIsSaving(true)
     try {
       const fallbackSeoTitle = store.title.trim() || undefined
@@ -428,27 +467,65 @@ export default function WritePage() {
       const optionalFields = omitEmptyFields({
         subtitle: store.subtitle || undefined,
         cover_image_url: store.coverImageUrl || undefined,
+        reading_level: store.readingLevel || undefined,
         last_verified_at: store.lastVerifiedAt || undefined,
         expires_at: store.expiresAt || LIFELONG_EXPIRES_AT,
         seo_title: store.seoTitle || fallbackSeoTitle,
         seo_description: store.seoDescription || fallbackSeoDescription,
         canonical_url: store.canonicalUrl || fallbackCanonicalUrl,
         og_image_url: store.ogImageUrl || fallbackOgImageUrl,
+        citations: (store.citations ?? []).map((item) => item.trim()).filter(Boolean),
         seo_schema_type: store.seoSchemaType || undefined,
       })
       Object.assign(payload, optionalFields)
       const targetArticleId = id ?? store.articleId
 
       if (targetArticleId) {
-        await updateMutation.mutateAsync(payload)
+        await withTimeout(
+          updateMutation.mutateAsync(payload),
+          ACTION_TIMEOUT_MS,
+          'Saving draft timed out. Please try again.',
+        )
         store.markSaved()
+
+        // Handle series assignment
+        if (store.series) {
+          try {
+            await assignSeriesMutation.mutateAsync({
+              articleId: targetArticleId,
+              seriesId: store.series.id,
+              partNumber: store.series.part ?? 1,
+            })
+          } catch {
+            toast('Could not assign to series, but article was saved', 'warning')
+          }
+        }
+
         toast('Draft saved', 'success')
         return targetArticleId
       } else {
-        const article = await createMutation.mutateAsync(payload)
+        const article = await withTimeout(
+          createMutation.mutateAsync(payload),
+          ACTION_TIMEOUT_MS,
+          'Saving draft timed out. Please try again.',
+        )
         store.setArticleId(article.id)
         navigate(`/write/${article.id}`, { replace: true })
         store.markSaved()
+
+        // Handle series assignment for new article
+        if (store.series) {
+          try {
+            await assignSeriesMutation.mutateAsync({
+              articleId: article.id,
+              seriesId: store.series.id,
+              partNumber: store.series.part ?? 1,
+            })
+          } catch {
+            toast('Could not assign to series, but article was saved', 'warning')
+          }
+        }
+
         toast('Draft saved', 'success')
         return article.id
       }
@@ -457,14 +534,17 @@ export default function WritePage() {
       return undefined
     } finally {
       store.setIsSaving(false)
+      if (options?.showOverlay) {
+        setPendingAction((prev) => (prev?.kind === 'save-draft' ? null : prev))
+      }
     }
-  }, [store, id, existing?.slug, toast, updateMutation, createMutation, navigate])
+  }, [store, id, existing?.slug, toast, updateMutation, createMutation, assignSeriesMutation, navigate])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault()
-        void handleSave()
+        void handleSave({ showOverlay: true })
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -478,13 +558,17 @@ export default function WritePage() {
       void handleSave()
     }, AUTO_SAVE_MS)
     return () => window.clearTimeout(timer)
-  }, [store.isDirty, store.title, store.subtitle, store.contentType, store.content, store.coverImageUrl, store.lastVerifiedAt, store.expiresAt, store.seoTitle, store.seoDescription, store.canonicalUrl, store.ogImageUrl, store.seoSchemaType, store.selectedTags, id, store.articleId, handleSave])
+  }, [store.isDirty, store.title, store.subtitle, store.contentType, store.content, store.coverImageUrl, store.lastVerifiedAt, store.expiresAt, store.seoTitle, store.seoDescription, store.canonicalUrl, store.ogImageUrl, store.citations, store.seoSchemaType, store.selectedTags, id, store.articleId, handleSave])
 
   const uploadImageFile = async (file: File, onProgress?: (pct: number) => void): Promise<string> => {
     if (!file.type.startsWith('image/')) {
       throw new Error('Please choose an image file')
     }
-    const result = await uploadMutation.mutateAsync({ file, onProgress })
+    const result = await withTimeout(
+      uploadMutation.mutateAsync({ file, onProgress }),
+      ACTION_TIMEOUT_MS,
+      'Image upload timed out. Please try again.',
+    )
     return result.url
   }
 
@@ -495,6 +579,7 @@ export default function WritePage() {
     : undefined
 
   const handleInlineImageUpload = async (file: File) => {
+    setPendingAction({ kind: 'inline-image', label: 'Uploading image...', timeoutMs: ACTION_TIMEOUT_MS })
     setUploadTarget('inline-image')
     setUploadProgressPct(0)
     try {
@@ -507,11 +592,13 @@ export default function WritePage() {
     } finally {
       setUploadTarget(null)
       setUploadProgressPct(null)
+      setPendingAction((prev) => (prev?.kind === 'inline-image' ? null : prev))
     }
   }
 
   const handleCoverUpload = async (file: File | undefined) => {
     if (!file) return
+    setPendingAction({ kind: 'cover-image', label: 'Uploading cover image...', timeoutMs: ACTION_TIMEOUT_MS })
     setUploadTarget('cover-image')
     setUploadProgressPct(0)
     try {
@@ -523,6 +610,7 @@ export default function WritePage() {
     } finally {
       setUploadTarget(null)
       setUploadProgressPct(null)
+      setPendingAction((prev) => (prev?.kind === 'cover-image' ? null : prev))
     }
   }
 
@@ -531,29 +619,143 @@ export default function WritePage() {
       toast('Add more content before submitting (minimum ~80 words)', 'warning')
       return
     }
+    setPendingAction({ kind: 'submit-review', label: 'Submitting for review...', timeoutMs: ACTION_TIMEOUT_MS })
     const articleId = await handleSave()
     if (!articleId) {
+      setPendingAction((prev) => (prev?.kind === 'submit-review' ? null : prev))
       return
     }
     try {
-      await submitMutation.mutateAsync(articleId)
-      toast('Submitted for review!', 'success')
-      navigate('/library')
-    } catch {
-      toast('Submit failed', 'error')
+      await withTimeout(
+        submitMutation.mutateAsync(articleId),
+        ACTION_TIMEOUT_MS,
+        'Submit for review timed out. Please try again.',
+      )
+      // Capture the slug for the success dialog's "share" button before resetting state
+      const slug = existing?.slug
+      setPublishedArticleSlug(slug)
+      setShowPublishSuccess(true)
+    } catch (err) {
+      toast(getApiErrorMessage(err) ?? 'Submit failed', 'error')
+    } finally {
+      setPendingAction((prev) => (prev?.kind === 'submit-review' ? null : prev))
     }
+  }
+
+  useEffect(() => {
+    if (!pendingAction) return
+
+    const timeoutId = window.setTimeout(() => {
+      setPendingAction(null)
+      store.setIsSaving(false)
+      setUploadTarget(null)
+      setUploadProgressPct(null)
+      toast(`${pendingAction.label.replace(/\.\.\.$/, '')} timed out. Please try again.`, 'error')
+    }, pendingAction.timeoutMs)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [pendingAction, store, toast])
+
+  const addCitationRow = () => {
+    store.setCitations([...(store.citations ?? []), ''])
+  }
+
+  const updateCitationRow = (index: number, value: string) => {
+    const next = [...(store.citations ?? [])]
+    next[index] = value
+    store.setCitations(next)
+  }
+
+  const removeCitationRow = (index: number) => {
+    const next = (store.citations ?? []).filter((_, i) => i !== index)
+    store.setCitations(next)
   }
 
   return (
     <div className='flex flex-col min-h-[calc(100vh-3.5rem)]'>
+      {/* Post-publish success dialog */}
+      <Modal
+        open={showPublishSuccess}
+        onClose={() => {
+          setShowPublishSuccess(false)
+          navigate('/library')
+        }}
+        title="Submitted for review!"
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col items-center gap-2 py-2 text-center">
+            <CheckCircle2 size={40} className="text-emerald-500" />
+            <p className="text-sm text-[color:var(--text-secondary)]">
+              Your article has been submitted and is pending review by an approver.
+              We'll notify you once it's approved and published.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                setShowPublishSuccess(false)
+                navigate('/write')
+              }}
+              className="flex items-center justify-center gap-2 rounded-lg bg-[color:var(--accent)] px-4 py-2.5 text-sm font-semibold text-[color:var(--surface-0)] hover:opacity-90 transition-opacity"
+            >
+              <PenSquareIcon size={15} />
+              Write another article
+            </button>
+            <button
+              onClick={() => {
+                setShowPublishSuccess(false)
+                navigate('/library')
+              }}
+              className="flex items-center justify-center gap-2 rounded-lg border border-[color:var(--border)] px-4 py-2.5 text-sm text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] transition-colors"
+            >
+              <BookOpen size={15} />
+              View in My Library
+            </button>
+            {publishedArticleSlug && (
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/article/${publishedArticleSlug}`
+                  void navigator.clipboard.writeText(url).then(() => {
+                    toast('Link copied!', 'success')
+                  })
+                }}
+                className="flex items-center justify-center gap-2 rounded-lg border border-[color:var(--border)] px-4 py-2.5 text-sm text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)] transition-colors"
+              >
+                <Share2Icon size={15} />
+                Copy article link
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
       <EditorToolbar
-        onSave={handleSave}
+        onSave={() => void handleSave({ showOverlay: true })}
         onSubmit={handleSubmit}
         onTogglePreview={store.togglePreview}
         isSaving={store.isSaving}
+        isSubmitting={pendingAction?.kind === 'submit-review'}
         isDirty={store.isDirty}
         previewMode={store.previewMode}
       />
+
+      {pendingAction && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]'>
+          <div className='min-w-[280px] max-w-[420px] rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-5 py-4 shadow-[var(--shadow)]'>
+            <div className='flex items-center gap-3'>
+              <Spinner size='md' />
+              <div>
+                <p className='text-sm font-semibold text-[color:var(--text-primary)]'>{pendingAction.label}</p>
+                <p className='text-xs text-[color:var(--text-muted)]'>
+                  {uploadProgressPct && (pendingAction.kind === 'inline-image' || pendingAction.kind === 'cover-image')
+                    ? `Progress: ${uploadProgressPct}%`
+                    : 'Please wait...'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={[
         'flex flex-1 gap-6 pt-6',
@@ -623,6 +825,69 @@ export default function WritePage() {
             isInlineUploadInProgress={inlineUploadInProgress}
             inlineUploadStatusText={inlineUploadStatusText}
           />
+
+          {/* Series assignment */}
+          <div className='mt-6'>
+            <SeriesSelector
+              seriesId={store.series?.id}
+              onSeriesSelect={(series: Series, partNumber: number) => {
+                store.setSeries({ ...series, part: partNumber })
+              }}
+              onSeriesRemove={() => {
+                store.setSeries(undefined)
+              }}
+              currentPartNumber={store.series?.part}
+            />
+          </div>
+
+          {/* Citations (separate from validation/SEO) */}
+          <div className='mt-6 rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--surface-1)]/70 p-4'>
+            <div className='mb-3 flex items-center justify-between gap-2'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-wide text-[color:var(--text-muted)]'>
+                  Citations (Optional)
+                </p>
+                <p className='mt-1 text-[11px] text-[color:var(--text-muted)]'>
+                  Add source links used in your article, like research paper references. You can add multiple links.
+                </p>
+              </div>
+              <button
+                type='button'
+                onClick={addCitationRow}
+                className='inline-flex items-center gap-1 rounded-md border border-[color:var(--accent)] px-2 py-1 text-[11px] font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--accent-dim)]'
+              >
+                <Plus size={12} /> Add
+              </button>
+            </div>
+
+            {(store.citations ?? []).length === 0 && (
+              <p className='text-[11px] text-[color:var(--text-muted)]'>
+                No citations added. Leave empty if not needed.
+              </p>
+            )}
+
+            <div className='space-y-2'>
+              {(store.citations ?? []).map((citation, index) => (
+                <div key={`citation-${index}`} className='flex items-center gap-2'>
+                  <input
+                    value={citation}
+                    onChange={e => updateCitationRow(index, e.target.value)}
+                    className='h-10 flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 text-sm text-[color:var(--text-primary)]'
+                    placeholder={`Citation link ${index + 1} (https://...)`}
+                  />
+                  <button
+                    type='button'
+                    onClick={() => removeCitationRow(index)}
+                    className='inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]'
+                    aria-label={`Remove citation ${index + 1}`}
+                    title='Remove citation'
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Tags */}
           <div className='mt-6 rounded-xl border border-[color:var(--border-strong)] p-4 bg-[color:var(--surface-1)]/70'>
@@ -728,6 +993,19 @@ export default function WritePage() {
                 </select>
               </label>
 
+              <label className='flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
+                Reading level
+                <select
+                  value={store.readingLevel || ''}
+                  onChange={e => store.setReadingLevel((e.target.value as 'Beginner' | 'Intermediate' | 'Advanced') || undefined)}
+                  className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
+                >
+                  <option value=''>Not specified</option>
+                  <option value='Beginner'>Beginner</option>
+                  <option value='Intermediate'>Intermediate</option>
+                  <option value='Advanced'>Advanced</option>
+                </select>
+              </label>
               {user?.role === 'SUPERADMIN' && (
                 <div className='md:col-span-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] p-3'>
                   <p className='mb-2 text-xs font-medium text-[color:var(--text-secondary)]'>Add content type (Superadmin)</p>

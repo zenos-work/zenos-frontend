@@ -5,13 +5,13 @@ import BrandLogo from '../../../src/components/ui/BrandLogo'
 const useUiStoreMock = vi.fn()
 
 vi.mock('../../../src/stores/uiStore', () => ({
-  useUiStore: (selector: (state: { theme: 'light' | 'dark' }) => unknown) =>
+  useUiStore: (selector: (state: { resolvedTheme: 'light' | 'dark' }) => unknown) =>
     selector(useUiStoreMock()),
 }))
 
 describe('BrandLogo', () => {
   it('renders dark-theme logo by default full variant', () => {
-    useUiStoreMock.mockReturnValue({ theme: 'dark' })
+    useUiStoreMock.mockReturnValue({ resolvedTheme: 'dark' })
 
     render(<BrandLogo />)
 
@@ -20,7 +20,7 @@ describe('BrandLogo', () => {
   })
 
   it('renders mark variant with explicit dimensions', () => {
-    useUiStoreMock.mockReturnValue({ theme: 'light' })
+    useUiStoreMock.mockReturnValue({ resolvedTheme: 'light' })
 
     const { container } = render(<BrandLogo variant='mark' height={20} width={24} alt='Zenos mark' />)
 

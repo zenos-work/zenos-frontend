@@ -102,7 +102,7 @@ export default function BookmarksPage() {
       ) : (
         <>
           <div className='space-y-3'>
-            {filtered.map(a => <ArticleCard key={a.id} article={a} />)}
+            {filtered.map(a => <ArticleCard key={a.id} article={a} compact />)}
           </div>
 
           <div className='flex items-center justify-between pt-3'>

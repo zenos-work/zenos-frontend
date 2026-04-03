@@ -1,15 +1,19 @@
 import { NavLink } from 'react-router-dom'
 import {
   BarChart2,
+  Bell,
   BookOpen,
   Bookmark,
   ChevronLeft,
   ChevronRight,
+  FileText,
   Home,
+  History,
   PenSquare,
   Search,
+  Settings,
   Shield,
-  User,
+  Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useUiStore } from '../../stores/uiStore'
@@ -60,10 +64,14 @@ function LogoMark({ open }: { open: boolean }) {
 }
 
 const AUTH_NAV = [
+  { to: '/notifications', icon: Bell, label: 'Notifications' },
+  { to: '/history', icon: History, label: 'Reading History' },
   { to: '/bookmarks', icon: Bookmark, label: 'Bookmarks' },
   { to: '/library', icon: BookOpen, label: 'Library' },
+  { to: '/onboarding/writer', icon: Sparkles, label: 'Writer Onboarding' },
+  { to: '/workflow', icon: FileText, label: 'Workflow' },
   { to: '/stats', icon: BarChart2, label: 'Stats' },
-  { to: '/profile', icon: User, label: 'Profile' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 const GUEST_NAV = [
@@ -182,7 +190,7 @@ export default function Sidebar() {
       {user && (
         <div style={{ borderTop: '1px solid var(--border)', padding: open ? '12px' : '8px', flexShrink: 0 }}>
           <NavLink
-            to='/profile'
+            to='/settings'
             style={{
               display: 'flex',
               alignItems: 'center',

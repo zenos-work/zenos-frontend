@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import type { Tag, ArticleContentType } from '../types'
 
+interface Series {
+  id: string
+  name: string
+  part?: number
+}
+
 interface EditorState {
   articleId?:     string   // set when editing existing article
   title:          string
@@ -14,9 +20,12 @@ interface EditorState {
   seoDescription: string
   canonicalUrl:   string
   ogImageUrl:     string
+  citations:      string[]
   seoSchemaType:  'Article' | 'TechArticle' | 'HowTo'
   selectedTags:   Tag[]
   isDirty:        boolean
+  readingLevel?:  'Beginner' | 'Intermediate' | 'Advanced'
+  series?:        Series   // Series this article belongs to
   isSaving:       boolean
   previewMode:    boolean
 
@@ -32,8 +41,11 @@ interface EditorState {
   setSeoDescription: (v: string) => void
   setCanonicalUrl: (v: string) => void
   setOgImageUrl: (v: string) => void
+  setCitations: (v: string[]) => void
   setSeoSchemaType: (v: 'Article' | 'TechArticle' | 'HowTo') => void
   toggleTag:      (tag: Tag) => void
+  setReadingLevel: (v: 'Beginner' | 'Intermediate' | 'Advanced' | undefined) => void
+  setSeries:      (series: Series | undefined) => void
   setSelectedTags:(tags: Tag[]) => void
   hydrate:        (data: {
     articleId?: string
@@ -48,8 +60,11 @@ interface EditorState {
     seoDescription: string
     canonicalUrl: string
     ogImageUrl: string
+    citations: string[]
     seoSchemaType: 'Article' | 'TechArticle' | 'HowTo'
     selectedTags: Tag[]
+    readingLevel?: 'Beginner' | 'Intermediate' | 'Advanced'
+    series?: Series
   }) => void
   markSaved:      () => void
   togglePreview:  () => void
@@ -71,8 +86,11 @@ const INITIAL = {
   seoDescription: '',
   canonicalUrl: '',
   ogImageUrl: '',
+  citations: [],
   seoSchemaType: 'Article' as 'Article' | 'TechArticle' | 'HowTo',
   isDirty:      false,
+  readingLevel: undefined as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
+  series: undefined as Series | undefined,
   isSaving:     false,
   previewMode:  false,
 }
@@ -92,7 +110,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSeoDescription: (seoDescription) => set({ seoDescription, isDirty: true }),
   setCanonicalUrl: (canonicalUrl) => set({ canonicalUrl, isDirty: true }),
   setOgImageUrl: (ogImageUrl) => set({ ogImageUrl, isDirty: true }),
+  setCitations: (citations) => set({ citations, isDirty: true }),
   setSeoSchemaType: (seoSchemaType) => set({ seoSchemaType, isDirty: true }),
+  setReadingLevel: (readingLevel) => set({ readingLevel, isDirty: true }),
+  setSeries: (series) => set({ series, isDirty: true }),
 
   toggleTag: (tag) => set(s => ({
     isDirty: true,
@@ -115,7 +136,10 @@ export const useEditorStore = create<EditorState>((set) => ({
     seoDescription: data.seoDescription,
     canonicalUrl: data.canonicalUrl,
     ogImageUrl: data.ogImageUrl,
+    citations: data.citations,
     seoSchemaType: data.seoSchemaType,
+    readingLevel: data.readingLevel,
+    series: data.series,
     selectedTags: data.selectedTags,
     isDirty: false,
   }),

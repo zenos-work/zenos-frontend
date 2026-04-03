@@ -5,9 +5,14 @@ import StatsPage from '../../src/pages/StatsPage'
 import { makeArticle } from '../utils/fixtures'
 
 const useMyArticlesMock = vi.fn()
+const useAuthMock = vi.fn()
 
 vi.mock('../../src/hooks/useArticles', () => ({
   useMyArticles: () => useMyArticlesMock(),
+}))
+
+vi.mock('../../src/hooks/useAuth', () => ({
+  useAuth: () => useAuthMock(),
 }))
 
 vi.mock('../../src/components/ui/Spinner', () => ({
@@ -17,6 +22,7 @@ vi.mock('../../src/components/ui/Spinner', () => ({
 describe('StatsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useAuthMock.mockReturnValue({ user: { id: 'u1', role: 'AUTHOR' } })
   })
 
   it('shows loading state while fetching article stats', () => {
@@ -65,7 +71,7 @@ describe('StatsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stories' }))
 
     expect(screen.getByText('Top performing stories')).toBeInTheDocument()
-    expect(screen.getByText('Published One')).toBeInTheDocument()
-    expect(screen.getByText('Published Two')).toBeInTheDocument()
+    expect(screen.getAllByText('Published One').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Published Two').length).toBeGreaterThan(0)
   })
 })

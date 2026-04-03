@@ -7,7 +7,9 @@ import { createQueryClientWrapper } from '../utils/queryClient'
 
 const useArticleMock = vi.fn()
 const useAuthorArticlesMock = vi.fn()
+const useRelatedArticlesMock = vi.fn()
 const useAuthMock = vi.fn()
+const apiGetMock = vi.fn()
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -20,14 +22,26 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../../src/hooks/useArticles', () => ({
   useArticle: (...args: unknown[]) => useArticleMock(...args),
   useAuthorArticles: (...args: unknown[]) => useAuthorArticlesMock(...args),
+  useRelatedArticles: (...args: unknown[]) => useRelatedArticlesMock(...args),
 }))
 
 vi.mock('../../src/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
 }))
 
+vi.mock('../../src/lib/api', () => ({
+  default: {
+    get: (...args: unknown[]) => apiGetMock(...args),
+  },
+}))
+
 vi.mock('../../src/components/article/ArticleDetail', () => ({
-  default: ({ content }: { content: string }) => <div data-testid='article-detail'>{content}</div>,
+  default: ({ content }: { content: string }) => (
+    <div data-testid='article-detail'>
+      <h2>Intro</h2>
+      {content}
+    </div>
+  ),
 }))
 
 vi.mock('../../src/components/article/ArticleMeta', () => ({
@@ -106,7 +120,20 @@ vi.mock('../../src/stores/uiStore', () => ({
 describe('ArticlePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    apiGetMock.mockResolvedValue({
+      data: {
+        user: {
+          id: 'author-1',
+          name: 'Article Author',
+          role: 'AUTHOR',
+          created_at: new Date().toISOString(),
+          bio: 'Author bio from profile',
+          followers_count: 321,
+        },
+      },
+    })
     useAuthorArticlesMock.mockReturnValue({ data: { items: [] } })
+    useRelatedArticlesMock.mockReturnValue({ data: { related: [], count: 0 }, isLoading: false, error: null })
   })
 
   it('shows loading state', () => {
@@ -140,7 +167,7 @@ describe('ArticlePage', () => {
     expect(screen.getByRole('link', { name: /back to home/i })).toHaveAttribute('href', '/')
   })
 
-  it('renders article view for non-owner and shows follow button', () => {
+  it('renders article view for non-owner and shows follow button', async () => {
     useAuthMock.mockReturnValue({ user: { id: 'u-other', role: 'AUTHOR' } })
     useArticleMock.mockReturnValue({
       data: makeArticleDetail({
@@ -181,12 +208,15 @@ describe('ArticlePage', () => {
     )
 
     expect(screen.getByText('Article Title')).toBeInTheDocument()
-    expect(screen.getByText('Subtitle')).toBeInTheDocument()
+    expect(screen.getAllByText('Subtitle').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Cloud').length).toBeGreaterThan(0)
-    expect(screen.getByText('Follow author-1')).toBeInTheDocument()
+    expect(screen.getAllByText('Follow author-1').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument()
     expect(screen.getByText('TOC')).toBeInTheDocument()
     expect(screen.getByText(/Time spent reading:/i)).toBeInTheDocument()
+    expect(await screen.findByText('Written by')).toBeInTheDocument()
+    expect(await screen.findByText('321 Followers')).toBeInTheDocument()
+    expect(await screen.findByText('Author bio from profile')).toBeInTheDocument()
     expect(screen.getByText('Next from Article Author')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /second story/i })).toHaveAttribute('href', '/article/other-story')
     expect(screen.queryByRole('link', { name: /edit/i })).not.toBeInTheDocument()
