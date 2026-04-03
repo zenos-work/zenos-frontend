@@ -18,6 +18,7 @@ import MobileNav from './MobileNav'
 import ToastContainer from '../ui/Toast'
 import { useUiStore } from '../../stores/uiStore'
 import { useAuth } from '../../hooks/useAuth'
+import { trackEvent } from '../../lib/observability'
 
 export default function AppShell() {
   const { user } = useAuth()
@@ -27,9 +28,19 @@ export default function AppShell() {
   const isWriteRoute = location.pathname === '/write' || location.pathname.startsWith('/write/')
   const isHomeRoute = location.pathname === '/'
   const isGuest = !user
+  const isGuestHomeRoute = isGuest && isHomeRoute
   const showSidebar = !isGuest
   const showTopbar = !isWriteRoute && (!isGuest || !isHomeRoute)
   const showMobileNav = !isGuest && !isWriteRoute
+
+  useEffect(() => {
+    void trackEvent('page_view', {
+      path: location.pathname,
+      search: location.search,
+      is_authenticated: !!user,
+      role: user?.role ?? 'guest',
+    })
+  }, [location.pathname, location.search, user])
 
   useEffect(() => {
     if (location.pathname.startsWith('/article/')) return
@@ -54,6 +65,10 @@ export default function AppShell() {
         title: 'Library | Zenos.work',
         description: 'Manage your drafts, submitted stories, and published work in one place.',
       },
+      '/workflow': {
+        title: 'Workflow | Zenos.work',
+        description: 'Track editorial workflow progression, review state, and publishing hand-offs.',
+      },
       '/write': {
         title: 'Write | Zenos.work',
         description: 'Write and edit stories with built-in SEO, moderation workflow, and publishing controls.',
@@ -70,9 +85,21 @@ export default function AppShell() {
         title: 'Notifications | Zenos.work',
         description: 'Track approvals, moderation updates, and publishing events.',
       },
+      '/history': {
+        title: 'Reading History | Zenos.work',
+        description: 'Return to stories you read and continue where you left off.',
+      },
+      '/onboarding/writer': {
+        title: 'Writer Onboarding | Zenos.work',
+        description: 'Set up your writer profile, interests, and publishing preferences.',
+      },
       '/stats': {
         title: 'Stats | Zenos.work',
         description: 'Monitor article performance, engagement, and growth analytics.',
+      },
+      '/settings': {
+        title: 'Settings | Zenos.work',
+        description: 'Manage your profile, notifications, reading preferences, and billing settings.',
       },
       '/admin': {
         title: 'Admin | Zenos.work',
@@ -121,8 +148,8 @@ export default function AppShell() {
   }, [location.pathname, location.search])
 
   const contentStyle: CSSProperties = {
-    maxWidth: isWriteRoute ? '1560px' : isGuest ? '1240px' : '1280px',
-    padding: isWriteRoute ? '24px 28px 40px' : '28px 24px 88px',
+    maxWidth: isWriteRoute ? '1560px' : isGuestHomeRoute ? '100%' : isGuest ? '1240px' : '1280px',
+    padding: isWriteRoute ? '24px 28px 40px' : isGuestHomeRoute ? '20px 12px 88px' : '28px 24px 88px',
   }
 
   return (

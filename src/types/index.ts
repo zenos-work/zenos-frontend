@@ -17,10 +17,15 @@ export interface User {
   role:        UserRole
   created_at:  string
   avatar_url?: string
+  bio?:        string
   email?:      string
   is_active?:  number
   updated_at?: string
   terms_accepted_at?: string | null
+  membership_tier?: string
+  membership_status?: string
+  subscription_started_at?: string | null
+  subscription_expires_at?: string | null
 }
 
 export interface Tag {
@@ -45,6 +50,7 @@ export interface ArticleList {
   content_type:      ArticleContentType
   cover_image_url?:  string
   read_time_minutes: number
+  reading_level?:    'Beginner' | 'Intermediate' | 'Advanced'
   views_count:       number
   likes_count:       number
   dislikes_count?:   number
@@ -63,6 +69,7 @@ export interface ArticleList {
   canonical_url?:    string
   og_image_url?:     string
   seo_schema_type?:  'Article' | 'TechArticle' | 'HowTo'
+  citations?:        string[]
   is_expired?:       boolean
   tags:              Tag[]
 }
@@ -80,6 +87,11 @@ export interface Comment {
   author_id:      string
   content:        string
   is_deleted:     number
+  is_hidden?:     number
+  moderation_reason?: string
+  moderated_by?:  string
+  moderated_at?:  string
+  flag_count?:    number
   created_at:     string
   updated_at:     string
   parent_id?:     string

@@ -193,4 +193,24 @@ describe('useSocial hooks', () => {
       makeArticle({ id: articleId, shares_count: 3 }),
     )
   })
+
+  it('records x share with provider payload', async () => {
+    const articleId = 'article-78'
+    const original = makeArticle({ id: articleId, shares_count: 5 })
+    vi.mocked(api.post).mockResolvedValue({ data: { share: { article_id: articleId, provider: 'x', share_count: 6 } } })
+
+    const { Wrapper, client } = createQueryClientWrapper()
+    client.setQueryData(articleKeys.detail(articleId), original)
+
+    const { result } = renderHook(() => useShare(articleId), { wrapper: Wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync('x')
+    })
+
+    expect(api.post).toHaveBeenCalledWith(`/api/social/shares/${articleId}`, { provider: 'x' })
+    expect(client.getQueryData(articleKeys.detail(articleId))).toEqual(
+      makeArticle({ id: articleId, shares_count: 6 }),
+    )
+  })
 })

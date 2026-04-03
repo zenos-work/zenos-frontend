@@ -7,6 +7,9 @@ import {
   useAdminStats,
   useAdminUsers,
   useApprovalQueue,
+  useBulkQueueAction,
+  useModerateComment,
+  useModerationComments,
   useUpdateAdminRankingWeights,
   useBanUser,
   useNotifications,
@@ -18,6 +21,7 @@ import { makeArticleDetail, makeUser } from '../utils/fixtures'
 vi.mock('../../src/lib/api', () => ({
   default: {
     get: vi.fn(),
+    post: vi.fn(),
     put: vi.fn(),
   },
 }))
@@ -189,5 +193,48 @@ describe('useAdmin hooks', () => {
     expect(api.put).toHaveBeenCalledWith('/api/admin/ranking-weights', { shares_weight: 2.5 })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['admin', 'ranking-weights'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['admin', 'ranking'] })
+  })
+
+  it('runs bulk queue actions and comment moderation hooks', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      data: {
+        action: 'approve',
+        processed: 2,
+        succeeded: 2,
+        failed: 0,
+        results: [],
+      },
+    } as never)
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        data: [{ id: 'c1', article_id: 'a1', author_id: 'u1', content: 'flagged', is_deleted: 0, replies: [], created_at: '2026-01-01', updated_at: '2026-01-01' }],
+        pagination: { page: 1, limit: 20, total: 1, pages: 1, has_more: false },
+      },
+    } as never)
+    vi.mocked(api.put).mockResolvedValue({ data: {} } as never)
+
+    const bulk = createQueryClientWrapper()
+    const comments = createQueryClientWrapper()
+    const moderate = createQueryClientWrapper()
+
+    const bulkHook = renderHook(() => useBulkQueueAction(), { wrapper: bulk.Wrapper })
+    const commentsHook = renderHook(() => useModerationComments(1, 20), { wrapper: comments.Wrapper })
+    const moderateHook = renderHook(() => useModerateComment(), { wrapper: moderate.Wrapper })
+
+    await act(async () => {
+      await bulkHook.result.current.mutateAsync({ action: 'approve', article_ids: ['a1', 'a2'] })
+      await moderateHook.result.current.mutateAsync({ commentId: 'c1', is_hidden: true, reason: 'spam' })
+    })
+
+    await waitFor(() => {
+      expect(commentsHook.result.current.isSuccess).toBe(true)
+    })
+
+    expect(api.post).toHaveBeenCalledWith('/api/admin/queue/bulk', {
+      action: 'approve',
+      article_ids: ['a1', 'a2'],
+    })
+    expect(api.get).toHaveBeenCalledWith('/api/comments/admin/all', { params: { page: 1, limit: 20 } })
+    expect(api.put).toHaveBeenCalledWith('/api/comments/c1/moderate', { is_hidden: true, reason: 'spam' })
   })
 })

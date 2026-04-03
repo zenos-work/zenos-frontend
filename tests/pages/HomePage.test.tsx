@@ -82,11 +82,17 @@ describe('HomePage', () => {
     expect(screen.getByTestId('discovery-sidebar')).toBeInTheDocument()
   })
 
-  it('shows guest trending landing when user is not signed in', () => {
+  it('shows prototype-style landing when user is not signed in', () => {
+    const guestFeedItems = [
+      makeArticle({ id: 'g1', title: 'Live Story One', subtitle: 'Real subtitle one', author_name: 'Writer One', views_count: 300, read_time_minutes: 4 }),
+      makeArticle({ id: 'g2', title: 'Live Story Two', subtitle: 'Real subtitle two', author_name: 'Writer Two', views_count: 200, read_time_minutes: 6 }),
+      makeArticle({ id: 'g3', title: 'Live Story Three', subtitle: 'Real subtitle three', author_name: 'Writer One', views_count: 100, read_time_minutes: 5 }),
+    ]
+
     useAuthMock.mockReturnValue({ user: null })
     useFeaturedMock.mockReturnValue({ data: [] })
     useFeedMock.mockReturnValue({
-      data: undefined,
+      data: { pages: [{ articles: guestFeedItems, feed: 'latest' }] },
       fetchNextPage: vi.fn(),
       hasNextPage: false,
       isFetchingNextPage: false,
@@ -101,18 +107,17 @@ describe('HomePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText(/Top Stories/)).toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { name: /Top Stories\s*: Platform Tour: Start in minutes/i }),
-    ).toBeInTheDocument()
-    expect(screen.getAllByText('How-to Guide: Ship quality content').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Software Writing: Build docs users trust').length).toBeGreaterThan(0)
+    expect(screen.getByText(/Where good ideas/i)).toBeInTheDocument()
+    expect(screen.getByText(/find you\./i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /start reading free/i })).toHaveAttribute('href', '/login')
+    expect(screen.getByText(/Stories worth your time/i)).toBeInTheDocument()
+    expect(screen.getByText('Live Story One')).toBeInTheDocument()
+    expect(screen.getByText('Live Story Two')).toBeInTheDocument()
+    expect(screen.getByText('Live Story Three')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /view all stories/i })).toHaveAttribute('href', '/explore')
+    expect(screen.queryByText(/over 148,000 writers/i)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next slide' }))
-    expect(screen.getByText(/Top Stories:/)).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Go to slide 3' }))
-    expect(screen.getByText(/Top Stories:/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: /explore topics/i }))
   })
 
   it('loads next page when load more is clicked', async () => {

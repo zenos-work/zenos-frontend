@@ -17,6 +17,7 @@ export const useArticles = (params: {
   tag?: string
   search?: string
   content_type?: ArticleContentType
+  sort?: 'newest' | 'trending' | 'recommended'
 } = {}) =>
   useQuery({
     queryKey: articleKeys.list(params),
@@ -51,6 +52,18 @@ export const useAuthorArticles = (
     enabled: !!authorId,
   })
 
+// Phase 2: Related articles by shared tags
+export const useRelatedArticles = (articleId: string, limit: number = 5) =>
+  useQuery({
+    queryKey: [...articleKeys.all, 'related', articleId] as const,
+    queryFn: () =>
+      api
+        .get<{ related: ArticleList[]; count: number }>(`/api/articles/${articleId}/related`, { params: { limit } })
+        .then((r) => r.data),
+    enabled: !!articleId,
+    staleTime: 60000,
+  })
+
 // My drafts + library — all my articles regardless of status
 export const useMyArticles = () =>
   useQuery({
@@ -70,6 +83,7 @@ export const useCreateArticle = () => {
       subtitle?:        string
       content_type?:    ArticleContentType
       cover_image_url?: string
+      reading_level?:   'Beginner' | 'Intermediate' | 'Advanced'
       last_verified_at?: string
       expires_at?: string
       seo_title?: string
@@ -77,6 +91,7 @@ export const useCreateArticle = () => {
       canonical_url?: string
       og_image_url?: string
       seo_schema_type?: 'Article' | 'TechArticle' | 'HowTo'
+      citations?: string[]
       tag_ids?:         string[]
     }) =>
       api.post<{ article: ArticleDetail }>('/api/articles', data)
@@ -97,6 +112,7 @@ export const useUpdateArticle = (articleId: string) => {
       subtitle:         string
       content_type:     ArticleContentType
       cover_image_url:  string
+      reading_level:    'Beginner' | 'Intermediate' | 'Advanced'
       last_verified_at: string
       expires_at: string
       seo_title: string
@@ -104,6 +120,7 @@ export const useUpdateArticle = (articleId: string) => {
       canonical_url: string
       og_image_url: string
       seo_schema_type: 'Article' | 'TechArticle' | 'HowTo'
+      citations: string[]
       tag_ids:          string[]
     }>) =>
       api.put<{ article: ArticleDetail }>(`/api/articles/${articleId}`, data)

@@ -5,6 +5,7 @@ import Topbar from '../../../src/components/layout/Topbar'
 const navigateMock = vi.fn()
 const useAuthMock = vi.fn()
 const useUiStoreMock = vi.fn()
+const useNotificationsMock = vi.fn()
 
 vi.mock('../../../src/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -12,6 +13,10 @@ vi.mock('../../../src/hooks/useAuth', () => ({
 
 vi.mock('../../../src/stores/uiStore', () => ({
   useUiStore: () => useUiStoreMock(),
+}))
+
+vi.mock('../../../src/hooks/useAdmin', () => ({
+  useNotifications: () => useNotificationsMock(),
 }))
 
 vi.mock('../../../src/components/ui/Avatar', () => ({
@@ -29,12 +34,13 @@ vi.mock('react-router-dom', async () => {
 describe('Topbar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useNotificationsMock.mockReturnValue({ data: { notifications: [] } })
   })
 
   it('renders sign in state, performs search, and toggles theme', () => {
     useAuthMock.mockReturnValue({ user: null, logout: vi.fn() })
-    const toggleTheme = vi.fn()
-    useUiStoreMock.mockReturnValue({ toggleTheme, theme: 'light' })
+    const setTheme = vi.fn()
+    useUiStoreMock.mockReturnValue({ setTheme, theme: 'light', resolvedTheme: 'light' })
 
     render(<Topbar />)
 
@@ -43,8 +49,9 @@ describe('Topbar', () => {
 
     expect(navigateMock).toHaveBeenCalledWith('/search?q=fintech%20ai')
 
-    fireEvent.click(screen.getByTitle('Switch to dark theme'))
-    expect(toggleTheme).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTitle('Theme'))
+    fireEvent.click(screen.getByRole('button', { name: 'Dark' }))
+    expect(setTheme).toHaveBeenCalledWith('dark')
 
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
     expect(navigateMock).toHaveBeenCalledWith('/login')
@@ -61,7 +68,7 @@ describe('Topbar', () => {
       },
       logout,
     })
-    useUiStoreMock.mockReturnValue({ toggleTheme: vi.fn(), theme: 'dark' })
+    useUiStoreMock.mockReturnValue({ setTheme: vi.fn(), theme: 'dark', resolvedTheme: 'dark' })
 
     render(<Topbar />)
 
@@ -70,7 +77,7 @@ describe('Topbar', () => {
 
     fireEvent.click(screen.getByText('Admin User').closest('button')!)
 
-    expect(screen.getByText('Profile')).toBeInTheDocument()
+    expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.getByText('Library')).toBeInTheDocument()
     expect(screen.getByText('Stats')).toBeInTheDocument()
     expect(screen.getByText('Admin')).toBeInTheDocument()

@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Bell, LogIn, Sun, Moon, PenSquare, Bookmark, BarChart3 } from 'lucide-react'
+import { Search, Bell, LogIn, Sun, Moon, Monitor, PenSquare, Bookmark, BarChart3, Settings, History } from 'lucide-react'
 import { useAuth }    from '../../hooks/useAuth'
 import { useUiStore } from '../../stores/uiStore'
+import { useNotifications } from '../../hooks/useAdmin'
 import Avatar         from '../ui/Avatar'
 
 export default function Topbar() {
   const { user, logout }        = useAuth()
-  const { toggleTheme, theme }  = useUiStore()
+  const { setTheme, theme, resolvedTheme }  = useUiStore()
   const navigate                = useNavigate()
+  const { data: notificationsData } = useNotifications(!!user)
   const [query, setQuery]       = useState('')
   const [menu, setMenu]         = useState(false)
+  const [themeMenu, setThemeMenu] = useState(false)
   const isAdmin                 = !!user && ['SUPERADMIN', 'APPROVER'].includes(user.role)
+  const unreadCount = (notificationsData?.notifications ?? []).filter((item) => !item.is_read).length
 
   const search = (e: React.FormEvent) => {
     e.preventDefault()
@@ -148,6 +152,11 @@ export default function Topbar() {
           transition: background-color 0.1s;
         }
         .zenos-dropdown-item:hover { background-color: var(--surface-1); }
+        .zenos-dropdown-item-active {
+          color: var(--text-primary);
+          background: var(--surface-1);
+          font-weight: 600;
+        }
         .zenos-signin-btn {
           display: flex;
           align-items: center;
@@ -196,18 +205,78 @@ export default function Topbar() {
               <button className='zenos-icon-btn' onClick={() => navigate('/stats')} title='Stats'>
                 <BarChart3 size={16} />
               </button>
+              <button className='zenos-icon-btn' onClick={() => navigate('/history')} title='Reading history'>
+                <History size={16} />
+              </button>
+              <button className='zenos-icon-btn' onClick={() => navigate('/settings')} title='Settings'>
+                <Settings size={16} />
+              </button>
             </>
           )}
 
-          {/* Theme toggle */}
-          <button className='zenos-icon-btn' onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}>
-            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              className='zenos-icon-btn'
+              onClick={() => setThemeMenu((v) => !v)}
+              title='Theme'
+              aria-haspopup='menu'
+              aria-expanded={themeMenu}
+            >
+              {theme === 'system' ? <Monitor size={16} /> : resolvedTheme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+
+            {themeMenu && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setThemeMenu(false)} />
+                <div className='zenos-dropdown' style={{ width: 180, zIndex: 55 }}>
+                  <button
+                    className={`zenos-dropdown-item ${theme === 'light' ? 'zenos-dropdown-item-active' : ''}`}
+                    onClick={() => { setTheme('light'); setThemeMenu(false) }}
+                  >
+                    Light
+                  </button>
+                  <button
+                    className={`zenos-dropdown-item ${theme === 'dark' ? 'zenos-dropdown-item-active' : ''}`}
+                    onClick={() => { setTheme('dark'); setThemeMenu(false) }}
+                  >
+                    Dark
+                  </button>
+                  <button
+                    className={`zenos-dropdown-item ${theme === 'system' ? 'zenos-dropdown-item-active' : ''}`}
+                    onClick={() => { setTheme('system'); setThemeMenu(false) }}
+                  >
+                    System
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           {user ? (
             <>
-              <button className='zenos-icon-btn' onClick={() => navigate('/notifications')} title='Notifications'>
+              <button className='zenos-icon-btn' onClick={() => navigate('/notifications')} title='Notifications' style={{ position: 'relative' }}>
                 <Bell size={16} />
+                {unreadCount > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 2,
+                      right: 3,
+                      minWidth: 14,
+                      height: 14,
+                      borderRadius: 999,
+                      background: 'var(--accent)',
+                      color: '#fff',
+                      fontSize: 9,
+                      fontWeight: 700,
+                      display: 'grid',
+                      placeItems: 'center',
+                      padding: '0 3px',
+                    }}
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </button>
 
               <div style={{ position: 'relative' }}>
@@ -236,8 +305,11 @@ export default function Topbar() {
                         </p>
                       </div>
                       {[
-                        ['Profile', '/profile'],
+                        ['Settings', '/settings'],
+                        ['Writer onboarding', '/onboarding/writer'],
                         ['Library', '/library'],
+                        ['Reading history', '/history'],
+                        ['Workflow', '/workflow'],
                         ['Stats', '/stats'],
                         ...(isAdmin ? [['Admin', '/admin']] : []),
                       ].map(([label, path]) => (

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Search, Bookmark, User, PenSquare, Shield } from 'lucide-react'
+import { Home, Search, User, PenSquare, Shield, Bell, History } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 export default function MobileNav() {
@@ -13,8 +13,8 @@ export default function MobileNav() {
         { to: '/search', icon: Search, label: 'Search', end: false },
         ...(canWrite ? [{ to: '/write', icon: PenSquare, label: 'Write', end: false }] : []),
         ...(isAdmin ? [{ to: '/admin', icon: Shield, label: 'Admin', end: false }] : []),
-        { to: '/bookmarks', icon: Bookmark, label: 'Saved', end: false },
-        { to: '/profile', icon: User, label: 'Profile', end: false },
+        { to: '/notifications', icon: Bell, label: 'Alerts', end: false },
+        { to: '/history', icon: History, label: 'History', end: false },
       ]
     : [
         { to: '/', icon: Home, label: 'Home', end: true },

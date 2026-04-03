@@ -112,7 +112,7 @@ export const useFollowStatus = (targetUserId: string) =>
 export const useShare = (articleId: string) => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (provider: 'linkedin' = 'linkedin') =>
+    mutationFn: (provider: 'linkedin' | 'x' | 'facebook' = 'linkedin') =>
       api.post<{ share: { article_id: string; provider: string; share_count: number } }>(
         `/api/social/shares/${articleId}`,
         { provider },

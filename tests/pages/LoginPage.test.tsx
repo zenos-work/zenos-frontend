@@ -40,7 +40,7 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }))
 
     expect(loginWithGoogle).toHaveBeenCalledTimes(1)
-    expect(sessionStorage.getItem('auth_intent')).toBe('signin')
+    expect(loginWithGoogle).toHaveBeenCalledWith('signin')
   })
 
   it('stores the intended route before starting Google sign-in', () => {
@@ -65,6 +65,7 @@ describe('LoginPage', () => {
 
     expect(sessionStorage.getItem('post_login_redirect')).toBe('/terms')
     expect(loginWithGoogle).toHaveBeenCalledTimes(1)
+    expect(loginWithGoogle).toHaveBeenCalledWith('signin')
   })
 
   it('stores signup intent when sign up CTA is used', () => {
@@ -78,8 +79,8 @@ describe('LoginPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /sign up with google/i }))
 
-    expect(sessionStorage.getItem('auth_intent')).toBe('signup')
     expect(loginWithGoogle).toHaveBeenCalledTimes(1)
+    expect(loginWithGoogle).toHaveBeenCalledWith('signup')
   })
 
   it('redirects authenticated users to the home page', async () => {

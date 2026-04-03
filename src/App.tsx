@@ -12,17 +12,21 @@ import WritePage      from './pages/WritePage'
 import ProfilePage    from './pages/ProfilePage'
 import BookmarksPage  from './pages/BookmarksPage'
 import LibraryPage    from './pages/LibraryPage'
+import WorkflowPage   from './pages/WorkflowPage'
 import StatsPage      from './pages/StatsPage'
 import SearchPage     from './pages/SearchPage'
 import TagPage        from './pages/TagPage'
 import AdminPage      from './pages/AdminPage'
 import NotificationsPage from './pages/NotificationsPage'
+import ReadingHistoryPage from './pages/ReadingHistoryPage'
 import LoginPage      from './pages/LoginPage'
 import TermsPage      from './pages/TermsPage'
 import MembershipPage from './pages/MembershipPage'
 import InfoPage       from './pages/InfoPage'
 import OnboardingPreferencesPage from './pages/OnboardingPreferencesPage'
+import WriterOnboardingPage from './pages/WriterOnboardingPage'
 import NotFoundPage   from './pages/NotFoundPage'
+import SeriesPage     from './pages/SeriesPage'
 
 export default function App() {
   const { loading } = useAuth()
@@ -53,6 +57,7 @@ export default function App() {
       } />
       <Route element={<ProtectedRoute />}>
         <Route path='/onboarding/preferences' element={<OnboardingPreferencesPage />} />
+        <Route path='/onboarding/writer' element={<WriterOnboardingPage />} />
       </Route>
 
       <Route element={<AppShell />}>
@@ -62,6 +67,8 @@ export default function App() {
         <Route path='/search'        element={<SearchPage />}  />
         <Route path='/tag/:slug'     element={<TagPage />}     />
         <Route path='/profile/:id'   element={<ProfilePage />} />
+        <Route path='/settings/:id'  element={<ProfilePage />} />
+        <Route path='/series/:id'    element={<SeriesPage />}  />
         <Route path='/membership'    element={<MembershipPage />} />
         <Route path='/info/:slug'    element={<InfoPage />} />
 
@@ -71,9 +78,12 @@ export default function App() {
             <Route path='/write/:id'  element={<WritePage />}     />
             <Route path='/bookmarks'  element={<BookmarksPage />} />
             <Route path='/library'    element={<LibraryPage />}   />
+            <Route path='/workflow'   element={<WorkflowPage />}  />
             <Route path='/notifications' element={<NotificationsPage />} />
+            <Route path='/history'    element={<ReadingHistoryPage />} />
             <Route path='/stats'      element={<StatsPage />}     />
             <Route path='/profile'    element={<ProfilePage />}   />
+            <Route path='/settings'   element={<ProfilePage />}   />
           </Route>
           <Route element={<AdminRoute />}>
             <Route path='/admin'      element={<AdminPage />} />

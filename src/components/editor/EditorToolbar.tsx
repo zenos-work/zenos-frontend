@@ -7,12 +7,13 @@ interface Props {
   onSubmit:        () => void
   onTogglePreview: () => void
   isSaving:        boolean
+  isSubmitting?:   boolean
   isDirty:         boolean
   previewMode:     boolean
 }
 
 export default function EditorToolbar({
-  onSave, onSubmit, onTogglePreview, isSaving, isDirty, previewMode,
+  onSave, onSubmit, onTogglePreview, isSaving, isSubmitting = false, isDirty, previewMode,
 }: Props) {
   const sidebarOpen = useUiStore(s => s.sidebarOpen)
   const toggleSidebar = useUiStore(s => s.toggleSidebar)
@@ -58,7 +59,7 @@ export default function EditorToolbar({
         Save draft
       </Button>
 
-      <Button variant='primary' size='sm' onClick={onSubmit}>
+      <Button variant='primary' size='sm' onClick={onSubmit} loading={isSubmitting} disabled={isSubmitting}>
         <Send size={15} />
         Submit for review
       </Button>

@@ -35,6 +35,7 @@ vi.mock('../src/pages/WritePage', () => ({ default: () => <div>WritePage</div> }
 vi.mock('../src/pages/ProfilePage', () => ({ default: () => <div>ProfilePage</div> }))
 vi.mock('../src/pages/BookmarksPage', () => ({ default: () => <div>BookmarksPage</div> }))
 vi.mock('../src/pages/LibraryPage', () => ({ default: () => <div>LibraryPage</div> }))
+vi.mock('../src/pages/WorkflowPage', () => ({ default: () => <div>WorkflowPage</div> }))
 vi.mock('../src/pages/StatsPage', () => ({ default: () => <div>StatsPage</div> }))
 vi.mock('../src/pages/SearchPage', () => ({ default: () => <div>SearchPage</div> }))
 vi.mock('../src/pages/TagPage', () => ({ default: () => <div>TagPage</div> }))

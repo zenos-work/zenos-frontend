@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Moon, Sun } from 'lucide-react'
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  ChevronRight,
+  Globe,
+  Monitor,
+  Moon,
+  PenSquare,
+  Shield,
+  Star,
+  Sun,
+  TrendingUp,
+  Users,
+  Zap,
+} from 'lucide-react'
 import { useFeed, useFeatured } from '../hooks/useFeed'
 import { useAuth } from '../hooks/useAuth'
 import { useUiStore } from '../stores/uiStore'
@@ -16,79 +31,18 @@ const TABS = [
   { id: 'trending',  label: 'Trending' },
 ] as const
 
-const TOTAL_FEATURE_CARD_COUNT = 4
-
-type FeatureCategory = 'tour' | 'howto' | 'software' | 'spotlight'
-
 type GuestFeatureCard = {
   id: string
   title: string
   subtitle: string
   image_url: string
   slug?: string
-  category: FeatureCategory
-}
-
-const DEFAULT_CATEGORY_CARDS: Record<FeatureCategory, GuestFeatureCard> = {
-  tour: {
-    id: 'default-tour',
-    category: 'tour',
-    title: 'Platform Tour: Start in minutes',
-    subtitle: 'Take a quick guided tour of writing, review, and publish workflows.',
-    image_url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1600&q=80',
-    slug: 'platform-tour-start-in-minutes',
-  },
-  howto: {
-    id: 'default-howto',
-    category: 'howto',
-    title: 'How-to Guide: Ship quality content',
-    subtitle: 'Learn the practical steps to draft, review, and publish without bottlenecks.',
-    image_url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1600&q=80',
-    slug: 'how-to-guide-ship-quality-content',
-  },
-  software: {
-    id: 'default-software',
-    category: 'software',
-    title: 'Software Writing: Build docs users trust',
-    subtitle: 'Create clear technical writing with standards, governance, and consistency.',
-    image_url: 'https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=1600&q=80',
-    slug: 'software-writing-build-docs-users-trust',
-  },
-  spotlight: {
-    id: 'default-spotlight',
-    category: 'spotlight',
-    title: 'Editorial Spotlight: Inside the Zenos workflow',
-    subtitle: 'Fresh stories will appear here as your team publishes content.',
-    image_url: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1600&q=80',
-    slug: 'editorial-spotlight-inside-the-zenos-workflow',
-  },
-}
-
-function tagBlob(article: { tags?: { name: string; slug: string }[] }): string {
-  return (article.tags ?? [])
-    .flatMap((t) => [t.name, t.slug])
-    .join(' ')
-    .toLowerCase()
-}
-
-function matchesCategory(article: { title: string; seo_schema_type?: string; tags?: { name: string; slug: string }[] }, category: FeatureCategory): boolean {
-  const title = article.title.toLowerCase()
-  const tags = tagBlob(article)
-  if (category === 'tour') return tags.includes('tour') || title.includes('tour')
-  if (category === 'howto') return article.seo_schema_type === 'HowTo' || tags.includes('how to') || tags.includes('howto') || tags.includes('how-to') || title.includes('how to') || title.includes('how-to')
-  if (category === 'software') return tags.includes('software writing') || tags.includes('software-writing') || tags.includes('software') || title.includes('software writing') || title.includes('software-writing')
-  return true
-}
-
-function isSystemArticle(article: { author_id?: string; author_name?: string }): boolean {
-  return article.author_id === 'system-zenos-author' || (article.author_name ?? '').toLowerCase() === 'zenos system'
 }
 
 export default function HomePage() {
   const [tab, setTab] = useState<'home' | 'following' | 'trending'>('home')
-  const [guestIndex, setGuestIndex] = useState(0)
   const { user } = useAuth()
-  const { theme, toggleTheme } = useUiStore()
+  const { theme, resolvedTheme, cycleTheme } = useUiStore()
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   const guestHomeFeed = useFeed('home', !user)
@@ -128,65 +82,53 @@ export default function HomePage() {
   }, [guestHomeFeed.data])
 
   const guestFeatureCards = useMemo<GuestFeatureCard[]>(() => {
-    const preferredPool = [
-      ...guestHomeArticles.filter((article) => !isSystemArticle(article)),
-      ...guestHomeArticles.filter((article) => isSystemArticle(article)),
-    ]
+    return guestHomeArticles.slice(0, 6).map((article) => ({
+      id: `featured-${article.id}`,
+      title: article.title,
+      subtitle: article.subtitle || 'No subtitle available.',
+      image_url: resolveAssetUrl(article.cover_image_url) || '',
+      slug: article.slug,
+    }))
+  }, [guestHomeArticles])
 
-    const orderedCategories: FeatureCategory[] = ['tour', 'howto', 'software']
-    const consumedIds = new Set<string>()
-    const picked = orderedCategories.map((category) => {
-      const match = preferredPool.find((article) => !consumedIds.has(article.id) && matchesCategory(article, category))
-      const fallback = DEFAULT_CATEGORY_CARDS[category]
-      if (match) {
-        consumedIds.add(match.id)
-      }
-      if (!match) {
-        const anyArticle = preferredPool.find((article) => !consumedIds.has(article.id))
-        if (!anyArticle) return fallback
-        consumedIds.add(anyArticle.id)
-        return {
-          id: `featured-${category}-${anyArticle.id}`,
-          title: anyArticle.title || fallback.title,
-          subtitle: anyArticle.subtitle || fallback.subtitle,
-          image_url: resolveAssetUrl(anyArticle.cover_image_url) || fallback.image_url,
-          slug: anyArticle.slug,
-          category,
-        }
-      }
-
-      const cover = resolveAssetUrl(match.cover_image_url) || fallback.image_url
-      return {
-        id: `featured-${category}-${match.id}`,
-        title: match.title || fallback.title,
-        subtitle: match.subtitle || fallback.subtitle,
-        image_url: cover,
-        slug: match.slug,
-        category,
-      }
+  const topWriters = useMemo(() => {
+    const byAuthor = new Map<string, { name: string; stories: number; totalViews: number }>()
+    guestHomeArticles.forEach((article) => {
+      const name = article.author_name || 'Zenos Writer'
+      const current = byAuthor.get(name) ?? { name, stories: 0, totalViews: 0 }
+      current.stories += 1
+      current.totalViews += article.views_count
+      byAuthor.set(name, current)
     })
+    return [...byAuthor.values()]
+      .sort((left, right) => right.totalViews - left.totalViews)
+      .slice(0, 4)
+  }, [guestHomeArticles])
 
-    const selectedSlugs = new Set(picked.map((card) => card.slug).filter(Boolean))
-    const extras = preferredPool
-      .filter((article) => !selectedSlugs.has(article.slug))
-      .map((article) => ({
-        id: `featured-extra-${article.id}`,
-        title: article.title,
-        subtitle: article.subtitle || 'Explore the latest story from Zenos.',
-        image_url: resolveAssetUrl(article.cover_image_url) || DEFAULT_CATEGORY_CARDS.spotlight.image_url,
-        slug: article.slug,
-        category: 'spotlight' as const,
-      }))
+  const guestTestimonials = useMemo(() => {
+    const candidates = guestHomeArticles
+      .filter((article) => article.subtitle && article.subtitle.trim().length > 0)
+      .slice(0, 3)
+    return candidates.map((article) => ({
+      quote: article.subtitle as string,
+      author: article.author_name || 'Zenos Writer',
+      role: `${article.read_time_minutes} min read`,
+    }))
+  }, [guestHomeArticles])
 
-    const cards = [...picked, ...extras]
-    while (cards.length < TOTAL_FEATURE_CARD_COUNT) {
-      cards.push({
-        ...DEFAULT_CATEGORY_CARDS.spotlight,
-        id: `${DEFAULT_CATEGORY_CARDS.spotlight.id}-${cards.length}`,
-      })
+  const heroStats = useMemo(() => {
+    const publishedStories = guestHomeArticles.length
+    const monthlyReads = guestHomeArticles.reduce((sum, article) => sum + article.views_count, 0)
+    const avgReadTime = guestHomeArticles.length
+      ? (guestHomeArticles.reduce((sum, article) => sum + article.read_time_minutes, 0) / guestHomeArticles.length).toFixed(1)
+      : '0.0'
+
+    return {
+      activeReaders: Math.max(0, Math.round(monthlyReads / 3)).toLocaleString(),
+      publishedStories: publishedStories.toLocaleString(),
+      monthlyReads: monthlyReads.toLocaleString(),
+      avgReadTime,
     }
-
-    return cards.slice(0, TOTAL_FEATURE_CARD_COUNT)
   }, [guestHomeArticles])
 
   useEffect(() => {
@@ -205,235 +147,246 @@ export default function HomePage() {
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, articles.length, tab])
 
-  useEffect(() => {
-    if (user) return
-    const cardCount = guestFeatureCards.length
-    if (cardCount <= 1) return
-
-    const timer = window.setInterval(() => {
-      setGuestIndex((current) => (current + 1) % cardCount)
-    }, 5000)
-
-    return () => window.clearInterval(timer)
-  }, [user, guestFeatureCards.length])
-
   if (!user) {
     const cards = guestFeatureCards
-    const currentCard = cards[guestIndex % cards.length]
-    const currentArticle = currentCard.slug ? currentCard : null
-    const currentCoverUrl = currentCard.image_url
-    const heroLink = currentCard.slug ? `/article/${currentCard.slug}` : '/search'
-    const expandedCards = cards.filter((card) => card.id !== currentCard.id).slice(0, TOTAL_FEATURE_CARD_COUNT - 1)
-
-    const goPrev = () => setGuestIndex((current) => (current - 1 + cards.length) % cards.length)
-    const goNext = () => setGuestIndex((current) => (current + 1) % cards.length)
 
     return (
-      <div className='space-y-8'>
+      <div className='w-full space-y-12'>
         <header className='sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--topbar-bg)]/95 px-4 py-3 shadow-sm backdrop-blur-md md:px-6'>
-          <div className='flex items-end gap-1.5 text-[color:var(--text-primary)] leading-none'>
+          <Link to='/' className='flex items-end gap-1.5 text-[color:var(--text-primary)] leading-none' aria-label='Home'>
             <span className="font-['Syne',system-ui,sans-serif] text-[2.05rem] font-extrabold tracking-[-0.065em]">Zenos</span>
             <span className='mb-[3px] text-[1.05rem] font-semibold tracking-[-0.03em] text-[color:var(--accent)]'>.work</span>
-          </div>
+          </Link>
           <nav className='flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-secondary)] md:gap-3'>
             <button
               type='button'
-              onClick={toggleTheme}
+              onClick={cycleTheme}
               className='grid h-8 w-8 place-items-center rounded-full border border-[color:var(--border-strong)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
-              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
+              aria-label='Cycle theme mode (light, dark, system)'
+              title='Cycle theme mode (light, dark, system)'
             >
-              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+              {theme === 'system' ? <Monitor size={14} /> : resolvedTheme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
             </button>
-            <Link to='/info/about' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Our Story</Link>
-            <a href='#hear-your-story' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Let&apos;s Hear Your Story</a>
-            <Link to='/membership' className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent-dim)] px-3 py-1.5 text-[color:var(--text-primary)]'>Membership</Link>
+            <Link to='/info/features' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Features</Link>
+            <Link to='/info/about' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Writers</Link>
+            <Link to='/membership' className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent-dim)] px-3 py-1.5 text-[color:var(--text-primary)]'>Pricing</Link>
             <Link to='/login' className='rounded-full border border-[color:var(--border-strong)] px-3 py-1.5 text-[color:var(--text-primary)]'>Sign in</Link>
           </nav>
         </header>
 
-        {guestHomeFeed.isLoading ? (
-          <div className='flex justify-center py-12'><Spinner /></div>
-        ) : (
-          <section className='space-y-8'>
-            <div className='mb-2 flex items-center justify-between'>
+        <section className='relative overflow-hidden rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface-0)] px-5 py-11 md:px-8 md:py-15'>
+          <div className='absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(166,124,60,0.16),transparent_56%)]' />
+          <div className='relative mx-auto max-w-4xl text-center'>
+            <p className='inline-flex items-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-1)] px-4 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-secondary)]'>
+              {topWriters.length} writers in live feed
+            </p>
+            <h1 className='mt-6 text-5xl font-bold leading-[1.04] tracking-tight text-[color:var(--text-primary)] md:text-7xl'>
+              Where good ideas
+              <span className='block text-[color:var(--accent)]'>find you.</span>
+            </h1>
+            <p className='mx-auto mt-5 max-w-2xl text-base leading-7 text-[color:var(--text-secondary)] md:text-lg'>
+              Read with depth, publish with editorial confidence, and grow with analytics that show what your audience values.
+            </p>
+            <div className='mt-8 flex flex-wrap items-center justify-center gap-3'>
+              <Link to='/login' className='inline-flex items-center rounded-full bg-[color:var(--surface-ink)] px-6 py-2.5 text-sm font-semibold text-[color:var(--surface-ink-foreground)]'>
+                Start reading free <ArrowRight size={14} className='ml-2' />
+              </Link>
+              <Link to='/explore' className='rounded-full border border-[color:var(--border-strong)] px-6 py-2.5 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>
+                Explore topics
+              </Link>
+            </div>
+            <div className='mt-10 grid grid-cols-2 gap-4 text-left sm:grid-cols-4'>
+              {[
+                { value: heroStats.activeReaders, label: 'Active readers' },
+                { value: heroStats.publishedStories, label: 'Published stories' },
+                { value: heroStats.monthlyReads, label: 'Monthly reads' },
+                { value: heroStats.avgReadTime, label: 'Avg read time' },
+              ].map((item) => (
+                <div key={item.label} className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 py-3'>
+                  <p className='text-2xl font-bold text-[color:var(--text-primary)]'>{item.value}</p>
+                  <p className='mt-1 text-xs text-[color:var(--text-secondary)]'>{item.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div className='mx-auto w-full max-w-6xl space-y-12 px-1 md:px-2'>
+          <section className='space-y-5 border-y border-[color:var(--border)] py-12'>
+            <div className='text-center'>
               <div>
-                <h1 className='mt-2 text-3xl font-semibold tracking-tight text-[color:var(--text-primary)] md:text-4xl'>
-                  Top Stories{currentCard.title ? `: ${currentCard.title}` : ''}
-                </h1>
+                <p className='text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]'>Trending now</p>
+                <h2 className='mt-1 text-2xl font-semibold text-[color:var(--text-primary)] md:text-3xl'>Stories worth your time</h2>
               </div>
-              {cards.length > 1 && (
-                <div className='flex items-center gap-2'>
-                  <button
-                    type='button'
-                    onClick={goPrev}
-                    className='grid h-9 w-9 place-items-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-0)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
-                    aria-label='Previous slide'
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button
-                    type='button'
-                    onClick={goNext}
-                    className='grid h-9 w-9 place-items-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-0)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
-                    aria-label='Next slide'
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              )}
             </div>
 
-            <div className='grid gap-6'>
-              <article className='relative overflow-hidden rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface-0)] shadow-sm'>
-                {currentArticle ? (
-                  <Link to={`/article/${currentArticle.slug}`} className='block'>
-                    <div className='relative h-[360px] md:h-[520px] w-full overflow-hidden bg-[color:var(--surface-2)]'>
-                      {currentCoverUrl ? (
-                        <img src={currentCoverUrl} alt={currentArticle.title} className='h-full w-full object-cover' loading='lazy' />
+            {guestHomeFeed.isLoading ? (
+              <div className='flex justify-center py-12'><Spinner /></div>
+            ) : (
+              <div className='grid gap-5 md:grid-cols-3'>
+                {cards.slice(0, 3).map((card) => (
+                  <Link key={card.id} to={card.slug ? `/article/${card.slug}` : '/search'} className='group block overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)]'>
+                    <div className='h-44 overflow-hidden bg-[color:var(--surface-2)]'>
+                      {card.image_url ? (
+                        <img src={card.image_url} alt={card.title} className='h-full w-full object-cover transition-transform duration-500 group-hover:scale-105' loading='lazy' />
                       ) : (
-                        <div className='grid h-full w-full place-items-center bg-gradient-to-br from-[#1d2d3f] via-[#35506b] to-[#6b8ba7] text-white'>
-                          <span className='text-2xl font-semibold tracking-[0.3em]'>ZENOS</span>
-                        </div>
+                        <div className='grid h-full w-full place-items-center text-sm text-[color:var(--text-secondary)]'>No cover image</div>
                       )}
-                      <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent' />
+                    </div>
+                    <div className='space-y-2 p-4'>
+                      <h3 className='line-clamp-2 text-lg font-semibold text-[color:var(--text-primary)]'>{card.title}</h3>
+                      <p className='line-clamp-2 text-sm text-[color:var(--text-secondary)]'>{card.subtitle}</p>
                     </div>
                   </Link>
-                ) : (
-                  <Link to={heroLink} className='block relative h-[360px] md:h-[520px] overflow-hidden bg-gradient-to-br from-[#1d2d3f] via-[#35506b] to-[#6b8ba7]'>
-                    {currentCoverUrl && (
-                      <img src={currentCoverUrl} alt={currentCard.title} className='absolute inset-0 h-full w-full object-cover' loading='lazy' />
-                    )}
-                    <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent' />
-                    <div className='absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_38%)]' />
-                  </Link>
-                )}
-              </article>
-
-              <section className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
-                {expandedCards.map((card) => {
-                  const cardArticle = card.slug ? card : null
-                  const cardCoverUrl = card.image_url
-                  const body = (
-                    <div className='flex h-full flex-col justify-end rounded-[1.4rem] border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4 transition-transform hover:-translate-y-0.5'>
-                      <div className='mb-4 overflow-hidden rounded-[1rem] bg-[color:var(--surface-2)]'>
-                        {cardCoverUrl ? (
-                          <img src={cardCoverUrl} alt={cardArticle?.title || card.title} className='h-40 w-full object-cover' loading='lazy' />
-                        ) : (
-                          <div className='grid h-40 w-full place-items-center bg-gradient-to-br from-[#2b3f53] to-[#5d7896] text-sm font-semibold uppercase tracking-[0.2em] text-white/80'>
-                            Zenos
-                          </div>
-                        )}
-                      </div>
-                      <h3 className='mt-2 text-lg font-semibold leading-tight text-[color:var(--text-primary)]'>
-                        {cardArticle?.title || card.title}
-                      </h3>
-                      <p className='mt-2 text-sm leading-6 text-[color:var(--text-secondary)]'>
-                        {cardArticle?.subtitle || card.subtitle}
-                      </p>
-                    </div>
-                  )
-
-                  return cardArticle ? (
-                    <Link key={card.id} to={`/article/${cardArticle.slug}`} className='block'>
-                      {body}
-                    </Link>
-                  ) : (
-                    <button
-                      key={card.id}
-                      type='button'
-                      onClick={() => setGuestIndex(cards.findIndex((item) => item.id === card.id))}
-                      className='text-left'
-                    >
-                      {body}
-                    </button>
-                  )
-                })}
-              </section>
-
-              {cards.length > 1 && (
-                <div className='flex items-center justify-center gap-2'>
-                  {cards.map((card, index) => (
-                    <button
-                      key={card.id}
-                      type='button'
-                      onClick={() => setGuestIndex(index)}
-                      aria-label={`Go to slide ${index + 1}`}
-                      className={[
-                        'h-2.5 rounded-full transition-all',
-                        index === guestIndex ? 'w-8 bg-[color:var(--accent)]' : 'w-2.5 bg-[color:var(--border-strong)] hover:bg-[color:var(--text-muted)]',
-                      ].join(' ')}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <section
-              id='hear-your-story'
-              className='relative overflow-hidden rounded-[1.8rem] border border-[color:var(--border-strong)] p-6'
-              style={{ background: 'linear-gradient(130deg, var(--surface-3) 0%, var(--surface-2) 54%, var(--surface-1) 100%)' }}
-            >
-              <div className='absolute -right-20 -top-20 h-52 w-52 rounded-full bg-[color:var(--accent-dim)]/55 blur-2xl' />
-              <div className='absolute -bottom-24 left-16 h-56 w-56 rounded-full bg-[color:var(--surface-0)]/35 blur-3xl' />
-              <p className='relative text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--text-muted)]'>Let&apos;s Hear Your Story</p>
-              <h2 className='relative mt-2 text-3xl font-semibold text-[color:var(--text-primary)]'>Tell us what you are building and writing next.</h2>
-              <p className='relative mt-3 max-w-3xl text-sm leading-7 text-[color:var(--text-secondary)]'>
-                Share your publishing goals, team setup, and content vision. We are listening and shaping Zenos with creator feedback.
-              </p>
-              <div className='relative mt-5 flex flex-wrap gap-3'>
-                <Link
-                  to='/membership'
-                  className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(5,20,34,0.18)] hover:opacity-95'
-                >
-                  Explore Membership
-                </Link>
-                <Link
-                  to='/login'
-                  className='rounded-full border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-5 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
-                >
-                  Start Writing
-                </Link>
+                ))}
               </div>
-            </section>
-
-              {!guestHomeArticles.length && (
-              <p className='mt-2 text-xs text-[color:var(--text-muted)]'>Fresh stories will appear here as soon as they are published.</p>
             )}
 
-            <footer className='grid gap-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-5 md:grid-cols-2 xl:grid-cols-4'>
-              <div>
-                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Platform</p>
-                <div className='mt-3 flex flex-col gap-2 text-sm'>
-                  <Link to='/info/status' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Status</Link>
-                  <Link to='/info/about' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>About</Link>
-                  <Link to='/info/features' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Features</Link>
-                  <Link to='/membership' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Membership</Link>
-                </div>
+            {!cards.length && (
+              <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-6 text-center text-sm text-[color:var(--text-secondary)]'>
+                No live stories available yet.
               </div>
-              <div>
-                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Legal</p>
-                <div className='mt-3 flex flex-col gap-2 text-sm'>
-                  <Link to='/info/privacy' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Privacy</Link>
-                  <Link to='/info/rules' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Rules</Link>
-                  <Link to='/info/terms' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Terms</Link>
-                </div>
-              </div>
-              <div>
-                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Accessibility</p>
-                <div className='mt-3 flex flex-col gap-2 text-sm'>
-                  <Link to='/info/text-to-speech' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Text to speech</Link>
-                  <Link to='/info/help' className='text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'>Help</Link>
-                </div>
-              </div>
-              <div>
-                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--text-muted)]'>Join</p>
-                <p className='mt-3 text-sm leading-6 text-[color:var(--text-secondary)]'>Create an account to publish stories and collaborate with your team.</p>
-                <Link to='/login' className='mt-4 inline-flex rounded-full border border-[color:var(--border-strong)] px-4 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>Sign in</Link>
-              </div>
-            </footer>
+            )}
+
+            <div className='text-center'>
+              <Link to='/explore' className='inline-flex items-center rounded-full border border-[color:var(--border-strong)] px-5 py-2 text-sm font-medium text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>
+                View all stories <ChevronRight size={14} className='ml-1' />
+              </Link>
+            </div>
           </section>
-        )}
+
+          <section className='space-y-8'>
+            <div className='text-center'>
+              <p className='text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]'>Why Zenos</p>
+              <h2 className='mt-1 text-2xl font-semibold text-[color:var(--text-primary)] md:text-3xl'>More than just a blog</h2>
+            </div>
+
+            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
+            {[
+              {
+                icon: BookOpen,
+                title: 'Focused reading',
+                text: 'Customizable typography, layout width, and navigation that make long-form reading effortless.',
+              },
+              {
+                icon: Zap,
+                title: 'Smart reactions',
+                text: 'Go beyond likes with richer engagement signals that help writers understand what resonated.',
+              },
+              {
+                icon: BarChart3,
+                title: 'Writer analytics',
+                text: 'Track views, read ratios, engagement, and momentum with dashboard charts that reveal growth patterns.',
+              },
+              {
+                icon: Shield,
+                title: 'Editorial workflow',
+                text: 'Publish with review, moderation, and governance controls designed for quality and consistency.',
+              },
+              {
+                icon: Globe,
+                title: 'Series and chapters',
+                text: 'Organize connected stories into series with clear reader navigation between parts.',
+              },
+              {
+                icon: TrendingUp,
+                title: 'Reading insights',
+                text: 'Measure content performance from topic traction to conversion-ready engagement trends.',
+              },
+            ].map((feature) => (
+              <div key={feature.title} className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-4'>
+                <div className='mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--accent-dim)]'>
+                  <feature.icon size={16} className='text-[color:var(--accent)]' />
+                </div>
+                <h3 className='text-base font-semibold text-[color:var(--text-primary)]'>{feature.title}</h3>
+                <p className='mt-2 text-sm leading-6 text-[color:var(--text-secondary)]'>{feature.text}</p>
+              </div>
+            ))}
+            </div>
+          </section>
+
+          <section className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-7'>
+            <div className='grid items-start gap-8 lg:grid-cols-2'>
+              <div>
+                <p className='text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--accent)]'>For writers</p>
+                <h2 className='mt-2 text-3xl font-semibold text-[color:var(--text-primary)]'>Turn your expertise into income</h2>
+                <p className='mt-3 max-w-3xl text-sm leading-7 text-[color:var(--text-secondary)]'>
+                  Build your audience, publish premium stories, and use platform insights to grow what resonates.
+                </p>
+                <div className='mt-5 space-y-2 text-sm text-[color:var(--text-secondary)]'>
+                  <p>Earn from paid reads with transparent analytics.</p>
+                  <p>Priority review for professional creators.</p>
+                  <p>Audience growth insights and retention signals.</p>
+                </div>
+                <div className='mt-5 flex flex-wrap gap-3'>
+                  <Link to='/membership' className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white'>
+                    View membership plans
+                  </Link>
+                  <Link to='/login' className='inline-flex items-center rounded-full border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-5 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>
+                    Start writing <PenSquare size={14} className='ml-2' />
+                  </Link>
+                </div>
+              </div>
+              <div className='grid gap-3 sm:grid-cols-2'>
+                {topWriters.map((writer) => (
+                  <div key={writer.name} className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-4'>
+                    <div className='flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--accent-dim)] text-xs font-bold text-[color:var(--accent)]'>
+                      {writer.name.charAt(0).toUpperCase()}
+                    </div>
+                    <p className='mt-3 text-sm font-semibold text-[color:var(--text-primary)]'>{writer.name}</p>
+                    <p className='mt-1 text-xs text-[color:var(--text-secondary)]'>{writer.stories} stories · {writer.totalViews.toLocaleString()} views</p>
+                  </div>
+                ))}
+                {!topWriters.length && (
+                  <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-4 text-sm text-[color:var(--text-secondary)]'>
+                    No live author data available yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className='space-y-6'>
+            <div className='text-center'>
+              <p className='text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]'>Loved by writers</p>
+              <h2 className='mt-1 text-2xl font-semibold text-[color:var(--text-primary)] md:text-3xl'>What our community says</h2>
+            </div>
+            <div className='grid gap-4 md:grid-cols-3'>
+              {guestTestimonials.map((item) => (
+                <div key={`${item.author}-${item.role}`} className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-4'>
+                  <div className='flex items-center gap-1'>
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star key={`${item.author}-${index}`} size={13} className='fill-[color:var(--accent)] text-[color:var(--accent)]' />
+                    ))}
+                  </div>
+                  <p className='mt-3 text-sm italic leading-6 text-[color:var(--text-primary)]'>"{item.quote}"</p>
+                  <p className='mt-3 text-sm font-semibold text-[color:var(--text-primary)]'>{item.author}</p>
+                  <p className='text-xs text-[color:var(--text-secondary)]'>{item.role}</p>
+                </div>
+              ))}
+              {!guestTestimonials.length && (
+                <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-4 text-sm text-[color:var(--text-secondary)]'>
+                  No live review snippets available yet.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className='rounded-2xl border border-[color:var(--border)] p-8 text-center' style={{ background: 'linear-gradient(120deg, var(--surface-3) 0%, var(--surface-2) 54%, var(--surface-1) 100%)' }}>
+            <h2 className='text-3xl font-semibold text-[color:var(--text-primary)]'>Ready to dive deeper?</h2>
+            <p className='mx-auto mt-3 max-w-2xl text-sm leading-7 text-[color:var(--text-secondary)]'>
+              Join membership to unlock premium stories, support quality writing, and access advanced writer tools.
+            </p>
+            <div className='mt-6 flex flex-wrap items-center justify-center gap-3'>
+              <Link to='/membership' className='rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] px-6 py-2.5 text-sm font-semibold text-white'>
+                View membership plans
+              </Link>
+              <Link to='/login' className='inline-flex items-center rounded-full border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-6 py-2.5 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'>
+                Join now <Users size={14} className='ml-2' />
+              </Link>
+            </div>
+          </section>
+        </div>
       </div>
     )
   }

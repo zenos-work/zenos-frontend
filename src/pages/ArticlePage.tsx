@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useArticle, useAuthorArticles } from '../hooks/useArticles'
+import { useArticleSeries } from '../hooks/useSeries'
 import { useAuth } from '../hooks/useAuth'
 import ArticleDetail from '../components/article/ArticleDetail'
 import ArticleMeta   from '../components/article/ArticleMeta'
+import SeriesBanner from '../components/article/SeriesBanner'
+import RelatedArticles from '../components/article/RelatedArticles'
 import CommentList   from '../components/comments/CommentList'
 import BookmarkButton from '../components/social/BookmarkButton'
 import FollowButton  from '../components/social/FollowButton'
@@ -12,7 +16,7 @@ import { useUiStore } from '../stores/uiStore'
 import TagChip       from '../components/ui/TagChip'
 import Avatar        from '../components/ui/Avatar'
 import Spinner       from '../components/ui/Spinner'
-import { Copy, Linkedin, MessageCircle, PenSquare, Share2, Settings } from 'lucide-react'
+import { Copy, Facebook, Linkedin, MessageCircle, PenSquare, Settings, Share2, Twitter, Download, FileText, FileCode2 } from 'lucide-react'
 import { resolveAssetUrl } from '../lib/assets'
 import { ReadingPreferencesPanel } from '../components/reading/ReadingPreferencesPanel'
 import { EnhancedTableOfContents } from '../components/reading/EnhancedTableOfContents'
@@ -20,6 +24,11 @@ import { ConsolidatedReactions } from '../components/reading/ConsolidatedReactio
 import { ReadingProgressBar } from '../components/reading/ReadingProgressBar'
 import { useReadingPreferences } from '../hooks/useReadingPreferences'
 import { useArticleReactions } from '../hooks/useReactions'
+import api from '../lib/api'
+import { useUpsertReadingHistoryItem } from '../hooks/useReadingHistory'
+import { toReadingHistoryItem, upsertReadingHistoryItem } from '../lib/readingHistory'
+import type { User } from '../types'
+import { exportArticle, type ExportFormat } from '../lib/articleExport'
 
 type TocHeading = {
   id: string
@@ -43,12 +52,21 @@ function formatElapsed(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+type AuthorProfile = User & {
+  followers_count?: number
+}
+
+function formatFollowerLabel(count: number): string {
+  return `${count.toLocaleString('en-US')} Followers`
+}
+
 export default function ArticlePage() {
   const { slug }  = useParams()
   const { user }  = useAuth()
   const navigate = useNavigate()
   const toast = useUiStore((s) => s.toast)
   const { data: article, isLoading, error } = useArticle(slug ?? '')
+  const { data: series } = useArticleSeries(article?.id ?? '')
   const { data: authorArticles } = useAuthorArticles(article?.author_id ?? '', {
     status: 'PUBLISHED',
     limit: 8,
@@ -56,12 +74,24 @@ export default function ArticlePage() {
   })
   const { preferences } = useReadingPreferences()
   const { data: reactions, isLoading: reactionsLoading } = useArticleReactions(article?.id ?? '')
+  const { mutate: upsertHistory } = useUpsertReadingHistoryItem()
+  const { data: authorProfile } = useQuery({
+    queryKey: ['article-author-profile', article?.author_id],
+    enabled: Boolean(article?.author_id),
+    queryFn: () =>
+      api.get<{ user: AuthorProfile }>(`/api/users/${article?.author_id}`)
+        .then((response) => response.data.user),
+  })
   const contentShellRef = useRef<HTMLDivElement | null>(null)
   const shareMutation = useShare(article?.id ?? '')
   const [showReadingPrefs, setShowReadingPrefs] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null)
   const [readingProgress, setReadingProgress] = useState(0)
   const [readingSeconds, setReadingSeconds] = useState(0)
+  const [renderedToc, setRenderedToc] = useState<TocHeading[]>([])
+  const readingProgressRef = useRef(0)
 
   const toc = useMemo<TocHeading[]>(() => {
     if (!article?.content) return []
@@ -168,15 +198,53 @@ export default function ArticlePage() {
   }, [article])
 
   useEffect(() => {
-    if (!contentShellRef.current || !toc.length) return
+    if (!contentShellRef.current) return
+
     const root = contentShellRef.current
     const headingNodes = Array.from(root.querySelectorAll('h1, h2, h3')) as HTMLElement[]
-    headingNodes.forEach((node, index) => {
-      const entry = toc[index]
-      if (!entry) return
-      node.id = entry.id
+    if (!headingNodes.length) {
+      const fallbackId = 'article-content-overview'
+      root.id = fallbackId
+      setRenderedToc([
+        {
+          id: fallbackId,
+          text: 'Overview',
+          level: 1,
+        },
+      ])
+      return
+    }
+
+    if (toc.length) {
+      headingNodes.forEach((node, index) => {
+        const entry = toc[index]
+        if (!entry) return
+        node.id = entry.id
+      })
+      setRenderedToc(toc)
+      return
+    }
+
+    // Fallback: build TOC from rendered headings when article content is not JSON.
+    const usedIds = new Set<string>()
+    const fallbackToc: TocHeading[] = headingNodes.map((node, index) => {
+      const text = node.textContent?.trim() || `Section ${index + 1}`
+      const level = Number(node.tagName.replace('H', '')) || 2
+      let baseId = slugifyHeading(text)
+      if (!baseId) baseId = `section-${index + 1}`
+      let nextId = baseId
+      let i = 2
+      while (usedIds.has(nextId)) {
+        nextId = `${baseId}-${i}`
+        i += 1
+      }
+      usedIds.add(nextId)
+      node.id = nextId
+      return { id: nextId, text, level }
     })
-  }, [toc])
+
+    setRenderedToc(fallbackToc)
+  }, [toc, article?.id, article?.content])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -195,11 +263,49 @@ export default function ArticlePage() {
   }, [])
 
   useEffect(() => {
+    readingProgressRef.current = readingProgress
+  }, [readingProgress])
+
+  useEffect(() => {
+    if (!article) return
+
+    const saveHistory = () => {
+      const progress = Math.max(12, Math.round(readingProgressRef.current))
+      const item = toReadingHistoryItem(article, progress)
+
+      if (user) {
+        upsertHistory({
+          article_id: item.id,
+          slug: item.slug,
+          title: item.title,
+          subtitle: item.subtitle,
+          author_name: item.author_name,
+          cover_image_url: item.cover_image_url,
+          read_time_minutes: item.read_time_minutes,
+          progress: item.progress,
+          last_read_at: item.last_read_at,
+        })
+        return
+      }
+
+      upsertReadingHistoryItem(item)
+    }
+
+    saveHistory()
+    window.addEventListener('pagehide', saveHistory)
+
+    return () => {
+      saveHistory()
+      window.removeEventListener('pagehide', saveHistory)
+    }
+  }, [article, upsertHistory, user])
+
+  useEffect(() => {
     const timer = window.setInterval(() => setReadingSeconds((value) => value + 1), 1000)
     return () => window.clearInterval(timer)
   }, [])
 
-  const tocVisible = toc.length >= 2
+  const tocVisible = renderedToc.length >= 1
   const articleWidth = {
     narrow: '580px',
     medium: '720px',
@@ -233,24 +339,36 @@ export default function ArticlePage() {
       return bTime - aTime
     })[0]
   const nextFromAuthorImage = resolveAssetUrl(nextFromAuthor?.cover_image_url)
+  const authorBio = authorProfile?.bio?.trim() || article.subtitle || 'Writer on Zenos'
+  const followerLabel = formatFollowerLabel(authorProfile?.followers_count ?? 0)
 
   const handleLinkedInShare = async () => {
+    await handleSocialShare('linkedin')
+  }
+
+  const handleSocialShare = async (provider: 'linkedin' | 'x' | 'facebook') => {
     if (!user) {
       navigate('/login')
       return
     }
 
     const targetUrl = article.canonical_url || window.location.href
-    const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(targetUrl)}`
-    const shareTab = window.open(linkedinUrl, 'linkedin-share', 'noopener,noreferrer,width=720,height=760')
+    const providerLabel = provider === 'x' ? 'X' : provider === 'facebook' ? 'Facebook' : 'LinkedIn'
+    const shareUrl = provider === 'x'
+      ? `https://twitter.com/intent/tweet?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(article.title)}`
+      : provider === 'facebook'
+        ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(targetUrl)}`
+        : `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(targetUrl)}`
+
+    const shareTab = window.open(shareUrl, `${provider}-share`, 'noopener,noreferrer,width=720,height=760')
     if (!shareTab) {
-      toast('Popup blocked. Please allow popups for LinkedIn sharing.', 'error')
+      toast(`Popup blocked. Please allow popups for ${providerLabel} sharing.`, 'error')
       return
     }
 
     try {
-      await shareMutation.mutateAsync('linkedin')
-      toast('Shared to LinkedIn', 'success')
+      await shareMutation.mutateAsync(provider)
+      toast(`Shared to ${providerLabel}`, 'success')
     } catch {
       toast('Could not record share', 'error')
     }
@@ -259,6 +377,8 @@ export default function ArticlePage() {
   }
 
   const handleCopyLink = async () => {
+    if (!user) return
+
     const targetUrl = article.canonical_url || window.location.href
     try {
       await navigator.clipboard.writeText(targetUrl)
@@ -283,21 +403,29 @@ export default function ArticlePage() {
     setShowShareMenu(false)
   }
 
+  const handleExport = async (format: ExportFormat) => {
+    if (!user) return
+
+    setExportingFormat(format)
+    try {
+      await exportArticle(format, article)
+      toast(`Exported as ${format.toUpperCase()}`, 'success')
+    } catch {
+      toast('Could not export article', 'error')
+    } finally {
+      setExportingFormat(null)
+      setShowExportMenu(false)
+    }
+  }
+
   return (
     <>
       <ReadingProgressBar />
       <ReadingPreferencesPanel isOpen={showReadingPrefs} onClose={() => setShowReadingPrefs(false)} />
 
       <div className='min-h-screen'>
-        <div className='fixed left-8 top-1/3 z-30 hidden w-52 xl:block'>
-          <EnhancedTableOfContents
-            toc={toc}
-            content={article.content}
-            isVisible={tocVisible}
-          />
-        </div>
-
-        <article className='mx-auto px-6 py-10' style={{ maxWidth: articleWidth }}>
+        <div className={`mx-auto grid max-w-[1240px] gap-8 ${tocVisible ? 'xl:grid-cols-[minmax(0,1fr)_260px]' : ''}`}>
+        <article className={`mx-auto w-full px-4 py-8 sm:px-6 sm:py-10 ${tocVisible ? 'xl:mx-0 xl:px-0' : ''}`} style={{ maxWidth: articleWidth }}>
           <div className='space-y-8'>
             {article.tags?.length > 0 && (
               <div className='mt-2 flex flex-wrap items-center gap-2'>
@@ -329,9 +457,9 @@ export default function ArticlePage() {
               </div>
             </div>
 
-            <div className='flex items-center justify-between border-y divider py-3'>
+            <div className='flex flex-wrap items-center justify-between gap-3 border-y divider py-3'>
               <ConsolidatedReactions articleId={article.id} reactions={reactions?.reactions} isLoading={reactionsLoading} />
-              <div className='flex items-center gap-2'>
+              <div className='flex flex-wrap items-center gap-2'>
                 {isOwner && article.status !== 'PUBLISHED' && (
                   <Link to={`/write/${article.id}`} className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:var(--text-primary)] hover:text-[color:var(--text-primary)]'>
                     <PenSquare size={13} /> Edit
@@ -347,7 +475,10 @@ export default function ArticlePage() {
                 </button>
                 <div className='relative'>
                   <button
-                    onClick={() => setShowShareMenu((v) => !v)}
+                    onClick={() => {
+                      setShowShareMenu((v) => !v)
+                      setShowExportMenu(false)
+                    }}
                     className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[#0a66c2] hover:text-[#0a66c2]'
                     aria-haspopup='menu'
                     aria-expanded={showShareMenu}
@@ -368,7 +499,9 @@ export default function ArticlePage() {
                         <button
                           type='button'
                           onClick={handleCopyLink}
-                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)]'
+                          disabled={!user}
+                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'
+                          title={user ? 'Copy link' : 'Login required'}
                         >
                           <Copy size={14} />
                           Copy link
@@ -380,6 +513,79 @@ export default function ArticlePage() {
                         >
                           <Linkedin size={14} />
                           Share to LinkedIn
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => void handleSocialShare('x')}
+                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)]'
+                        >
+                          <Twitter size={14} />
+                          Share to X
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => void handleSocialShare('facebook')}
+                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[#1877f2]'
+                        >
+                          <Facebook size={14} />
+                          Share to Facebook
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className='relative'>
+                  <button
+                    onClick={() => {
+                      setShowExportMenu((v) => !v)
+                      setShowShareMenu(false)
+                    }}
+                    className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:var(--text-primary)] hover:text-[color:var(--text-primary)]'
+                    aria-haspopup='menu'
+                    aria-expanded={showExportMenu}
+                  >
+                    <Download size={14} />
+                    <span className='hidden sm:inline'>Export</span>
+                  </button>
+
+                  {showExportMenu && (
+                    <>
+                      <button
+                        type='button'
+                        className='fixed inset-0 z-30 cursor-default'
+                        onClick={() => setShowExportMenu(false)}
+                        aria-label='Close export menu'
+                      />
+                      <div className='absolute right-0 top-[calc(100%+8px)] z-40 w-52 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-5)] p-1 shadow-[var(--shadow)]'>
+                        <button
+                          type='button'
+                          onClick={() => void handleExport('pdf')}
+                          disabled={!user || exportingFormat !== null}
+                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'
+                          title={user ? 'Export PDF' : 'Login required'}
+                        >
+                          <FileText size={14} />
+                          Export as PDF
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => void handleExport('word')}
+                          disabled={!user || exportingFormat !== null}
+                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'
+                          title={user ? 'Export Word' : 'Login required'}
+                        >
+                          <FileText size={14} />
+                          Export as Word
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => void handleExport('markdown')}
+                          disabled={!user || exportingFormat !== null}
+                          className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50'
+                          title={user ? 'Export Markdown' : 'Login required'}
+                        >
+                          <FileCode2 size={14} />
+                          Export as Markdown
                         </button>
                       </div>
                     </>
@@ -393,7 +599,20 @@ export default function ArticlePage() {
               <img src={coverUrl} alt='' className='w-full rounded object-cover' style={{ maxHeight: 460 }} />
             )}
 
-            <div className='article-body mt-10' style={{ background: readingBackground, color: readingTextColor, padding: '2rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+            {series && (
+              <div className='mt-6'>
+                <SeriesBanner
+                  seriesId={series.id}
+                  seriesName={series.name}
+                  part={series.part}
+                  total={series.total}
+                  description={series.description}
+                  coverImageUrl={series.cover_image_url}
+                />
+              </div>
+            )}
+
+            <div className='article-body mt-10 rounded-xl border border-[color:var(--border)] p-4 sm:p-8' style={{ background: readingBackground, color: readingTextColor }}>
               <div
                 ref={contentShellRef}
                 style={{
@@ -453,6 +672,33 @@ export default function ArticlePage() {
               <CommentList articleId={article.id} />
             </section>
 
+            {/* Phase 2: Related articles */}
+            <section className='border-t divider pt-8'>
+              <RelatedArticles articleId={article.id} limit={4} />
+            </section>
+
+            <section className='mt-10'>
+              <div className='flex items-start gap-4 rounded-lg surface-warm p-6'>
+                <Avatar name={article.author_name ?? '?'} src={article.author_avatar} size='lg' />
+                <div className='flex-1'>
+                  <div className='flex items-center justify-between gap-3'>
+                    <div>
+                      <p className='text-sm text-[color:var(--text-muted)]'>Written by</p>
+                      <Link
+                        to={`/profile/${article.author_id}`}
+                        className='font-display text-lg font-bold text-[color:var(--text-primary)] hover:underline'
+                      >
+                        {article.author_name || 'Unknown author'}
+                      </Link>
+                    </div>
+                    {!isOwner && <FollowButton authorId={article.author_id} />}
+                  </div>
+                  <p className='mt-1 text-sm text-[color:var(--text-muted)]'>{followerLabel}</p>
+                  <p className='mt-2 font-body text-sm leading-relaxed text-[color:var(--text-muted)]'>{authorBio}</p>
+                </div>
+              </div>
+            </section>
+
             {nextFromAuthor && (
               <section className='border-t divider pt-8'>
                 <h2 className='mb-5 text-xl font-bold text-[color:var(--text-primary)]'>
@@ -482,6 +728,19 @@ export default function ArticlePage() {
             )}
           </div>
         </article>
+
+        {tocVisible && (
+          <aside className='hidden xl:block xl:pt-[22rem]'>
+            <div className='sticky top-28'>
+              <EnhancedTableOfContents
+                toc={renderedToc}
+                content={article.content}
+                isVisible={tocVisible}
+              />
+            </div>
+          </aside>
+        )}
+        </div>
       </div>
     </>
   )

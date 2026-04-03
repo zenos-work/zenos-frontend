@@ -11,6 +11,9 @@ import {
   useAdminSuccessSignalHistory,
   useAdminSuccessSignals,
   useApprovalQueue,
+  useBulkQueueAction,
+  useModerationComments,
+  useModerateComment,
   useAdminUsers,
   useBanUser,
   useUnbanUser,
@@ -21,6 +24,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import Modal from '../components/ui/Modal'
+import MetricTile from '../components/ui/MetricTile'
 import {
   Shield,
   Users,
@@ -39,6 +43,17 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import type { ArticleDetail, RankingWeights, User, UserRole } from '../types'
 
 type Tab = 'stats' | 'queue' | 'users'
@@ -57,8 +72,11 @@ export default function AdminPage() {
   const [queuePage, setQueuePage] = useState(1)
   const [usersPage, setUsersPage] = useState(1)
   const [signalsPage, setSignalsPage] = useState(1)
+  const [commentsPage, setCommentsPage] = useState(1)
   const [rejectArticle, setRejectArticle] = useState<ArticleDetail | null>(null)
   const [rejectNote, setRejectNote] = useState('')
+  const [bulkRejectNote, setBulkRejectNote] = useState('')
+  const [selectedArticleIds, setSelectedArticleIds] = useState<string[]>([])
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [selectedRole, setSelectedRole] = useState<UserRole>('READER')
   const [actionState, setActionState] = useState<{
@@ -100,10 +118,17 @@ export default function AdminPage() {
     data: rankingWeights,
     isLoading: rankingWeightsLoading,
   } = useAdminRankingWeights(isSuperadmin)
+  const {
+    data: moderationComments,
+    isLoading: moderationCommentsLoading,
+    isError: moderationCommentsError,
+  } = useModerationComments(commentsPage, 20, true)
 
   const banMutation = useBanUser()
   const unbanMutation = useUnbanUser()
   const updateWeightsMutation = useUpdateAdminRankingWeights()
+  const bulkQueueMutation = useBulkQueueAction()
+  const moderateCommentMutation = useModerateComment()
 
   useEffect(() => {
     if (rankingWeights) setWeightForm(rankingWeights)
@@ -143,8 +168,10 @@ export default function AdminPage() {
     },
   })
 
-  const queueItems = queue?.queue ?? []
+  const queueItems = useMemo(() => queue?.queue ?? [], [queue?.queue])
   const queueMeta = queue?.pagination
+  const moderationCommentItems = moderationComments?.data ?? []
+  const moderationCommentsMeta = moderationComments?.pagination
   const userItems = users?.users ?? []
   const usersMeta = users?.pagination
   const signalItems = successSignals?.snapshots ?? []
@@ -177,6 +204,50 @@ export default function AdminPage() {
     ],
     [stats],
   )
+
+  const governanceInsights = useMemo(() => {
+    const approved = stats?.governance?.recent_activity?.approved_7d ?? 0
+    const rejected = stats?.governance?.recent_activity?.rejected_7d ?? 0
+    const published = stats?.governance?.recent_activity?.published_7d ?? 0
+    const pending = stats?.governance?.moderation?.pending_approvals ?? 0
+    const flagged = stats?.governance?.moderation?.flagged_comments ?? 0
+    const hidden = stats?.governance?.moderation?.hidden_comments ?? 0
+
+    const reviewTotal = approved + rejected
+    const approvalRate = reviewTotal > 0 ? (approved / reviewTotal) * 100 : 0
+    const rejectionRate = reviewTotal > 0 ? (rejected / reviewTotal) * 100 : 0
+    const publishEfficiency = approved > 0 ? (published / approved) * 100 : 0
+    const moderationPressure = stats?.total_comments
+      ? ((flagged + hidden) / Math.max(1, stats.total_comments)) * 100
+      : 0
+    const queuePressure = pending > 0 && reviewTotal > 0 ? pending / reviewTotal : pending > 0 ? pending : 0
+
+    return {
+      approvalRate,
+      rejectionRate,
+      publishEfficiency,
+      moderationPressure,
+      queuePressure,
+      reviewTotal,
+      pending,
+      flagged,
+    }
+  }, [stats])
+
+  const riskArticles = useMemo(() => {
+    return [...(stats?.top_articles ?? [])]
+      .map((article) => ({
+        id: article.id,
+        title: article.title,
+        dislikes: article.dislikes_count ?? 0,
+        comments: article.comments_count,
+        views: article.views_count,
+        riskScore: ((article.dislikes_count ?? 0) * 5) + (article.comments_count * 2),
+      }))
+      .filter((article) => article.riskScore > 0)
+      .sort((left, right) => right.riskScore - left.riskScore)
+      .slice(0, 6)
+  }, [stats?.top_articles])
 
   const shownTabs = useMemo(
     () =>
@@ -282,6 +353,66 @@ export default function AdminPage() {
     }
   }
 
+  useEffect(() => {
+    setSelectedArticleIds((prev) => prev.filter((id) => queueItems.some((item) => item.id === id)))
+  }, [queueItems])
+
+  const toggleArticleSelection = (articleId: string) => {
+    setSelectedArticleIds((prev) =>
+      prev.includes(articleId) ? prev.filter((id) => id !== articleId) : [...prev, articleId],
+    )
+  }
+
+  const selectAllVisible = () => {
+    const visibleIds = queueItems.map((item) => item.id)
+    setSelectedArticleIds(visibleIds)
+  }
+
+  const clearQueueSelection = () => {
+    setSelectedArticleIds([])
+  }
+
+  const runBulkQueueAction = async (action: ModerationAction) => {
+    if (!selectedArticleIds.length) {
+      toast('Select at least one article', 'error')
+      return
+    }
+    if (action === 'reject' && !bulkRejectNote.trim()) {
+      toast('Reject note is required for bulk reject', 'error')
+      return
+    }
+    try {
+      const response = await bulkQueueMutation.mutateAsync({
+        action,
+        article_ids: selectedArticleIds,
+        note: action === 'reject' ? bulkRejectNote.trim() : undefined,
+      })
+      const failed = response.failed ?? 0
+      if (failed > 0) {
+        toast(`${response.succeeded} succeeded, ${failed} failed`, 'error')
+      } else {
+        toast(`Bulk ${action} completed for ${response.succeeded} articles`, 'success')
+      }
+      setSelectedArticleIds([])
+      if (action === 'reject') setBulkRejectNote('')
+    } catch {
+      toast(`Bulk ${action} failed`, 'error')
+    }
+  }
+
+  const moderateComment = async (commentId: string, isHidden: boolean) => {
+    try {
+      await moderateCommentMutation.mutateAsync({
+        commentId,
+        is_hidden: isHidden,
+        reason: isHidden ? 'Hidden by moderation review' : 'Restored by moderation review',
+      })
+      toast(isHidden ? 'Comment hidden' : 'Comment restored', 'success')
+    } catch {
+      toast('Failed to moderate comment', 'error')
+    }
+  }
+
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between gap-3'>
@@ -330,16 +461,49 @@ export default function AdminPage() {
         ) : stats ? (
           <div className='space-y-6'>
             <div className='grid grid-cols-2 sm:grid-cols-5 gap-4'>
-              <StatsCard label='Active users' value={stats.total_users} />
-              <StatsCard label='Comments' value={stats.total_comments} />
-              <StatsCard label='Shares' value={stats.total_shares} />
-              <StatsCard label='Pending approvals' value={stats.governance?.moderation?.pending_approvals ?? 0} />
-              <StatsCard label='Notifications (7d)' value={stats.governance?.recent_activity?.notifications_7d ?? 0} />
+              <MetricTile label='Active users' value={stats.total_users.toLocaleString()} />
+              <MetricTile label='Comments' value={stats.total_comments.toLocaleString()} />
+              <MetricTile label='Shares' value={stats.total_shares.toLocaleString()} />
+              <MetricTile label='Pending approvals' value={(stats.governance?.moderation?.pending_approvals ?? 0).toLocaleString()} />
+              <MetricTile label='Notifications (7d)' value={(stats.governance?.recent_activity?.notifications_7d ?? 0).toLocaleString()} />
+            </div>
+
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5'>
+              <MetricTile
+                label='Approval rate'
+                value={`${governanceInsights.approvalRate.toFixed(1)}%`}
+                tone='positive'
+                detail={`${governanceInsights.reviewTotal} reviews in 7d`}
+              />
+              <MetricTile
+                label='Rejection rate'
+                value={`${governanceInsights.rejectionRate.toFixed(1)}%`}
+                tone='warning'
+                detail='Signals editorial quality trend'
+              />
+              <MetricTile
+                label='Publish efficiency'
+                value={`${governanceInsights.publishEfficiency.toFixed(1)}%`}
+                tone='accent'
+                detail='Approved stories reaching publish'
+              />
+              <MetricTile
+                label='Moderation pressure'
+                value={`${governanceInsights.moderationPressure.toFixed(1)}%`}
+                tone='warning'
+                detail={`${governanceInsights.flagged} flagged threads`}
+              />
+              <MetricTile
+                label='Queue pressure'
+                value={governanceInsights.queuePressure.toFixed(2)}
+                tone='accent'
+                detail={`${governanceInsights.pending} pending approvals`}
+              />
             </div>
 
             <div className='grid grid-cols-2 sm:grid-cols-3 gap-4'>
               {stats.articles_by_status.map((row) => (
-                <StatsCard key={row.status} label={row.status} value={row.c} />
+                <MetricTile key={row.status} label={row.status} value={row.c.toLocaleString()} />
               ))}
             </div>
 
@@ -389,6 +553,27 @@ export default function AdminPage() {
                       <span className='inline-flex items-center gap-1 text-[color:var(--text-muted)]'>
                         <Eye size={12} /> {a.views_count}
                       </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='mb-3 flex items-center justify-between gap-2'>
+                <h2 className='text-sm font-semibold text-[color:var(--text-primary)]'>Risk watchlist</h2>
+                <Badge variant='warning'>Dislikes + comments weighted</Badge>
+              </div>
+              {riskArticles.length === 0 ? (
+                <p className='text-sm text-[color:var(--text-secondary)]'>No elevated risk stories detected from current metrics.</p>
+              ) : (
+                <div className='space-y-2'>
+                  {riskArticles.map((article) => (
+                    <div key={article.id} className='grid grid-cols-[minmax(0,1fr)_70px_70px_70px] items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm'>
+                      <p className='truncate font-medium text-[color:var(--text-primary)]'>{article.title}</p>
+                      <span className='text-xs text-[color:var(--text-secondary)]'>Views {article.views}</span>
+                      <span className='text-xs text-[color:var(--text-secondary)]'>Comments {article.comments}</span>
+                      <span className='text-xs font-semibold text-[color:#b42318]'>Risk {article.riskScore}</span>
                     </div>
                   ))}
                 </div>
@@ -531,11 +716,61 @@ export default function AdminPage() {
           </div>
         ) : (
           <>
+            <div className='space-y-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='flex flex-wrap items-center justify-between gap-2'>
+                <h2 className='text-sm font-semibold text-[color:var(--text-primary)]'>Bulk queue actions</h2>
+                <p className='text-xs text-[color:var(--text-secondary)]'>
+                  Selected {selectedArticleIds.length} of {queueItems.length} visible articles
+                </p>
+              </div>
+              <div className='flex flex-wrap gap-2'>
+                <Button size='sm' variant='secondary' onClick={selectAllVisible}>Select all visible</Button>
+                <Button size='sm' variant='ghost' onClick={clearQueueSelection}>Clear</Button>
+                <Button
+                  size='sm'
+                  variant='primary'
+                  loading={bulkQueueMutation.isPending}
+                  disabled={!selectedArticleIds.length}
+                  onClick={() => runBulkQueueAction('approve')}
+                >
+                  Bulk approve
+                </Button>
+                <Button
+                  size='sm'
+                  variant='primary'
+                  loading={bulkQueueMutation.isPending}
+                  disabled={!selectedArticleIds.length}
+                  onClick={() => runBulkQueueAction('publish')}
+                >
+                  Bulk publish
+                </Button>
+              </div>
+              <div className='flex flex-col gap-2 sm:flex-row'>
+                <input
+                  value={bulkRejectNote}
+                  onChange={(e) => setBulkRejectNote(e.target.value)}
+                  placeholder='Bulk reject note (required for reject)'
+                  className='w-full rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)]'
+                />
+                <Button
+                  size='sm'
+                  variant='danger'
+                  loading={bulkQueueMutation.isPending}
+                  disabled={!selectedArticleIds.length || !bulkRejectNote.trim()}
+                  onClick={() => runBulkQueueAction('reject')}
+                >
+                  Bulk reject
+                </Button>
+              </div>
+            </div>
+
             <div className='space-y-3'>
               {queueItems.map((article) => (
                 <QueueItem
                   key={article.id}
                   article={article}
+                  selected={selectedArticleIds.includes(article.id)}
+                  onToggleSelected={() => toggleArticleSelection(article.id)}
                   loadingAction={actionState?.id === article.id ? actionState.action : null}
                   onApprove={() => runQueueAction('approve', article)}
                   onPublish={() => runQueueAction('publish', article)}
@@ -555,6 +790,71 @@ export default function AdminPage() {
               onPrev={() => setQueuePage((p) => Math.max(1, p - 1))}
               onNext={() => setQueuePage((p) => p + 1)}
             />
+
+            <div className='space-y-3 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='flex items-center justify-between gap-3'>
+                <h2 className='text-sm font-semibold text-[color:var(--text-primary)]'>Comment moderation</h2>
+                <Badge variant='default'>Approver tools</Badge>
+              </div>
+              {moderationCommentsLoading ? (
+                <Spinner />
+              ) : moderationCommentsError ? (
+                <ErrorPanel message='Failed to load moderation comments.' />
+              ) : moderationCommentItems.length === 0 ? (
+                <p className='text-sm text-[color:var(--text-secondary)]'>No comments queued for moderation.</p>
+              ) : (
+                <>
+                  <div className='space-y-2'>
+                    {moderationCommentItems.map((comment) => {
+                      const hidden = Number(comment.is_hidden ?? 0) === 1
+                      const flagged = Number(comment.flag_count ?? 0) > 0
+                      return (
+                        <div key={comment.id} className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] p-3'>
+                          <div className='flex flex-wrap items-center gap-2 text-xs'>
+                            <Badge variant={hidden ? 'danger' : 'default'}>{hidden ? 'Hidden' : 'Visible'}</Badge>
+                            {flagged && <Badge variant='warning'>Flagged x{comment.flag_count}</Badge>}
+                            <span className='text-[color:var(--text-secondary)]'>Author: {comment.author_name ?? comment.author_id}</span>
+                          </div>
+                          <p className='mt-2 text-sm text-[color:var(--text-primary)]'>{comment.content}</p>
+                          {comment.moderation_reason && (
+                            <p className='mt-1 text-xs text-[color:var(--text-secondary)]'>Reason: {comment.moderation_reason}</p>
+                          )}
+                          <div className='mt-3 flex gap-2'>
+                            {hidden ? (
+                              <Button
+                                size='sm'
+                                variant='secondary'
+                                loading={moderateCommentMutation.isPending}
+                                onClick={() => moderateComment(comment.id, false)}
+                              >
+                                Unhide
+                              </Button>
+                            ) : (
+                              <Button
+                                size='sm'
+                                variant='danger'
+                                loading={moderateCommentMutation.isPending}
+                                onClick={() => moderateComment(comment.id, true)}
+                              >
+                                Hide
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <PaginationBar
+                    page={moderationCommentsMeta?.page ?? commentsPage}
+                    pages={moderationCommentsMeta?.pages ?? 1}
+                    total={moderationCommentsMeta?.total ?? moderationCommentItems.length}
+                    hasMore={moderationCommentsMeta?.has_more ?? false}
+                    onPrev={() => setCommentsPage((p) => Math.max(1, p - 1))}
+                    onNext={() => setCommentsPage((p) => p + 1)}
+                  />
+                </>
+              )}
+            </div>
           </>
         )
       )}
@@ -745,12 +1045,16 @@ function RankingRow({
 
 function QueueItem({
   article,
+  selected,
+  onToggleSelected,
   loadingAction,
   onApprove,
   onPublish,
   onReject,
 }: {
   article: ArticleDetail
+  selected: boolean
+  onToggleSelected: () => void
   loadingAction: ModerationAction | null
   onApprove: () => Promise<void>
   onPublish: () => Promise<void>
@@ -763,9 +1067,23 @@ function QueueItem({
   return (
     <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
       <div className='flex items-start justify-between gap-4'>
-        <div className='min-w-0'>
+        <div className='min-w-0 flex items-start gap-2'>
+          <input
+            type='checkbox'
+            checked={selected}
+            onChange={onToggleSelected}
+            className='mt-1 h-4 w-4 rounded border-[color:var(--border-strong)] bg-[color:var(--surface-0)]'
+          />
+          <div>
           <p className='truncate font-medium text-[color:var(--text-primary)]'>{article.title}</p>
           <p className='mt-0.5 text-sm text-[color:var(--text-secondary)]'>by {article.author_name}</p>
+          {(article.moderation_state || article.moderation_note) && (
+            <p className='mt-1 text-xs text-[color:var(--text-secondary)]'>
+              Workflow: {article.moderation_state ?? 'n/a'}
+              {article.moderation_note ? ` • ${article.moderation_note}` : ''}
+            </p>
+          )}
+          </div>
         </div>
         <Badge variant='warning'>{article.status}</Badge>
       </div>
@@ -805,15 +1123,6 @@ function QueueItem({
   )
 }
 
-function StatsCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4 shadow-sm'>
-      <p className='text-2xl font-bold text-[color:var(--text-primary)]'>{value}</p>
-      <p className='mt-1 text-xs text-[color:var(--text-secondary)]'>{label}</p>
-    </div>
-  )
-}
-
 function ErrorPanel({ message }: { message: string }) {
   return (
     <div className='rounded-xl border border-red-800/40 bg-red-950/30 px-4 py-5 text-sm text-red-200'>
@@ -831,8 +1140,6 @@ function ChartCard({
   icon: typeof BarChart2
   items: Array<{ label: string; value: number }>
 }) {
-  const max = Math.max(1, ...items.map((item) => item.value))
-
   return (
     <div className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
       <div className='flex items-center gap-2 text-[color:var(--text-primary)]'>
@@ -843,34 +1150,22 @@ function ChartCard({
       {items.length === 0 ? (
         <p className='text-sm text-[color:var(--text-secondary)]'>No data available yet.</p>
       ) : (
-        <div className='space-y-3'>
-          {items.map((item) => (
-            <BarRow
-              key={item.label}
-              label={item.label}
-              value={item.value}
-              percent={(item.value / max) * 100}
-            />
-          ))}
+        <div className='h-56'>
+          <ResponsiveContainer width='100%' height='100%' minWidth={0} minHeight={220}>
+            <BarChart data={items} layout='vertical' margin={{ left: 6, right: 8, top: 8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray='3 3' stroke='var(--border)' />
+              <XAxis type='number' allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+              <YAxis type='category' dataKey='label' width={92} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+              <Tooltip
+                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                contentStyle={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 10 }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+              />
+              <Bar dataKey='value' fill='var(--accent)' radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       )}
-    </div>
-  )
-}
-
-function BarRow({ label, value, percent }: { label: string; value: number; percent: number }) {
-  return (
-    <div className='space-y-1.5'>
-      <div className='flex items-center justify-between gap-3 text-xs'>
-        <span className='truncate text-[color:var(--text-secondary)]'>{label}</span>
-        <span className='font-medium text-[color:var(--text-primary)]'>{value}</span>
-      </div>
-      <div className='h-2 overflow-hidden rounded-full bg-[color:var(--surface-3)]'>
-        <div
-          className='h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300'
-          style={{ width: `${Math.max(8, percent)}%` }}
-        />
-      </div>
     </div>
   )
 }
@@ -892,35 +1187,27 @@ function SuccessRateSparkline({ articleId }: { articleId: string }) {
     return <p className='text-xs text-[color:var(--text-muted)]'>Trend n/a</p>
   }
 
-  const values = points.map((p) => p.success_rate)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const span = Math.max(1, max - min)
-  const width = 90
-  const height = 28
-
-  const path = points
-    .map((point, index) => {
-      const x = (index / (points.length - 1)) * (width - 4) + 2
-      const normalized = (point.success_rate - min) / span
-      const y = (height - 2) - normalized * (height - 6)
-      return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
-    })
-    .join(' ')
-
   return (
     <div className='space-y-1'>
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className='block'>
-        <path
-          d={path}
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='2'
-          className='text-[color:var(--accent)]'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
-      </svg>
+      <div className='h-8 w-[92px]'>
+        <ResponsiveContainer width={92} height={32}>
+          <LineChart data={points} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
+            <Tooltip
+              cursor={false}
+              contentStyle={{ background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 8 }}
+              labelStyle={{ color: 'var(--text-primary)' }}
+            />
+            <Line
+              type='monotone'
+              dataKey='success_rate'
+              stroke='var(--accent)'
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
       <p className='text-[10px] leading-none text-[color:var(--text-muted)]'>12h trend</p>
     </div>
   )

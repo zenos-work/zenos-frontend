@@ -17,9 +17,7 @@ export default function LoginPage() {
       sessionStorage.removeItem('post_login_redirect')
     }
 
-    sessionStorage.setItem('auth_intent', intent)
-
-    loginWithGoogle()
+    loginWithGoogle(intent)
   }
 
   useEffect(() => {

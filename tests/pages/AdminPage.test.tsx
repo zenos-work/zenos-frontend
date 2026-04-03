@@ -13,6 +13,9 @@ const useUpdateAdminRankingWeightsMock = vi.fn()
 const useAdminSuccessSignalsMock = vi.fn()
 const useAdminSuccessSignalHistoryMock = vi.fn()
 const useApprovalQueueMock = vi.fn()
+const useBulkQueueActionMock = vi.fn()
+const useModerationCommentsMock = vi.fn()
+const useModerateCommentMock = vi.fn()
 const useAdminUsersMock = vi.fn()
 const useUiStoreMock = vi.fn()
 const toastMock = vi.fn()
@@ -31,6 +34,9 @@ vi.mock('../../src/hooks/useAdmin', () => ({
   useAdminSuccessSignals: (...args: unknown[]) => useAdminSuccessSignalsMock(...args),
   useAdminSuccessSignalHistory: (...args: unknown[]) => useAdminSuccessSignalHistoryMock(...args),
   useApprovalQueue: (...args: unknown[]) => useApprovalQueueMock(...args),
+  useBulkQueueAction: (...args: unknown[]) => useBulkQueueActionMock(...args),
+  useModerationComments: (...args: unknown[]) => useModerationCommentsMock(...args),
+  useModerateComment: (...args: unknown[]) => useModerateCommentMock(...args),
   useAdminUsers: (...args: unknown[]) => useAdminUsersMock(...args),
   useBanUser: () => ({ mutateAsync: banMutateAsyncMock }),
   useUnbanUser: () => ({ mutateAsync: unbanMutateAsyncMock }),
@@ -158,6 +164,16 @@ describe('AdminPage', () => {
       isPending: false,
     })
 
+    useBulkQueueActionMock.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ succeeded: 1, failed: 0, processed: 1, results: [] }),
+      isPending: false,
+    })
+
+    useModerateCommentMock.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({}),
+      isPending: false,
+    })
+
     useAdminSuccessSignalHistoryMock.mockReturnValue({
       data: {
         article_id: 'a-top',
@@ -176,6 +192,15 @@ describe('AdminPage', () => {
       data: {
         queue: [makeArticleDetail({ id: 'a-1', title: 'Pending Story', status: 'SUBMITTED' })],
         pagination: { page: 1, pages: 1, total: 1, limit: 20, has_more: false },
+      },
+      isLoading: false,
+      isError: false,
+    })
+
+    useModerationCommentsMock.mockReturnValue({
+      data: {
+        data: [],
+        pagination: { page: 1, pages: 1, total: 0, limit: 20, has_more: false },
       },
       isLoading: false,
       isError: false,
@@ -248,20 +273,27 @@ describe('AdminPage', () => {
 
     expect(screen.getByText('Reject article')).toBeInTheDocument()
 
-    const rejectButton = screen.getAllByRole('button', { name: /^reject$/i })[1]
-    expect(rejectButton).toBeDisabled()
+    const getModalRejectButton = () => {
+      const rejectButtons = screen.getAllByRole('button', { name: /^reject$/i })
+      return rejectButtons[rejectButtons.length - 1]
+    }
+
+    expect(getModalRejectButton()).toBeDisabled()
 
     fireEvent.change(screen.getByPlaceholderText(/reason for rejection/i), {
       target: { value: 'Please improve factual accuracy.' },
     })
 
-    expect(rejectButton).toBeEnabled()
+    expect(getModalRejectButton()).toBeEnabled()
 
-    fireEvent.click(rejectButton)
+    fireEvent.click(getModalRejectButton())
 
     await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/api/articles/a-1/reject', {
+        note: 'Please improve factual accuracy.',
+      })
       expect(toastMock).toHaveBeenCalledWith('Rejected: Pending Story', 'success')
-    })
+    }, { timeout: 2000 })
   })
 
   it('shows queue empty state when there are no pending items', () => {
@@ -309,7 +341,7 @@ describe('AdminPage', () => {
     const { Wrapper } = createQueryClientWrapper()
     render(<AdminPage />, { wrapper: Wrapper })
 
-    fireEvent.click(screen.getByRole('button', { name: /approve/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^approve$/i }))
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith('Failed to approve article', 'error')

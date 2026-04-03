@@ -10,6 +10,7 @@ import type {
   User,
   PaginationMeta,
   Notification,
+  Comment,
 } from '../types'
 
 type ApprovalQueueResponse = {
@@ -24,6 +25,24 @@ type AdminUsersResponse = {
 
 type NotificationsResponse = {
   notifications: Notification[]
+  pagination: PaginationMeta
+}
+
+type BulkQueueActionResponse = {
+  action: 'approve' | 'publish' | 'reject'
+  processed: number
+  succeeded: number
+  failed: number
+  results: Array<{
+    article_id: string
+    ok: boolean
+    status?: string
+    error?: string
+  }>
+}
+
+type ModerationCommentsResponse = {
+  data: Comment[]
   pagination: PaginationMeta
 }
 
@@ -63,13 +82,30 @@ export const useUpdateAdminRankingWeights = () => {
   })
 }
 
-export const useApprovalQueue = (page = 1) =>
+export const useApprovalQueue = (page = 1, enabled = true) =>
   useQuery({
     queryKey: ['admin', 'queue', page],
+    enabled,
     queryFn:  () =>
       api.get<ApprovalQueueResponse>('/api/admin/queue', { params: { page } })
          .then(r => r.data),
   })
+
+export const useBulkQueueAction = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: {
+      action: 'approve' | 'publish' | 'reject'
+      article_ids: string[]
+      note?: string
+    }) => api.post<BulkQueueActionResponse>('/api/admin/queue/bulk', payload).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+      qc.invalidateQueries({ queryKey: ['articles'] })
+    },
+  })
+}
 
 export const useAdminUsers = (page = 1, enabled = true) =>
   useQuery({
@@ -117,10 +153,53 @@ export const useUnbanUser = () => {
   })
 }
 
-export const useNotifications = () =>
+export const useNotifications = (enabled = true) =>
   useQuery({
     queryKey: ['notifications'],
+    enabled,
     queryFn:  () =>
       api.get<NotificationsResponse>('/api/admin/notifications')
          .then(r => r.data),
   })
+
+export const useMarkAllNotificationsRead = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.put('/api/admin/notifications/read'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
+export const useMarkNotificationRead = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (notificationId: string) => api.put(`/api/admin/notifications/${notificationId}/read`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
+export const useModerationComments = (page = 1, limit = 20, enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'comments', page, limit],
+    enabled,
+    queryFn: () =>
+      api.get<ModerationCommentsResponse>('/api/comments/admin/all', { params: { page, limit } }).then(r => r.data),
+  })
+
+export const useModerateComment = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ commentId, is_hidden, reason }: { commentId: string; is_hidden: boolean; reason?: string }) =>
+      api.put(`/api/comments/${commentId}/moderate`, { is_hidden, reason }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'comments'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}

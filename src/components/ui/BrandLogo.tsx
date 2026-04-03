@@ -21,8 +21,8 @@ export default function BrandLogo({
   objectPosition = 'center',
   style,
 }: BrandLogoProps) {
-  const theme = useUiStore(s => s.theme)
-  const src = theme === 'dark' ? logoDark : logoLight
+  const resolvedTheme = useUiStore(s => s.resolvedTheme)
+  const src = resolvedTheme === 'dark' ? logoDark : logoLight
   const frameWidth = width ?? (variant === 'mark' ? height : 'auto')
 
   if (variant === 'mark') {

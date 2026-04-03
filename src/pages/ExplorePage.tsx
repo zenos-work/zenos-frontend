@@ -12,11 +12,13 @@ export default function ExplorePage() {
   const selectedTag = searchParams.get('tag') || ''
   const selectedContentType = searchParams.get('type') || ''
   const [showFilters, setShowFilters] = useState(false)
+  const selectedSort = searchParams.get('sort') || 'newest'
 
   const { data: articles, isLoading: loadingArticles } = useArticles({
     tag: selectedTag || undefined,
     content_type: selectedContentType || undefined,
     page: 1,
+    sort: (selectedSort as 'newest' | 'trending' | 'recommended') || undefined,
   })
 
   const { data: allTags, isLoading: loadingTags } = useTags()
@@ -39,6 +41,14 @@ export default function ExplorePage() {
     }
   }
 
+  const handleSortChange = (sort: string) => {
+    const params = new URLSearchParams()
+    if (selectedTag) params.set('tag', selectedTag)
+    if (selectedContentType) params.set('type', selectedContentType)
+    if (sort !== 'newest') params.set('sort', sort)
+    setSearchParams(params)
+  }
+
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900'>
       {/* Header */}
@@ -52,6 +62,25 @@ export default function ExplorePage() {
       </div>
 
       <div className='mx-auto max-w-7xl px-4 py-8'>
+        <div className='mb-6 flex flex-wrap items-center gap-3 border-b border-gray-200 pb-4 dark:border-gray-700'>
+          <span className='text-sm font-medium text-gray-700 dark:text-gray-300'>Sort:</span>
+          <div className='flex gap-2'>
+            {(['newest', 'trending', 'recommended'] as const).map((sort) => (
+              <button
+                key={sort}
+                onClick={() => handleSortChange(sort)}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  selectedSort === sort
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {sort.charAt(0).toUpperCase() + sort.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className='lg:grid lg:grid-cols-4 lg:gap-8'>
           {/* Sidebar Filters - Desktop */}
           <aside className='hidden space-y-6 lg:block'>
