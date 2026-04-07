@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Topbar from '../../../src/components/layout/Topbar'
 
@@ -32,6 +33,14 @@ vi.mock('react-router-dom', async () => {
 })
 
 describe('Topbar', () => {
+  function renderTopbar() {
+    return render(
+      <MemoryRouter>
+        <Topbar />
+      </MemoryRouter>,
+    )
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     useNotificationsMock.mockReturnValue({ data: { notifications: [] } })
@@ -42,14 +51,14 @@ describe('Topbar', () => {
     const setTheme = vi.fn()
     useUiStoreMock.mockReturnValue({ setTheme, theme: 'light', resolvedTheme: 'light' })
 
-    render(<Topbar />)
+    renderTopbar()
 
     fireEvent.change(screen.getByPlaceholderText('Search articles…'), { target: { value: 'fintech ai' } })
     fireEvent.submit(screen.getByRole('textbox').closest('form')!)
 
     expect(navigateMock).toHaveBeenCalledWith('/search?q=fintech%20ai')
 
-    fireEvent.click(screen.getByTitle('Theme'))
+    fireEvent.click(screen.getByRole('button', { name: /theme toggle/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Dark' }))
     expect(setTheme).toHaveBeenCalledWith('dark')
 
@@ -70,10 +79,10 @@ describe('Topbar', () => {
     })
     useUiStoreMock.mockReturnValue({ setTheme: vi.fn(), theme: 'dark', resolvedTheme: 'dark' })
 
-    render(<Topbar />)
+    renderTopbar()
 
-  fireEvent.click(screen.getByTitle('Notifications'))
-  expect(navigateMock).toHaveBeenCalledWith('/notifications')
+    fireEvent.click(screen.getByTitle('Notifications'))
+    expect(navigateMock).toHaveBeenCalledWith('/notifications')
 
     fireEvent.click(screen.getByText('Admin User').closest('button')!)
 

@@ -19,7 +19,7 @@ export default function EditorToolbar({
   const toggleSidebar = useUiStore(s => s.toggleSidebar)
 
   return (
-    <div className='flex items-center gap-3 pb-4 border-b border-[color:var(--border)]'>
+    <div data-testid='editor-toolbar' className='editor-toolbar flex items-center gap-3 pb-4 border-b border-[color:var(--border)]'>
       <button
         type='button'
         onClick={toggleSidebar}

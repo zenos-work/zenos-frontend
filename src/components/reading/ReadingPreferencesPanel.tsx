@@ -33,7 +33,10 @@ export function ReadingPreferencesPanel({
         onClick={onClose}
         aria-label='Close reading settings'
       />
-      <div className='absolute right-6 top-24 w-72 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-5)] p-4 shadow-[var(--shadow)]'>
+      <div
+        data-testid='reading-settings-panel'
+        className='reading-settings absolute right-6 top-24 w-72 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-5)] p-4 shadow-[var(--shadow)]'
+      >
         <div className='mb-4 flex items-center justify-between'>
           <p className='text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]'>Customize</p>
           <button
@@ -52,8 +55,9 @@ export function ReadingPreferencesPanel({
               type='button'
               onClick={decreaseFont}
               disabled={!canDecrease}
+              data-testid='font-size-down'
               className='rounded-full border border-[color:var(--border)] p-1.5 text-[color:var(--text-secondary)] transition-colors hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-45'
-              aria-label='Decrease text size'
+              aria-label='Decrease font size'
             >
               <Minus size={14} />
             </button>
@@ -65,8 +69,9 @@ export function ReadingPreferencesPanel({
               type='button'
               onClick={increaseFont}
               disabled={!canIncrease}
+              data-testid='font-size-up'
               className='rounded-full border border-[color:var(--border)] p-1.5 text-[color:var(--text-secondary)] transition-colors hover:text-[color:var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-45'
-              aria-label='Increase text size'
+              aria-label='Increase font size'
             >
               <Plus size={14} />
             </button>
@@ -75,16 +80,18 @@ export function ReadingPreferencesPanel({
 
         <div className='mb-4 rounded-xl bg-[color:var(--surface-1)] p-3'>
           <p className='mb-2 text-xs text-[color:var(--text-muted)]'>Font</p>
-          <div className='flex gap-2'>
+          <div data-testid='font-selector' className='flex gap-2'>
             {(['serif', 'sans'] as const).map((font) => (
               <button
                 key={font}
+                type='button'
                 onClick={() => updatePreference('fontFamily', font)}
                 className={`flex-1 rounded-full px-3 py-1.5 text-sm font-medium transition ${
                   preferences.fontFamily === font
                     ? 'bg-[color:var(--surface-ink)] text-[color:var(--surface-ink-foreground)]'
                     : 'bg-[color:var(--surface-1)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]'
                 }`}
+                aria-label={`Set ${font} font`}
                 style={{ fontFamily: font === 'serif' ? 'var(--font-body)' : 'var(--font-ui)' }}
               >
                 {font === 'serif' ? 'Serif' : 'Sans'}

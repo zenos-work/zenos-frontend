@@ -5,9 +5,11 @@ import BookmarksPage from '../../src/pages/BookmarksPage'
 import { makeArticle } from '../utils/fixtures'
 
 const useBookmarksMock = vi.fn()
+const useBookmarkMock = vi.fn()
 
 vi.mock('../../src/hooks/useSocial', () => ({
   useBookmarks: (...args: unknown[]) => useBookmarksMock(...args),
+  useBookmark: (...args: unknown[]) => useBookmarkMock(...args),
 }))
 
 vi.mock('../../src/components/article/ArticleCard', () => ({
@@ -21,6 +23,7 @@ vi.mock('../../src/components/ui/Spinner', () => ({
 describe('BookmarksPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useBookmarkMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
   })
 
   it('shows an empty state when there are no bookmarks', () => {

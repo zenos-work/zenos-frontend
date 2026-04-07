@@ -53,9 +53,9 @@ describe('BookmarkButton', () => {
     await waitFor(() => {
       expect(mutateAsync).toHaveBeenCalledWith(true)
     })
-    expect(screen.getByRole('button', { name: /saved/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /remove bookmark/i })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /saved/i }))
+    fireEvent.click(screen.getByRole('button', { name: /remove bookmark/i }))
 
     await waitFor(() => {
       expect(mutateAsync).toHaveBeenLastCalledWith(false)

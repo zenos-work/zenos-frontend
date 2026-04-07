@@ -418,11 +418,13 @@ export default function HomePage() {
       </section>
 
       <div className='border-b divider'>
-        <div className='flex items-center gap-2 overflow-x-auto pb-3'>
+        <div className='flex items-center gap-2 overflow-x-auto pb-3' role='tablist' aria-label='Feed tabs'>
           {TABS.map((item) => (
             <button
               key={item.id}
               onClick={() => setTab(item.id)}
+              role='tab'
+              aria-selected={tab === item.id}
               className={[
                 'whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-semibold transition-colors',
                 tab === item.id

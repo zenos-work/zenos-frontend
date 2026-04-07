@@ -11,12 +11,12 @@ import RelatedArticles from '../components/article/RelatedArticles'
 import CommentList   from '../components/comments/CommentList'
 import BookmarkButton from '../components/social/BookmarkButton'
 import FollowButton  from '../components/social/FollowButton'
-import { useShare } from '../hooks/useSocial'
+import { useLike, useShare } from '../hooks/useSocial'
 import { useUiStore } from '../stores/uiStore'
 import TagChip       from '../components/ui/TagChip'
 import Avatar        from '../components/ui/Avatar'
 import Spinner       from '../components/ui/Spinner'
-import { Copy, Facebook, Linkedin, MessageCircle, PenSquare, Settings, Share2, Twitter, Download, FileText, FileCode2 } from 'lucide-react'
+import { Copy, Facebook, Heart, Linkedin, MessageCircle, PenSquare, Settings, Share2, Twitter, Download, FileText, FileCode2 } from 'lucide-react'
 import { resolveAssetUrl } from '../lib/assets'
 import { ReadingPreferencesPanel } from '../components/reading/ReadingPreferencesPanel'
 import { EnhancedTableOfContents } from '../components/reading/EnhancedTableOfContents'
@@ -84,9 +84,11 @@ export default function ArticlePage() {
   })
   const contentShellRef = useRef<HTMLDivElement | null>(null)
   const shareMutation = useShare(article?.id ?? '')
+  const likeMutation = useLike(article?.id ?? '')
   const [showReadingPrefs, setShowReadingPrefs] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [liked, setLiked] = useState(false)
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null)
   const [readingProgress, setReadingProgress] = useState(0)
   const [readingSeconds, setReadingSeconds] = useState(0)
@@ -346,21 +348,42 @@ export default function ArticlePage() {
     await handleSocialShare('linkedin')
   }
 
+  const handleLikeToggle = async () => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+
+    const nextLiked = !liked
+    setLiked(nextLiked)
+    try {
+      await likeMutation.mutateAsync(nextLiked)
+    } catch {
+      setLiked(!nextLiked)
+      toast('Could not update like', 'error')
+    }
+  }
+
+  const buildShareHref = (provider: 'linkedin' | 'x' | 'facebook'): string => {
+    const targetUrl = article.canonical_url || window.location.href
+    if (provider === 'x') {
+      const text = `${article.title} by ${article.author_name || 'Zenos'}`
+      return `https://x.com/intent/tweet?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(text)}`
+    }
+    if (provider === 'facebook') {
+      return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(targetUrl)}`
+    }
+    return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(targetUrl)}`
+  }
+
   const handleSocialShare = async (provider: 'linkedin' | 'x' | 'facebook') => {
     if (!user) {
       navigate('/login')
       return
     }
 
-    const targetUrl = article.canonical_url || window.location.href
     const providerLabel = provider === 'x' ? 'X' : provider === 'facebook' ? 'Facebook' : 'LinkedIn'
-    const shareUrl = provider === 'x'
-      ? `https://twitter.com/intent/tweet?url=${encodeURIComponent(targetUrl)}&text=${encodeURIComponent(article.title)}`
-      : provider === 'facebook'
-        ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(targetUrl)}`
-        : `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(targetUrl)}`
-
-    const shareTab = window.open(shareUrl, `${provider}-share`, 'noopener,noreferrer,width=720,height=760')
+    const shareTab = window.open(buildShareHref(provider), `${provider}-share`, 'noopener,noreferrer,width=720,height=760')
     if (!shareTab) {
       toast(`Popup blocked. Please allow popups for ${providerLabel} sharing.`, 'error')
       return
@@ -467,6 +490,8 @@ export default function ArticlePage() {
                 )}
                 <button
                   onClick={() => setShowReadingPrefs(true)}
+                  data-testid='reading-settings'
+                  aria-label='Reading settings'
                   className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:var(--text-primary)] hover:text-[color:var(--text-primary)]'
                   title='Reading preferences'
                 >
@@ -480,6 +505,7 @@ export default function ArticlePage() {
                       setShowExportMenu(false)
                     }}
                     className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[#0a66c2] hover:text-[#0a66c2]'
+                    aria-label='Share article'
                     aria-haspopup='menu'
                     aria-expanded={showShareMenu}
                   >
@@ -506,34 +532,51 @@ export default function ArticlePage() {
                           <Copy size={14} />
                           Copy link
                         </button>
-                        <button
-                          type='button'
-                          onClick={handleLinkedInShare}
+                        <a
+                          href={buildShareHref('linkedin')}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          onClick={() => void handleLinkedInShare()}
                           className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[#0a66c2]'
                         >
                           <Linkedin size={14} />
                           Share to LinkedIn
-                        </button>
-                        <button
-                          type='button'
+                        </a>
+                        <a
+                          href={buildShareHref('x')}
+                          target='_blank'
+                          rel='noopener noreferrer'
                           onClick={() => void handleSocialShare('x')}
                           className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[color:var(--text-primary)]'
                         >
                           <Twitter size={14} />
                           Share to X
-                        </button>
-                        <button
-                          type='button'
+                        </a>
+                        <a
+                          href={buildShareHref('facebook')}
+                          target='_blank'
+                          rel='noopener noreferrer'
                           onClick={() => void handleSocialShare('facebook')}
                           className='flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[color:var(--text-secondary)] transition-colors hover:bg-[color:var(--surface-1)] hover:text-[#1877f2]'
                         >
                           <Facebook size={14} />
                           Share to Facebook
-                        </button>
+                        </a>
                       </div>
                     </>
                   )}
                 </div>
+                <button
+                  type='button'
+                  data-testid='like-button'
+                  aria-label='Like article'
+                  aria-pressed={liked}
+                  onClick={() => void handleLikeToggle()}
+                  className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:var(--accent)] hover:text-[color:var(--accent)]'
+                >
+                  <Heart size={14} className={liked ? 'fill-current' : ''} />
+                  <span className='hidden sm:inline'>{liked ? 'Liked' : 'Like'}</span>
+                </button>
                 <div className='relative'>
                   <button
                     onClick={() => {
@@ -612,9 +655,10 @@ export default function ArticlePage() {
               </div>
             )}
 
-            <div className='article-body mt-10 rounded-xl border border-[color:var(--border)] p-4 sm:p-8' style={{ background: readingBackground, color: readingTextColor }}>
+            <div data-testid='article-body' className='article-body mt-10 rounded-xl border border-[color:var(--border)] p-4 sm:p-8' style={{ background: readingBackground, color: readingTextColor }}>
               <div
                 ref={contentShellRef}
+                data-testid='article-content-shell'
                 style={{
                   fontFamily: articleFontFamily,
                   fontSize: articleFontSize,
@@ -730,7 +774,7 @@ export default function ArticlePage() {
         </article>
 
         {tocVisible && (
-          <aside className='hidden xl:block xl:pt-[22rem]'>
+          <aside className='hidden lg:block lg:pt-[22rem]'>
             <div className='sticky top-28'>
               <EnhancedTableOfContents
                 toc={renderedToc}

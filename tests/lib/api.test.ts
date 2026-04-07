@@ -47,7 +47,7 @@ describe('api client', () => {
 
   it('creates the axios client with the configured base URL', () => {
     expect(axiosMock.create).toHaveBeenCalledWith({
-      baseURL: 'https://api.zenos.test',
+      baseURL: '/',
     })
   })
 

@@ -99,7 +99,7 @@ export default function OnboardingPreferencesPage() {
   }
 
   return (
-    <div className='mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:py-12'>
+    <div data-testid='preferences-page' className='mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:py-12'>
       <div className='mb-6 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-5 shadow-[var(--shadow)]'>
         <h1 className='font-["Syne",system-ui,sans-serif] text-2xl font-bold text-[color:var(--text-primary)]'>
           What would you like to read?
@@ -121,7 +121,7 @@ export default function OnboardingPreferencesPage() {
         </div>
       )}
 
-      <div className='space-y-5'>
+      <div data-testid='topic-picker' className='space-y-5'>
         {grouped.map(group => (
           <section key={group.category.slug} className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-5'>
             <h2 className='mb-3 font-["Syne",system-ui,sans-serif] text-lg font-semibold text-[color:var(--text-primary)]'>
@@ -134,6 +134,7 @@ export default function OnboardingPreferencesPage() {
                   <button
                     key={topic.slug}
                     type='button'
+                    data-testid='topic-chip'
                     onClick={() => toggleTopic(topic.slug)}
                     className={`rounded-full border px-3 py-1.5 text-sm transition ${
                       active

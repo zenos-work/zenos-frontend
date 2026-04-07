@@ -2,6 +2,8 @@ import { createContext, useState, useEffect, useRef, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import api from '../lib/api'
 
+const AUTH_API_BASE = (import.meta.env.VITE_API_BASE_URL || '').trim()
+
 export interface AuthUser {
   id:                  string
   name:                string
@@ -127,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           access_token:  string
           refresh_token: string
           user:          AuthUser
-        }>('/auth/google/callback', {
+        }>(`${AUTH_API_BASE || ''}/auth/google/callback`, {
           code,
           intent: (sessionStorage.getItem('auth_intent') as 'signin' | 'signup' | null) || 'signin',
         })
@@ -166,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // If user tried sign-in but account doesn't exist in DB,
           // automatically continue through the sign-up flow.
           sessionStorage.setItem('auth_intent', 'signup')
-          window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google/login?intent=signup`
+          window.location.href = `${AUTH_API_BASE || ''}/auth/google/login?intent=signup`
           return
         }
         window.location.href = '/login'
@@ -177,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithGoogle = (intent: 'signin' | 'signup' = 'signin') => {
     sessionStorage.setItem('auth_intent', intent)
-    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google/login?intent=${intent}`
+    window.location.href = `${AUTH_API_BASE || ''}/auth/google/login?intent=${intent}`
   }
 
   const logout = async () => {

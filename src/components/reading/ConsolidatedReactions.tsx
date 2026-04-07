@@ -36,7 +36,7 @@ export function ConsolidatedReactions({
   }
 
   return (
-    <div className='flex flex-wrap gap-2'>
+    <div className='reactions flex flex-wrap gap-2' data-testid='reactions' aria-label='Reactions'>
       {REACTIONS.map((reaction) => {
         const reactionData = reactions?.[reaction.type] || {
           count: 0,
