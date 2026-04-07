@@ -119,6 +119,11 @@ function nodeToMarkdown(node: RichNode): string {
     return src ? `![${alt}](${src})\n\n` : ''
   }
 
+  if (node.type === 'videoEmbed' || node.type === 'embed') {
+    const src = String(node.attrs?.src || '').trim()
+    return src ? `[Video: ${src}]\n\n` : ''
+  }
+
   return childrenToMarkdown(node)
 }
 
@@ -149,6 +154,11 @@ function nodeToText(node: RichNode): string {
   if (node.type === 'image') {
     const src = String(node.attrs?.src || '')
     return src ? `[Image: ${src}]\n\n` : ''
+  }
+
+  if (node.type === 'videoEmbed' || node.type === 'embed') {
+    const src = String(node.attrs?.src || '').trim()
+    return src ? `[Video: ${src}]\n\n` : ''
   }
 
   return childrenToText(node)
@@ -186,13 +196,19 @@ function nodeToHtml(node: RichNode): string {
   if (node.type === 'bulletList') return `<ul>${childrenToHtml(node)}</ul>`
   if (node.type === 'orderedList') return `<ol>${childrenToHtml(node)}</ol>`
   if (node.type === 'listItem') return `<li>${childrenToHtml(node)}</li>`
-  if (node.type === 'blockquote') return `<blockquote>${childrenToHtml(node)}</blockquote>`
-  if (node.type === 'codeBlock') return `<pre><code>${escapeHtml(childrenToText(node))}</code></pre>`
+  if (node.type === 'blockquote') return `<blockquote style="border-left:4px solid #ccc;margin-left:0;padding-left:16px;color:#666;font-style:italic;">${childrenToHtml(node)}</blockquote>`
+  if (node.type === 'codeBlock') return `<pre style="background-color:#f3f3f3;border:1px solid #ddd;border-radius:4px;padding:12px;overflow-x:auto;font-family:monospace;font-size:12px;color:#333;"><code>${escapeHtml(childrenToText(node))}</code></pre>`
 
   if (node.type === 'image') {
     const src = escapeHtml(String(node.attrs?.src || ''))
     const alt = escapeHtml(String(node.attrs?.alt || ''))
     return src ? `<img src="${src}" alt="${alt}" />` : ''
+  }
+
+  if (node.type === 'videoEmbed' || node.type === 'embed') {
+    const src = String(node.attrs?.src || '').trim()
+    if (!src) return ''
+    return `<div style="margin:12pt 0;padding:12px;border:1px solid #e5e7eb;border-radius:4px;background-color:#f9fafb;"><a href="${escapeHtml(src)}" style="color:#0a66c2;text-decoration:none;">▶ Watch video: ${escapeHtml(src)}</a></div>`
   }
 
   return childrenToHtml(node)
@@ -333,7 +349,12 @@ function nodeToPdfBlocks(node: RichNode): PdfBlock[] {
 
   if (node.type === 'codeBlock') {
     const text = childrenToText(node).trim()
-    return text ? [{ type: 'text', text: `\`\`\`\n${text}\n\`\`\`` }] : []
+    return text ? [{ type: 'text', text: `[CODE]\n${text}\n[/CODE]` }] : []
+  }
+
+  if (node.type === 'videoEmbed' || node.type === 'embed') {
+    const src = String(node.attrs?.src || '').trim()
+    return src ? [{ type: 'text', text: `[Video: ${src}]` }] : []
   }
 
   return (node.content || []).flatMap(nodeToPdfBlocks)
@@ -342,6 +363,11 @@ function nodeToPdfBlocks(node: RichNode): PdfBlock[] {
 function buildPdfBlocks(article: ArticleDetail): PdfBlock[] {
   const parsed = parseContent(article.content)
   const blocks: PdfBlock[] = []
+
+  // Add cover image if available
+  if (article.cover_image_url?.trim()) {
+    blocks.push({ type: 'image', src: article.cover_image_url.trim(), alt: 'Cover image' })
+  }
 
   blocks.push({ type: 'text', text: article.title })
   if (article.subtitle?.trim()) {
@@ -402,10 +428,15 @@ function buildBodyParts(article: ArticleDetail): { markdown: string; text: strin
     ? `\n\n## Citations\n${article.citations.map((url) => `- ${url}`).join('\n')}`
     : ''
 
+  const coverImage = article.cover_image_url?.trim()
+    ? `<img src="${escapeHtml(article.cover_image_url)}" alt="Cover" style="max-width:100%;width:auto;height:auto;object-fit:contain;margin:12pt auto;page-break-inside:avoid;" />`
+    : ''
+
   return {
     markdown: `# ${article.title}\n\n${article.subtitle ? `${article.subtitle}\n\n` : ''}${markdownBody}${citations}\n\n---\n${WATERMARK_PREFIX}[${WATERMARK_BRAND}](${WATERMARK_URL})`.trim(),
     text: `${article.title}\n\n${article.subtitle ? `${article.subtitle}\n\n` : ''}${textBody}${article.citations?.length ? `\n\nCitations\n${article.citations.join('\n')}` : ''}`.trim(),
     html: `
+      ${coverImage ? `<div style="margin-bottom:24pt;">${coverImage}</div>` : ''}
       <h1>${escapeHtml(article.title)}</h1>
       ${article.subtitle ? `<p><em>${escapeHtml(article.subtitle)}</em></p>` : ''}
       ${htmlBody}
@@ -453,13 +484,60 @@ async function exportAsPdf(article: ArticleDetail) {
 
   for (const block of blocks) {
     if (block.type === 'text') {
-      const lines = doc.splitTextToSize(block.text, contentWidth) as string[]
-      for (const line of lines) {
-        ensurePageSpace(lineHeight)
-        doc.text(line, marginX, cursorY)
-        cursorY += lineHeight
+      const text = block.text.trim()
+
+      // Handle code blocks with special styling
+      if (text.includes('[CODE]') && text.includes('[/CODE]')) {
+        const parts = text.split(/\[CODE\]|\[\/CODE\]/)
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i].trim()
+          if (i % 2 === 0) {
+            // Regular text
+            if (part) {
+              const lines = doc.splitTextToSize(part, contentWidth) as string[]
+              for (const line of lines) {
+                ensurePageSpace(lineHeight)
+                doc.text(line, marginX, cursorY)
+                cursorY += lineHeight
+              }
+              cursorY += lineHeight * 0.25
+            }
+          } else {
+            // Code block with grey background
+            const codeLines = part.split('\n')
+            const codeBoxHeight = (codeLines.length * lineHeight) + 12
+            ensurePageSpace(codeBoxHeight + lineHeight)
+
+            // Draw grey background
+            doc.setFillColor(240, 240, 240)
+            doc.rect(marginX, cursorY, contentWidth, codeBoxHeight, 'F')
+            doc.setDrawColor(200, 200, 200)
+            doc.rect(marginX, cursorY, contentWidth, codeBoxHeight)
+
+            // Draw code text
+            doc.setFont('courier', 'normal')
+            doc.setFontSize(10)
+            let codeY = cursorY + 8
+            for (const codeLine of codeLines) {
+              doc.text(codeLine, marginX + 8, codeY)
+              codeY += lineHeight
+            }
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(12)
+
+            cursorY += codeBoxHeight + lineHeight
+          }
+        }
+      } else {
+        // Regular text lines
+        const lines = doc.splitTextToSize(text, contentWidth) as string[]
+        for (const line of lines) {
+          ensurePageSpace(lineHeight)
+          doc.text(line, marginX, cursorY)
+          cursorY += lineHeight
+        }
+        cursorY += lineHeight * 0.25
       }
-      cursorY += lineHeight * 0.25
       continue
     }
 
@@ -522,8 +600,20 @@ async function exportAsWord(article: ArticleDetail) {
         <meta charset="utf-8" />
         <title>${escapeHtml(article.title)}</title>
         <style>
-          @page { margin: 2.5cm 2cm 2.2cm 2cm; }
-          body { font-family: Calibri, Arial, sans-serif; color: #111; }
+          @page {
+            margin: 2.5cm 2cm 3cm 2cm;
+            @bottom-center {
+              content: "${WATERMARK_PREFIX}${WATERMARK_BRAND}";
+            }
+          }
+          body {
+            font-family: Calibri, Arial, sans-serif;
+            color: #111;
+            margin-bottom: 80px;
+          }
+          main {
+            min-height: 100vh;
+          }
           main img {
             display: block;
             max-width: 100%;
@@ -533,18 +623,44 @@ async function exportAsWord(article: ArticleDetail) {
             margin: 12pt auto;
             page-break-inside: avoid;
           }
+          main blockquote {
+            border-left: 4px solid #ccc;
+            margin-left: 0;
+            padding-left: 16px;
+            color: #666;
+            font-style: italic;
+          }
+          main pre {
+            background-color: #f3f3f3;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+            color: #333;
+            page-break-inside: avoid;
+          }
+          main code {
+            background-color: #f3f3f3;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-family: monospace;
+            font-size: 12px;
+          }
           .watermark-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            page-break-before: always;
+            margin-top: 40px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
             text-align: center;
             font-size: 10.5pt;
             color: #666;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 4px;
           }
-          .watermark-footer a { color: #0a66c2; text-decoration: none; }
+          .watermark-footer a {
+            color: #0a66c2;
+            text-decoration: none;
+          }
         </style>
       </head>
       <body>
