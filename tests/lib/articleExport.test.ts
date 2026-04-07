@@ -9,6 +9,7 @@ let pdfDoc: {
   splitTextToSize: ReturnType<typeof vi.fn>
   addPage: ReturnType<typeof vi.fn>
   text: ReturnType<typeof vi.fn>
+  addImage: ReturnType<typeof vi.fn>
   getNumberOfPages: ReturnType<typeof vi.fn>
   setPage: ReturnType<typeof vi.fn>
   setTextColor: ReturnType<typeof vi.fn>
@@ -32,6 +33,7 @@ describe('articleExport', () => {
       splitTextToSize: vi.fn(() => ['line one', 'line two']),
       addPage: vi.fn(),
       text: vi.fn(),
+      addImage: vi.fn(),
       getNumberOfPages: vi.fn(() => 1),
       setPage: vi.fn(),
       setTextColor: vi.fn(),
@@ -68,6 +70,10 @@ describe('articleExport', () => {
     })
     const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['fake-image'], { type: 'image/png' }),
+    } as Response)
 
     const article = makeArticleDetail({
       title: 'Structured Story',
@@ -98,12 +104,16 @@ describe('articleExport', () => {
 
     expect(createObjectURLSpy).toHaveBeenCalledTimes(1)
     expect(clickSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy).toHaveBeenCalledWith('https://example.com/image.png')
     expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:word')
     expect(capturedBlob).toBeDefined()
     await expect(capturedBlob?.text()).resolves.toContain('<h2>Heading text</h2>')
     await expect(capturedBlob?.text()).resolves.toContain('<strong>bold</strong>')
     await expect(capturedBlob?.text()).resolves.toContain('<a href="https://example.com">linked</a>')
+    await expect(capturedBlob?.text()).resolves.toContain('data:image/png;base64')
     await expect(capturedBlob?.text()).resolves.toContain('powered by <a href="https://zenos.work">Zenos.work</a>')
+
+    fetchSpy.mockRestore()
   })
 
   it('exports Markdown with plain-text fallback content', async () => {
