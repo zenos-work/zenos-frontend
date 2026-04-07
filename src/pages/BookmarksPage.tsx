@@ -1,12 +1,34 @@
 import { useMemo, useState } from 'react'
-import { useBookmarks } from '../hooks/useSocial'
+import { useBookmark, useBookmarks } from '../hooks/useSocial'
 import ArticleCard from '../components/article/ArticleCard'
 import Spinner     from '../components/ui/Spinner'
 import { Bookmark, Search, SlidersHorizontal } from 'lucide-react'
+import type { ArticleList } from '../types'
 
 const PAGE_SIZE = 20
 
 type SortMode = 'newest' | 'oldest' | 'title' | 'likes' | 'views'
+
+function BookmarkListItem({ article }: { article: ArticleList }) {
+  const removeBookmark = useBookmark(article.id)
+
+  return (
+    <div data-testid='bookmark-item' className='space-y-2'>
+      <div className='flex justify-end'>
+        <button
+          type='button'
+          onClick={() => removeBookmark.mutate(false)}
+          disabled={removeBookmark.isPending}
+          aria-label={`Remove bookmark for ${article.title}`}
+          className='rounded-full border border-gray-700 px-3 py-1 text-xs font-medium text-gray-300 transition-colors hover:border-red-400/50 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50'
+        >
+          {removeBookmark.isPending ? 'Removing...' : 'Remove bookmark'}
+        </button>
+      </div>
+      <ArticleCard article={article} compact />
+    </div>
+  )
+}
 
 export default function BookmarksPage() {
   const [page, setPage] = useState(1)
@@ -55,6 +77,8 @@ export default function BookmarksPage() {
         <label className='md:col-span-2 flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-900 px-3 py-2'>
           <Search size={15} className='text-gray-500' />
           <input
+            type='search'
+            data-testid='bookmarks-search'
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder='Search within saved articles'
@@ -65,6 +89,8 @@ export default function BookmarksPage() {
         <label className='flex items-center gap-2 rounded-xl border border-gray-800 bg-gray-900 px-3 py-2'>
           <SlidersHorizontal size={15} className='text-gray-500' />
           <select
+            name='sort'
+            data-testid='sort-dropdown'
             value={sort}
             onChange={(e) => setSort(e.target.value as SortMode)}
             className='w-full bg-transparent text-sm text-gray-200 focus:outline-none'
@@ -102,7 +128,7 @@ export default function BookmarksPage() {
       ) : (
         <>
           <div className='space-y-3'>
-            {filtered.map(a => <ArticleCard key={a.id} article={a} compact />)}
+            {filtered.map(a => <BookmarkListItem key={a.id} article={a} />)}
           </div>
 
           <div className='flex items-center justify-between pt-3'>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -44,6 +44,11 @@ export default function HomePage() {
   const { user } = useAuth()
   const { theme, resolvedTheme, cycleTheme } = useUiStore()
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  const [newsletterEmail, setNewsletterEmail] = useState('')
+  const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [newsletterMessage, setNewsletterMessage] = useState('')
+
+  const publicationsJobsBaseUrl = (import.meta.env.VITE_PUBLICATIONS_JOBS_URL || '').trim().replace(/\/+$/, '')
 
   const guestHomeFeed = useFeed('home', !user)
 
@@ -146,6 +151,54 @@ export default function HomePage() {
     observer.observe(loadMoreRef.current)
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage, articles.length, tab])
+
+  const handleNewsletterSubscribe = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const normalizedEmail = newsletterEmail.trim().toLowerCase()
+    if (!normalizedEmail) {
+      setNewsletterStatus('error')
+      setNewsletterMessage('Enter your email to subscribe.')
+      return
+    }
+
+    if (!publicationsJobsBaseUrl) {
+      setNewsletterStatus('error')
+      setNewsletterMessage('Newsletter service is not configured yet.')
+      return
+    }
+
+    setNewsletterStatus('loading')
+    setNewsletterMessage('')
+
+    try {
+      const subscribeUrl = `${publicationsJobsBaseUrl}/newsletter/subscribe?email=${encodeURIComponent(normalizedEmail)}&source=frontend-home`
+      const response = await fetch(subscribeUrl, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+
+      let payload: { ok?: boolean; error?: string } = {}
+      try {
+        payload = await response.json()
+      } catch {
+        payload = {}
+      }
+
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error || 'Subscription failed')
+      }
+
+      setNewsletterStatus('success')
+      setNewsletterMessage('Subscribed successfully. Check your inbox for weekly updates.')
+      setNewsletterEmail('')
+    } catch (error) {
+      setNewsletterStatus('error')
+      setNewsletterMessage(error instanceof Error ? error.message : 'Unable to subscribe right now.')
+    }
+  }
 
   if (!user) {
     const cards = guestFeatureCards
@@ -372,6 +425,38 @@ export default function HomePage() {
             </div>
           </section>
 
+          <section className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-7'>
+            <div className='mx-auto max-w-2xl text-center'>
+              <p className='text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--accent)]'>Newsletter</p>
+              <h2 className='mt-2 text-2xl font-semibold text-[color:var(--text-primary)]'>Get weekly editorial picks</h2>
+              <p className='mt-2 text-sm text-[color:var(--text-secondary)]'>One email per week with our top stories and insights.</p>
+              <form className='mt-5 flex flex-col gap-3 sm:flex-row' onSubmit={handleNewsletterSubscribe}>
+                <input
+                  type='email'
+                  required
+                  inputMode='email'
+                  placeholder='you@company.com'
+                  value={newsletterEmail}
+                  onChange={(event) => setNewsletterEmail(event.target.value)}
+                  className='h-11 flex-1 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-1)] px-4 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]'
+                  aria-label='Email address for newsletter subscription'
+                />
+                <button
+                  type='submit'
+                  disabled={newsletterStatus === 'loading'}
+                  className='h-11 rounded-full border border-[color:var(--accent)] bg-[color:var(--accent)] px-6 text-sm font-semibold text-white disabled:opacity-60'
+                >
+                  {newsletterStatus === 'loading' ? 'Subscribing...' : 'Subscribe'}
+                </button>
+              </form>
+              {newsletterMessage && (
+                <p className={`mt-3 text-sm ${newsletterStatus === 'success' ? 'text-[color:var(--accent)]' : 'text-red-500'}`}>
+                  {newsletterMessage}
+                </p>
+              )}
+            </div>
+          </section>
+
           <section className='rounded-2xl border border-[color:var(--border)] p-8 text-center' style={{ background: 'linear-gradient(120deg, var(--surface-3) 0%, var(--surface-2) 54%, var(--surface-1) 100%)' }}>
             <h2 className='text-3xl font-semibold text-[color:var(--text-primary)]'>Ready to dive deeper?</h2>
             <p className='mx-auto mt-3 max-w-2xl text-sm leading-7 text-[color:var(--text-secondary)]'>
@@ -418,11 +503,13 @@ export default function HomePage() {
       </section>
 
       <div className='border-b divider'>
-        <div className='flex items-center gap-2 overflow-x-auto pb-3'>
+        <div className='flex items-center gap-2 overflow-x-auto pb-3' role='tablist' aria-label='Feed tabs'>
           {TABS.map((item) => (
             <button
               key={item.id}
               onClick={() => setTab(item.id)}
+              role='tab'
+              aria-selected={tab === item.id}
               className={[
                 'whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-semibold transition-colors',
                 tab === item.id

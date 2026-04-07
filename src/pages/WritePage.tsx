@@ -981,6 +981,8 @@ export default function WritePage() {
               <label className='flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
                 Content type
                 <select
+                  name='content_type'
+                  data-testid='content-type'
                   value={store.contentType}
                   onChange={e => store.setContentType(e.target.value as ArticleContentType)}
                   className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'
@@ -996,6 +998,8 @@ export default function WritePage() {
               <label className='flex flex-col gap-1 text-xs text-[color:var(--text-muted)]'>
                 Reading level
                 <select
+                  name='reading_level'
+                  data-testid='reading-level'
                   value={store.readingLevel || ''}
                   onChange={e => store.setReadingLevel((e.target.value as 'Beginner' | 'Intermediate' | 'Advanced') || undefined)}
                   className='h-10 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 text-sm text-[color:var(--text-primary)]'

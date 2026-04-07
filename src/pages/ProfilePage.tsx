@@ -7,11 +7,13 @@ import api from '../lib/api'
 import { useTags } from '../hooks/useTags'
 import { useUpdateUserPrefs, useUserPrefs } from '../hooks/useUserPrefs'
 import { useReadingPreferences } from '../hooks/useReadingPreferences'
+import { useAuthorArticles } from '../hooks/useArticles'
 import type { Tag, User } from '../types'
 import Avatar      from '../components/ui/Avatar'
 import Badge       from '../components/ui/Badge'
 import Spinner     from '../components/ui/Spinner'
 import FollowButton from '../components/social/FollowButton'
+import ArticleCard from '../components/article/ArticleCard'
 import { useUiStore } from '../stores/uiStore'
 
 function haveSameTopics(left: string[], right: string[]) {
@@ -340,6 +342,25 @@ export default function ProfilePage() {
   const isOwnProfile = profile?.id === user?.id
   const effectiveUserId = profile?.id ?? ''
 
+  const { data: socialStats } = useQuery({
+    queryKey: ['social', 'stats', effectiveUserId],
+    queryFn: () =>
+      api
+        .get<{ user_id: string; followers_count: number; following_count: number }>(`/api/social/stats/${effectiveUserId}`)
+        .then((r) => r.data),
+    enabled: !!effectiveUserId,
+    staleTime: 30_000,
+  })
+
+  const { data: authorArticles } = useAuthorArticles(effectiveUserId, {
+    page: 1,
+    limit: 6,
+    status: isOwnProfile ? undefined : 'PUBLISHED',
+  })
+
+  const visibleArticles = authorArticles?.items ?? []
+  const visibleArticleCount = authorArticles?.total ?? visibleArticles.length
+
   const persistedSettings = useMemo(() => {
     const baselineNotifications: NotificationSettings = {
       ...DEFAULT_NOTIFICATION_SETTINGS,
@@ -593,6 +614,17 @@ export default function ProfilePage() {
           <p className='mt-1 text-xs text-[color:var(--text-muted)]'>
             Joined {new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
           </p>
+          <div data-testid='follow-stats' className='mt-3 flex flex-wrap gap-2 text-sm text-[color:var(--text-secondary)]'>
+            <span data-testid='follower-count' className='rounded-full bg-[color:var(--surface-0)] px-3 py-1'>
+              {socialStats?.followers_count ?? 0} followers
+            </span>
+            <span data-testid='following-count' className='rounded-full bg-[color:var(--surface-0)] px-3 py-1'>
+              {socialStats?.following_count ?? 0} following
+            </span>
+            <span className='rounded-full bg-[color:var(--surface-0)] px-3 py-1'>
+              {visibleArticleCount} articles
+            </span>
+          </div>
           {!isOwnProfile && (
             <div className='mt-3'>
               <FollowButton authorId={profile.id} />
@@ -600,6 +632,30 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      <section data-testid='profile-articles' className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 shadow-sm'>
+        <div className='mb-4 flex items-center justify-between gap-3'>
+          <div>
+            <h2 className='text-lg font-semibold text-[color:var(--text-primary)]'>Articles</h2>
+            <p className='mt-1 text-sm text-[color:var(--text-secondary)]'>
+              {isOwnProfile ? 'Your latest writing activity.' : `Recent work by ${profile.name}.`}
+            </p>
+          </div>
+          <span className='text-sm text-[color:var(--text-muted)]'>{visibleArticleCount} total</span>
+        </div>
+
+        {visibleArticles.length > 0 ? (
+          <div className='space-y-4'>
+            {visibleArticles.map((article) => (
+              <ArticleCard key={article.id} article={article} compact showStatus={isOwnProfile} />
+            ))}
+          </div>
+        ) : (
+          <div className='rounded-xl border border-dashed border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-6 text-sm text-[color:var(--text-muted)]'>
+            {isOwnProfile ? 'No articles created yet.' : 'No published articles yet.'}
+          </div>
+        )}
+      </section>
 
       {isOwnProfile && (
         <div className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 pt-3 shadow-sm'>

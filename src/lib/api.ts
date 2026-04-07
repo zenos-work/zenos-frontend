@@ -1,5 +1,10 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.DEV
+  ? '/'
+  : (import.meta.env.VITE_API_BASE_URL || '').trim() || '/';
+const AUTH_API_BASE = (import.meta.env.VITE_API_BASE_URL || '').trim();
+
 const safeStorageGet = (storage: Storage | undefined, key: string): string | null => {
   try {
     if (storage && typeof storage.getItem === 'function') {
@@ -22,7 +27,7 @@ const safeStorageSet = (storage: Storage | undefined, key: string, value: string
 };
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL
+  baseURL: API_BASE_URL
 });
 
 //Attach token to every request
@@ -40,10 +45,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use((response) => {
   return response;
 }, async (error) => {
-  if (error.response.status === 401) {
+  if (error.response?.status === 401) {
     try {
       const refreshToken = safeStorageGet(sessionStorage, 'refresh_token') || safeStorageGet(localStorage, 'refresh_token');
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken });
+      const response = await axios.post(`${AUTH_API_BASE || API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken });
 
       safeStorageSet(sessionStorage, 'access_token', response.data.access_token);
       safeStorageSet(localStorage, 'access_token', response.data.access_token);

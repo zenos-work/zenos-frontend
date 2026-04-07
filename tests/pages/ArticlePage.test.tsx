@@ -99,6 +99,7 @@ vi.mock('../../src/hooks/useReadingPreferences', () => ({
       fontFamily: 'sans',
       lineHeight: 'relaxed',
       contentWidth: 'medium',
+      textColor: 'dark',
       backgroundColor: 'white',
     },
   }),
@@ -110,6 +111,7 @@ vi.mock('../../src/hooks/useReactions', () => ({
 
 vi.mock('../../src/hooks/useSocial', () => ({
   useShare: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useLike: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
 vi.mock('../../src/stores/uiStore', () => ({

@@ -54,7 +54,11 @@ export function EnhancedTableOfContents({
   if (!isVisible) return null
 
   return (
-    <aside className='max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)]/95 p-4 shadow-sm backdrop-blur-sm'>
+    <aside
+      className='toc max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-0)]/95 p-4 shadow-sm backdrop-blur-sm'
+      data-testid='toc'
+      aria-label='Table of contents'
+    >
       {/* Header */}
       <div className='mb-4 space-y-3 border-b border-[color:var(--border)] pb-4'>
         <h3 className='text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-primary)]'>

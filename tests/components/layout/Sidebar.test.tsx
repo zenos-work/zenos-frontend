@@ -44,6 +44,8 @@ describe('Sidebar', () => {
     expect(screen.getByText('Library')).toBeInTheDocument()
     expect(screen.getByText('Stats')).toBeInTheDocument()
     expect(screen.getByText('Settings')).toBeInTheDocument()
+    expect(screen.queryByText('Home')).not.toBeInTheDocument()
+    expect(screen.queryByText('Search')).not.toBeInTheDocument()
     expect(screen.getByText('Write')).toBeInTheDocument()
     expect(screen.getByText('Admin')).toBeInTheDocument()
     expect(screen.getByTestId('avatar')).toHaveTextContent('Admin User')

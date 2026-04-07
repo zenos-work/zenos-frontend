@@ -44,7 +44,7 @@ export default function SeriesSelector({
   }
 
   return (
-    <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4">
+    <div data-testid='series-select' className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4">
       <p className="mb-3 text-xs uppercase tracking-wider text-[color:var(--text-muted)]">Series (Optional)</p>
 
       {seriesId && (

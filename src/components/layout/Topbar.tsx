@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Search, Bell, LogIn, Sun, Moon, Monitor, PenSquare, Bookmark, BarChart3, Settings, History } from 'lucide-react'
 import { useAuth }    from '../../hooks/useAuth'
 import { useUiStore } from '../../stores/uiStore'
@@ -181,6 +181,12 @@ export default function Topbar() {
       `}</style>
 
       <header className='zenos-topbar'>
+        <Link to='/' className='zenos-topbar-brand' aria-label='Home'>
+          <span className='zenos-topbar-brand-wordmark'>
+            <span>Zenos</span>
+            <span className='zenos-topbar-brand-work'>.work</span>
+          </span>
+        </Link>
 
         <form onSubmit={search} className='zenos-search-wrap'>
           <Search size={13} className='zenos-search-icon' />
@@ -218,6 +224,7 @@ export default function Topbar() {
             <button
               className='zenos-icon-btn'
               onClick={() => setThemeMenu((v) => !v)}
+              aria-label='Theme toggle'
               title='Theme'
               aria-haspopup='menu'
               aria-expanded={themeMenu}

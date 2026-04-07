@@ -93,12 +93,13 @@ export default function ExplorePage() {
                   allTags?.map((tag: Tag) => (
                     <button
                       key={tag.slug}
-                      onClick={() => handleTagFilter(tag.slug)}
-                      className={`block w-full rounded px-3 py-2 text-left text-sm font-medium transition ${
+                      data-testid='tag-chip'
+                      className={`tag-chip block w-full rounded px-3 py-2 text-left text-sm font-medium transition ${
                         selectedTag === tag.slug
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
                           : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                       }`}
+                      onClick={() => handleTagFilter(tag.slug)}
                     >
                       {tag.name}
                     </button>
@@ -154,15 +155,16 @@ export default function ExplorePage() {
                     {allTags?.map((tag: Tag) => (
                       <button
                         key={tag.slug}
-                        onClick={() => {
-                          handleTagFilter(tag.slug)
-                          setShowFilters(false)
-                        }}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${
+                        data-testid='tag-chip'
+                        className={`tag-chip rounded-full px-3 py-1 text-sm font-medium transition ${
                           selectedTag === tag.slug
                             ? 'bg-blue-500 text-white'
                             : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
                         }`}
+                        onClick={() => {
+                          handleTagFilter(tag.slug)
+                          setShowFilters(false)
+                        }}
                       >
                         {tag.name}
                       </button>
