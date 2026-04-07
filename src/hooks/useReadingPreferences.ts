@@ -8,7 +8,7 @@ const defaultPreferences: ReadingPreferences = {
   fontSize: 'base',
   fontFamily: 'sans',
   lineHeight: 'relaxed',
-  contentWidth: 'medium',
+  contentWidth: 'wide',
   textColor: 'dark',
   backgroundColor: 'white',
 }

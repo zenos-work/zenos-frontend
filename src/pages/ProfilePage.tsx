@@ -81,7 +81,7 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 const DEFAULT_READING_SETTINGS: ReadingSettingsForm = {
   defaultFont: 'sans',
   defaultFontSize: 'base',
-  defaultWidth: 'medium',
+  defaultWidth: 'wide',
   autoBookmark: true,
   showReadingTime: true,
   showProgressBar: true,
@@ -882,9 +882,9 @@ export default function ProfilePage() {
                 }}
                 className='w-full rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
               >
-                <option value='narrow'>Narrow</option>
-                <option value='medium'>Medium</option>
                 <option value='wide'>Wide</option>
+                <option value='medium'>Medium</option>
+                <option value='narrow'>Narrow</option>
               </select>
             </label>
           </div>

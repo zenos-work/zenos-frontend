@@ -103,7 +103,7 @@ export function ReadingPreferencesPanel({
         <div className='mb-4 rounded-xl bg-[color:var(--surface-1)] p-3'>
           <p className='mb-2 text-xs text-[color:var(--text-muted)]'>Content width</p>
           <div className='flex gap-2'>
-            {(['narrow', 'medium', 'wide'] as const).map((width) => (
+            {(['wide', 'medium', 'narrow'] as const).map((width) => (
               <button
                 key={width}
                 onClick={() => updatePreference('contentWidth', width)}

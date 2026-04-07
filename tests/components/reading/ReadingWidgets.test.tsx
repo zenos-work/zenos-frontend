@@ -13,7 +13,7 @@ let readingPreferences = {
   fontSize: 'base',
   fontFamily: 'sans',
   lineHeight: 'relaxed',
-  contentWidth: 'medium',
+  contentWidth: 'wide',
   textColor: 'dark',
   backgroundColor: 'white',
 } as const
@@ -39,7 +39,7 @@ describe('reading widgets', () => {
       fontSize: 'base',
       fontFamily: 'sans',
       lineHeight: 'relaxed',
-      contentWidth: 'medium',
+      contentWidth: 'wide',
       textColor: 'dark',
       backgroundColor: 'white',
     }

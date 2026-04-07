@@ -15,6 +15,17 @@ type RichNode = {
   content?: RichNode[]
 }
 
+type PdfBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; src: string; alt: string }
+
+type EmbeddedImage = {
+  dataUrl: string
+  width: number
+  height: number
+  format: 'PNG' | 'JPEG' | 'WEBP'
+}
+
 function sanitizeFileName(value: string): string {
   return value
     .trim()
@@ -187,6 +198,191 @@ function nodeToHtml(node: RichNode): string {
   return childrenToHtml(node)
 }
 
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('Could not read image blob'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+function getImageDimensions(dataUrl: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    if (typeof Image === 'undefined') {
+      resolve({ width: 1200, height: 675 })
+      return
+    }
+
+    const image = new Image()
+    let settled = false
+    const settle = (dimensions: { width: number; height: number }) => {
+      if (settled) return
+      settled = true
+      resolve(dimensions)
+    }
+
+    const timeoutId = globalThis.setTimeout(() => {
+      settle({ width: 1200, height: 675 })
+    }, 750)
+
+    image.onload = () => {
+      globalThis.clearTimeout(timeoutId)
+      settle({
+        width: image.naturalWidth || image.width,
+        height: image.naturalHeight || image.height,
+      })
+    }
+    image.onerror = () => {
+      globalThis.clearTimeout(timeoutId)
+      settle({ width: 1200, height: 675 })
+    }
+    image.src = dataUrl
+  })
+}
+
+function normalizeImageUrl(src: string): string {
+  const trimmed = src.trim()
+  if (!trimmed) return ''
+  if (/^data:/i.test(trimmed)) return trimmed
+  try {
+    if (typeof window !== 'undefined') {
+      return new URL(trimmed, window.location.href).toString()
+    }
+  } catch {
+    return trimmed
+  }
+  return trimmed
+}
+
+async function embedImageSource(src: string): Promise<EmbeddedImage | null> {
+  const normalizedSrc = normalizeImageUrl(src)
+  if (!normalizedSrc) return null
+
+  try {
+    let blob: Blob
+
+    if (/^data:/i.test(normalizedSrc)) {
+      const response = await fetch(normalizedSrc)
+      blob = await response.blob()
+    } else {
+      const response = await fetch(normalizedSrc)
+      if (!response.ok) return null
+      blob = await response.blob()
+    }
+
+    const dataUrl = await blobToDataUrl(blob)
+    const { width, height } = await getImageDimensions(dataUrl)
+    const mime = blob.type.toLowerCase()
+    const format = mime.includes('png') ? 'PNG' : mime.includes('webp') ? 'WEBP' : 'JPEG'
+
+    if (!width || !height) return null
+
+    return {
+      dataUrl,
+      width,
+      height,
+      format,
+    }
+  } catch {
+    return null
+  }
+}
+
+function nodeToPdfBlocks(node: RichNode): PdfBlock[] {
+  if (node.type === 'image') {
+    const src = String(node.attrs?.src || '').trim()
+    const alt = String(node.attrs?.alt || 'image').trim() || 'image'
+    return src ? [{ type: 'image', src, alt }] : []
+  }
+
+  if (node.type === 'heading') {
+    const text = childrenToText(node).trim()
+    return text ? [{ type: 'text', text }] : []
+  }
+
+  if (node.type === 'paragraph') {
+    const text = childrenToText(node).trim()
+    return text ? [{ type: 'text', text }] : []
+  }
+
+  if (node.type === 'bulletList') {
+    const blocks = (node.content || [])
+      .map((item) => `- ${childrenToText(item).trim()}`)
+      .filter((line) => line !== '- ')
+      .join('\n')
+    return blocks ? [{ type: 'text', text: blocks }] : []
+  }
+
+  if (node.type === 'orderedList') {
+    const blocks = (node.content || [])
+      .map((item, index) => `${index + 1}. ${childrenToText(item).trim()}`)
+      .filter((line) => !line.endsWith('. '))
+      .join('\n')
+    return blocks ? [{ type: 'text', text: blocks }] : []
+  }
+
+  if (node.type === 'blockquote') {
+    const text = childrenToText(node)
+      .trim()
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n')
+    return text ? [{ type: 'text', text }] : []
+  }
+
+  if (node.type === 'codeBlock') {
+    const text = childrenToText(node).trim()
+    return text ? [{ type: 'text', text: `\`\`\`\n${text}\n\`\`\`` }] : []
+  }
+
+  return (node.content || []).flatMap(nodeToPdfBlocks)
+}
+
+function buildPdfBlocks(article: ArticleDetail): PdfBlock[] {
+  const parsed = parseContent(article.content)
+  const blocks: PdfBlock[] = []
+
+  blocks.push({ type: 'text', text: article.title })
+  if (article.subtitle?.trim()) {
+    blocks.push({ type: 'text', text: article.subtitle.trim() })
+  }
+
+  if (parsed) {
+    blocks.push(...(parsed.content || []).flatMap(nodeToPdfBlocks))
+  } else if (article.content.trim()) {
+    blocks.push({ type: 'text', text: article.content.trim() })
+  }
+
+  if (article.citations?.length) {
+    blocks.push({ type: 'text', text: `Citations\n${article.citations.map((url) => `- ${url}`).join('\n')}` })
+  }
+
+  return blocks
+}
+
+async function embedImagesInHtml(html: string): Promise<string> {
+  if (typeof DOMParser === 'undefined') return html
+
+  const parser = new DOMParser()
+  const documentNode = parser.parseFromString(`<body>${html}</body>`, 'text/html')
+  const images = Array.from(documentNode.querySelectorAll('img'))
+
+  for (const image of images) {
+    const src = image.getAttribute('src') || ''
+    const embedded = await embedImageSource(src)
+    if (embedded) {
+      image.setAttribute('src', embedded.dataUrl)
+    }
+    image.setAttribute(
+      'style',
+      'display:block;max-width:100%;width:auto;height:auto;object-fit:contain;margin:12pt auto;page-break-inside:avoid;',
+    )
+  }
+
+  return documentNode.body.innerHTML
+}
+
 function buildBodyParts(article: ArticleDetail): { markdown: string; text: string; html: string } {
   const parsed = parseContent(article.content)
 
@@ -231,7 +427,7 @@ function downloadBlob(content: string, mimeType: string, filename: string) {
 }
 
 async function exportAsPdf(article: ArticleDetail) {
-  const { text } = buildBodyParts(article)
+  const blocks = buildPdfBlocks(article)
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const fileName = `${sanitizeFileName(article.title)}.pdf`
 
@@ -246,17 +442,53 @@ async function exportAsPdf(article: ArticleDetail) {
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(12)
-
-  const lines = doc.splitTextToSize(text, contentWidth) as string[]
   let cursorY = marginTop
 
-  for (const line of lines) {
-    if (cursorY > pageHeight - marginBottom) {
+  const ensurePageSpace = (requiredHeight: number) => {
+    if (cursorY + requiredHeight > pageHeight - marginBottom) {
       doc.addPage()
       cursorY = marginTop
     }
-    doc.text(line, marginX, cursorY)
-    cursorY += lineHeight
+  }
+
+  for (const block of blocks) {
+    if (block.type === 'text') {
+      const lines = doc.splitTextToSize(block.text, contentWidth) as string[]
+      for (const line of lines) {
+        ensurePageSpace(lineHeight)
+        doc.text(line, marginX, cursorY)
+        cursorY += lineHeight
+      }
+      cursorY += lineHeight * 0.25
+      continue
+    }
+
+    const embeddedImage = await embedImageSource(block.src)
+    if (!embeddedImage) {
+      const fallbackLines = doc.splitTextToSize(`[Image: ${block.alt}]`, contentWidth) as string[]
+      for (const line of fallbackLines) {
+        ensurePageSpace(lineHeight)
+        doc.text(line, marginX, cursorY)
+        cursorY += lineHeight
+      }
+      cursorY += lineHeight * 0.25
+      continue
+    }
+
+    const imageRatio = embeddedImage.width / embeddedImage.height
+    const maxImageHeight = Math.min(pageHeight * 0.45, contentWidth)
+    let drawWidth = contentWidth
+    let drawHeight = drawWidth / imageRatio
+
+    if (drawHeight > maxImageHeight) {
+      drawHeight = maxImageHeight
+      drawWidth = drawHeight * imageRatio
+    }
+
+    ensurePageSpace(drawHeight + lineHeight)
+    const drawX = marginX + (contentWidth - drawWidth) / 2
+    doc.addImage(embeddedImage.dataUrl, embeddedImage.format, drawX, cursorY, drawWidth, drawHeight)
+    cursorY += drawHeight + lineHeight
   }
 
   const totalPages = doc.getNumberOfPages()
@@ -280,8 +512,9 @@ async function exportAsPdf(article: ArticleDetail) {
   doc.save(fileName)
 }
 
-function exportAsWord(article: ArticleDetail) {
+async function exportAsWord(article: ArticleDetail) {
   const { html } = buildBodyParts(article)
+  const embeddedHtml = await embedImagesInHtml(html)
   const doc = `
     <!doctype html>
     <html>
@@ -291,6 +524,15 @@ function exportAsWord(article: ArticleDetail) {
         <style>
           @page { margin: 2.5cm 2cm 2.2cm 2cm; }
           body { font-family: Calibri, Arial, sans-serif; color: #111; }
+          main img {
+            display: block;
+            max-width: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            margin: 12pt auto;
+            page-break-inside: avoid;
+          }
           .watermark-footer {
             position: fixed;
             bottom: 0;
@@ -306,7 +548,7 @@ function exportAsWord(article: ArticleDetail) {
         </style>
       </head>
       <body>
-        <main>${html}</main>
+        <main>${embeddedHtml}</main>
         <footer class="watermark-footer">
           ${WATERMARK_PREFIX}<a href="${WATERMARK_URL}">${WATERMARK_BRAND}</a>
         </footer>
@@ -330,7 +572,7 @@ export async function exportArticle(format: ExportFormat, article: ArticleDetail
   }
 
   if (format === 'word') {
-    exportAsWord(article)
+    await exportAsWord(article)
     return
   }
 
