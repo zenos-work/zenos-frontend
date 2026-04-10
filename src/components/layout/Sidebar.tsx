@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useFeatureFlag } from '../../hooks/useFeatureFlags'
 import { useUiStore } from '../../stores/uiStore'
 import Avatar from '../ui/Avatar'
 
@@ -98,11 +99,30 @@ const navStyle = (open: boolean, active: boolean): React.CSSProperties => ({
 
 export default function Sidebar() {
   const { user } = useAuth()
+  const { enabled: readingListsEnabled } = useFeatureFlag('reading_lists', !!user)
+  const { enabled: earningsEnabled } = useFeatureFlag('earnings_dashboard', !!user)
+  const { enabled: newslettersEnabled } = useFeatureFlag('newsletters', !!user)
   const { sidebarOpen, toggleSidebar } = useUiStore()
   const open = sidebarOpen
   const canWrite = user && ['AUTHOR', 'APPROVER', 'SUPERADMIN'].includes(user.role)
   const isAdmin = user && ['SUPERADMIN', 'APPROVER'].includes(user.role)
-  const navItems = user ? AUTH_NAV : GUEST_NAV
+  const navItems = user
+    ? [
+        ...AUTH_NAV.slice(0, 4),
+        ...(readingListsEnabled ? [{ to: '/reading-lists', icon: BookOpen, label: 'Reading Lists' }] : []),
+        ...AUTH_NAV.slice(4, 6),
+        ...(canWrite && newslettersEnabled ? [{ to: '/newsletters', icon: FileText, label: 'Newsletters' }] : []),
+        ...AUTH_NAV.slice(6),
+      ]
+    : GUEST_NAV
+
+  const navItemsWithEarnings = user && earningsEnabled
+    ? [
+        ...navItems.slice(0, 7),
+        { to: '/earnings', icon: BarChart2, label: 'Earnings' },
+        ...navItems.slice(7),
+      ]
+    : navItems
 
   return (
     <nav style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--surface-5)' }}>
@@ -155,7 +175,7 @@ export default function Sidebar() {
             Workspace
           </p>
         )}
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {navItemsWithEarnings.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} style={({ isActive }) => navStyle(open, isActive)}>
             {({ isActive }) => (
               <>

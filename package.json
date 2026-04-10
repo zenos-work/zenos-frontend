@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@react-pdf/renderer": "^4.4.0",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-query-devtools": "^5.91.3",
     "@tiptap/core": "3.20.4",
@@ -29,6 +30,8 @@
     "@tiptap/react": "^3.20.4",
     "@tiptap/starter-kit": "^3.20.4",
     "axios": "^1.13.6",
+    "buffer": "^6.0.3",
+    "html2pdf.js": "^0.10.1",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.577.0",
     "marked": "^17.0.5",

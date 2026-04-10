@@ -19,9 +19,14 @@ import TagPage        from './pages/TagPage'
 import AdminPage      from './pages/AdminPage'
 import NotificationsPage from './pages/NotificationsPage'
 import ReadingHistoryPage from './pages/ReadingHistoryPage'
+import ReadingListsPage from './pages/ReadingListsPage'
+import NewsletterPage from './pages/NewsletterPage'
 import LoginPage      from './pages/LoginPage'
 import TermsPage      from './pages/TermsPage'
 import MembershipPage from './pages/MembershipPage'
+import EarningsPage from './pages/EarningsPage'
+import OrgPage from './pages/OrgPage'
+import OrgSettingsPage from './pages/OrgSettingsPage'
 import InfoPage       from './pages/InfoPage'
 import OnboardingPreferencesPage from './pages/OnboardingPreferencesPage'
 import WriterOnboardingPage from './pages/WriterOnboardingPage'
@@ -81,7 +86,12 @@ export default function App() {
             <Route path='/workflow'   element={<WorkflowPage />}  />
             <Route path='/notifications' element={<NotificationsPage />} />
             <Route path='/history'    element={<ReadingHistoryPage />} />
+            <Route path='/reading-lists' element={<ReadingListsPage />} />
+            <Route path='/newsletters' element={<NewsletterPage />} />
             <Route path='/stats'      element={<StatsPage />}     />
+            <Route path='/earnings'   element={<EarningsPage />}  />
+            <Route path='/org/:id'    element={<OrgPage />}       />
+            <Route path='/org/:id/settings' element={<OrgSettingsPage />} />
             <Route path='/profile'    element={<ProfilePage />}   />
             <Route path='/settings'   element={<ProfilePage />}   />
           </Route>

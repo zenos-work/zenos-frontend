@@ -3,14 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import api from '../../src/lib/api'
 import {
   articleKeys,
+  useAddCoauthor,
   useApproveArticle,
   useArticle,
   useArticles,
   useCreateArticle,
   useDeleteArticle,
+  useDuplicateArticle,
   useMyArticles,
   usePublishArticle,
   useRejectArticle,
+  useScheduleArticle,
   useSubmitArticle,
   useUpdateArticle,
 } from '../../src/hooks/useArticles'
@@ -142,5 +145,34 @@ describe('useArticles hooks', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: articleKeys.myList() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['admin', 'queue'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: articleKeys.lists() })
+  })
+
+  it('calls duplicate, schedule, and coauthor endpoints with the expected payloads', async () => {
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { article: makeArticleDetail({ id: 'dup-1' }) } } as never)
+      .mockResolvedValueOnce({ data: { id: 'sched-1' } } as never)
+      .mockResolvedValueOnce({ data: { ok: true } } as never)
+
+    const duplicate = createQueryClientWrapper()
+    const schedule = createQueryClientWrapper()
+    const coauthor = createQueryClientWrapper()
+
+    const duplicateHook = renderHook(() => useDuplicateArticle(), { wrapper: duplicate.Wrapper })
+    const scheduleHook = renderHook(() => useScheduleArticle(), { wrapper: schedule.Wrapper })
+    const coauthorHook = renderHook(() => useAddCoauthor('article-2'), { wrapper: coauthor.Wrapper })
+
+    await act(async () => {
+      await duplicateHook.result.current.mutateAsync('article-1')
+      await scheduleHook.result.current.mutateAsync({ articleId: 'article-1', scheduledAt: '2026-04-20T09:00' })
+      await coauthorHook.result.current.mutateAsync({ userId: 'user-9' })
+    })
+
+    expect(api.post).toHaveBeenCalledWith('/api/articles/article-1/duplicate')
+    expect(api.post).toHaveBeenCalledWith('/api/marketing/scheduled', {
+      article_id: 'article-1',
+      scheduled_at: '2026-04-20T09:00',
+      timezone: 'UTC',
+    })
+    expect(api.post).toHaveBeenCalledWith('/api/articles/article-2/coauthors', { user_id: 'user-9' })
   })
 })

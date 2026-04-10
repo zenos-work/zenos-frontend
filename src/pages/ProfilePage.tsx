@@ -8,6 +8,7 @@ import { useTags } from '../hooks/useTags'
 import { useUpdateUserPrefs, useUserPrefs } from '../hooks/useUserPrefs'
 import { useReadingPreferences } from '../hooks/useReadingPreferences'
 import { useAuthorArticles } from '../hooks/useArticles'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import type { Tag, User } from '../types'
 import Avatar      from '../components/ui/Avatar'
 import Badge       from '../components/ui/Badge'
@@ -15,6 +16,11 @@ import Spinner     from '../components/ui/Spinner'
 import FollowButton from '../components/social/FollowButton'
 import ArticleCard from '../components/article/ArticleCard'
 import { useUiStore } from '../stores/uiStore'
+import NotificationPrefsPanel from '../components/profile/NotificationPrefsPanel'
+import AccountDataPanel from '../components/profile/AccountDataPanel'
+import ActiveSessionsPanel from '../components/profile/ActiveSessionsPanel'
+import BlockMutePanel from '../components/profile/BlockMutePanel'
+import CustomDomainPanel from '../components/profile/CustomDomainPanel'
 
 function haveSameTopics(left: string[], right: string[]) {
   if (left.length !== right.length) return false
@@ -165,6 +171,11 @@ export default function ProfilePage() {
   const [readingOverrides, setReadingOverrides] = useState<Record<string, ReadingSettingsForm>>({})
   const [profileDraft, setProfileDraft] = useState<{ name: string; avatar_url: string; bio: string }>({ name: '', avatar_url: '', bio: '' })
   const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const { enabled: notificationPrefsEnabled } = useFeatureFlag('notification_preferences', !!user)
+  const { enabled: gdprControlsEnabled } = useFeatureFlag('gdpr_controls', !!user)
+  const { enabled: sessionManagementEnabled } = useFeatureFlag('session_management', !!user)
+  const { enabled: blockMuteEnabled } = useFeatureFlag('block_mute', !!user)
+  const { enabled: customDomainsEnabled } = useFeatureFlag('custom_domains', !!user)
 
   const { data: availableTags = [] } = useTags({ onboarding: true })
   const { data: prefs } = useUserPrefs()
@@ -789,46 +800,52 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className='mt-5 space-y-4'>
-            {[
-              { key: 'emailNewFollower', label: 'Email: New followers' },
-              { key: 'emailArticlePublished', label: 'Email: Article published' },
-              { key: 'emailWeeklyDigest', label: 'Email: Weekly digest' },
-              { key: 'emailComments', label: 'Email: Comments' },
-              { key: 'pushNewFollower', label: 'Push: New followers' },
-              { key: 'pushComments', label: 'Push: Comments and replies' },
-              { key: 'pushMentions', label: 'Push: Mentions' },
-              { key: 'pushApproval', label: 'Push: Approval status' },
-            ].map((item) => (
-              <label key={item.key} className='flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-3'>
-                <span className='text-sm text-[color:var(--text-primary)]'>{item.label}</span>
-                <YesNoToggle
-                  value={notificationSettings[item.key as keyof NotificationSettings]}
-                  onChange={(next) => {
-                    setShowSavedNotificationNotice(false)
-                    setNotificationSettings((prev) => ({
-                      ...prev,
-                      [item.key]: next,
-                    }))
-                  }}
-                />
-              </label>
-            ))}
-          </div>
+          {notificationPrefsEnabled ? (
+            <NotificationPrefsPanel />
+          ) : (
+            <div className='mt-5 space-y-4'>
+              {[
+                { key: 'emailNewFollower', label: 'Email: New followers' },
+                { key: 'emailArticlePublished', label: 'Email: Article published' },
+                { key: 'emailWeeklyDigest', label: 'Email: Weekly digest' },
+                { key: 'emailComments', label: 'Email: Comments' },
+                { key: 'pushNewFollower', label: 'Push: New followers' },
+                { key: 'pushComments', label: 'Push: Comments and replies' },
+                { key: 'pushMentions', label: 'Push: Mentions' },
+                { key: 'pushApproval', label: 'Push: Approval status' },
+              ].map((item) => (
+                <label key={item.key} className='flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-3'>
+                  <span className='text-sm text-[color:var(--text-primary)]'>{item.label}</span>
+                  <YesNoToggle
+                    value={notificationSettings[item.key as keyof NotificationSettings]}
+                    onChange={(next) => {
+                      setShowSavedNotificationNotice(false)
+                      setNotificationSettings((prev) => ({
+                        ...prev,
+                        [item.key]: next,
+                      }))
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
 
-          <div className='mt-5 flex items-center justify-between'>
-            <span className='text-sm text-[color:var(--text-muted)]'>
-              {showSavedNotificationNotice ? 'All notification settings saved' : 'Update and save your notification choices'}
-            </span>
-            <button
-              type='button'
-              onClick={() => void saveNotificationSettings()}
-              disabled={updatePrefsMutation.isPending}
-              className='rounded-full bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50'
-            >
-              {updatePrefsMutation.isPending ? 'Saving...' : 'Save notifications'}
-            </button>
-          </div>
+          {!notificationPrefsEnabled && (
+            <div className='mt-5 flex items-center justify-between'>
+              <span className='text-sm text-[color:var(--text-muted)]'>
+                {showSavedNotificationNotice ? 'All notification settings saved' : 'Update and save your notification choices'}
+              </span>
+              <button
+                type='button'
+                onClick={() => void saveNotificationSettings()}
+                disabled={updatePrefsMutation.isPending}
+                className='rounded-full bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                {updatePrefsMutation.isPending ? 'Saving...' : 'Save notifications'}
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -1030,6 +1047,11 @@ export default function ProfilePage() {
               {deactivateAccountMutation.isPending ? 'Deactivating...' : 'Deactivate account'}
             </button>
           </div>
+
+          {gdprControlsEnabled && <AccountDataPanel />}
+          {sessionManagementEnabled && <ActiveSessionsPanel />}
+          {blockMuteEnabled && <BlockMutePanel />}
+          {customDomainsEnabled && <CustomDomainPanel enabled={customDomainsEnabled} />}
         </section>
       )}
 

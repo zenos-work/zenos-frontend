@@ -5,6 +5,7 @@ import Sidebar from '../../../src/components/layout/Sidebar'
 
 const useAuthMock = vi.fn()
 const useUiStoreMock = vi.fn()
+const useFeatureFlagMock = vi.fn()
 
 vi.mock('../../../src/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -14,6 +15,10 @@ vi.mock('../../../src/stores/uiStore', () => ({
   useUiStore: () => useUiStoreMock(),
 }))
 
+vi.mock('../../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: (...args: unknown[]) => useFeatureFlagMock(...args),
+}))
+
 vi.mock('../../../src/components/ui/Avatar', () => ({
   default: ({ name }: { name: string }) => <div data-testid='avatar'>{name}</div>,
 }))
@@ -21,6 +26,7 @@ vi.mock('../../../src/components/ui/Avatar', () => ({
 describe('Sidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useFeatureFlagMock.mockImplementation((key: string) => ({ enabled: key === 'reading_lists' || key === 'newsletters' }))
   })
 
   it('renders open sidebar navigation for admin authors', () => {
@@ -42,6 +48,8 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Bookmarks')).toBeInTheDocument()
     expect(screen.getByText('Library')).toBeInTheDocument()
+    expect(screen.getByText('Reading Lists')).toBeInTheDocument()
+    expect(screen.getByText('Newsletters')).toBeInTheDocument()
     expect(screen.getByText('Stats')).toBeInTheDocument()
     expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.queryByText('Home')).not.toBeInTheDocument()
@@ -56,6 +64,7 @@ describe('Sidebar', () => {
   })
 
   it('renders collapsed reader sidebar without write or admin links', () => {
+    useFeatureFlagMock.mockImplementation(() => ({ enabled: false }))
     useAuthMock.mockReturnValue({
       user: {
         name: 'Reader User',

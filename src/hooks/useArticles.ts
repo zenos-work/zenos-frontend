@@ -191,3 +191,38 @@ export const useDeleteArticle = () => {
     },
   })
 }
+
+export const useDuplicateArticle = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (articleId: string) =>
+      api.post<{ article?: ArticleDetail }>(`/api/articles/${articleId}/duplicate`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: articleKeys.myList() })
+      qc.invalidateQueries({ queryKey: articleKeys.lists() })
+    },
+  })
+}
+
+export const useScheduleArticle = () => {
+  return useMutation({
+    mutationFn: ({ articleId, scheduledAt, timezone = 'UTC' }: { articleId: string; scheduledAt: string; timezone?: string }) =>
+      api.post('/api/marketing/scheduled', {
+        article_id: articleId,
+        scheduled_at: scheduledAt,
+        timezone,
+      }).then((r) => r.data),
+  })
+}
+
+export const useAddCoauthor = (articleId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId }: { userId: string }) =>
+      api.post(`/api/articles/${articleId}/coauthors`, { user_id: userId }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: articleKeys.detail(articleId) })
+      qc.invalidateQueries({ queryKey: articleKeys.myList() })
+    },
+  })
+}

@@ -6,14 +6,17 @@ import api from '../lib/api'
 import Modal from '../components/ui/Modal'
 import { useEditorStore }  from '../stores/editorStore'
 import { useUiStore }      from '../stores/uiStore'
-import { useArticle, useCreateArticle, useUpdateArticle, useSubmitArticle } from '../hooks/useArticles'
+import { useArticle, useCreateArticle, useUpdateArticle, useSubmitArticle, useScheduleArticle } from '../hooks/useArticles'
 import { useTags }         from '../hooks/useTags'
 import { useAuth }         from '../hooks/useAuth'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import { useAssignArticleToSeries } from '../hooks/useSeries'
 import Editor        from '../components/editor/Editor'
 import EditorToolbar from '../components/editor/EditorToolbar'
 import PreviewPane   from '../components/editor/PreviewPane'
 import SeriesSelector from '../components/editor/SeriesSelector'
+import RevisionHistoryPanel from '../components/editor/RevisionHistoryPanel'
+import CoauthorPicker from '../components/editor/CoauthorPicker'
 import Spinner from '../components/ui/Spinner'
 import { resolveAssetUrl } from '../lib/assets'
 import type { ArticleContentType, ContentTypeOption } from '../types'
@@ -197,6 +200,13 @@ export default function WritePage() {
   const [showPublishSuccess, setShowPublishSuccess] = useState(false)
   const [publishedArticleSlug, setPublishedArticleSlug] = useState<string | undefined>(undefined)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [showRevisionHistory, setShowRevisionHistory] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
+  const { enabled: revisionsEnabled } = useFeatureFlag('article_revisions')
+  const { enabled: scheduleFlagEnabled } = useFeatureFlag('schedule_publish')
+  const { enabled: digitalMarketingEnabled } = useFeatureFlag('digital_marketing')
+  const { enabled: coauthorEnabled } = useFeatureFlag('collaboration_coauthor')
+  const scheduleEnabled = scheduleFlagEnabled || digitalMarketingEnabled
 
   const {
     data: allTags,
@@ -270,6 +280,7 @@ export default function WritePage() {
   const createMutation = useCreateArticle()
   const updateMutation = useUpdateArticle(id ?? store.articleId ?? '')
   const submitMutation = useSubmitArticle()
+  const scheduleMutation = useScheduleArticle()
   const assignSeriesMutation = useAssignArticleToSeries()
   const uploadMutation = useMutation({
     mutationFn: async ({ file, onProgress }: { file: File; onProgress?: (pct: number) => void }) => {
@@ -642,6 +653,25 @@ export default function WritePage() {
     }
   }
 
+  const handleSchedule = async () => {
+    if (!scheduledAt) {
+      toast('Choose a publish date first', 'warning')
+      return
+    }
+    const articleId = await handleSave()
+    if (!articleId) return
+    try {
+      await withTimeout(
+        scheduleMutation.mutateAsync({ articleId, scheduledAt }),
+        ACTION_TIMEOUT_MS,
+        'Scheduling publication timed out. Please try again.',
+      )
+      toast('Publication scheduled', 'success')
+    } catch (err) {
+      toast(getApiErrorMessage(err) ?? 'Could not schedule publication', 'error')
+    }
+  }
+
   useEffect(() => {
     if (!pendingAction) return
 
@@ -738,6 +768,45 @@ export default function WritePage() {
         isDirty={store.isDirty}
         previewMode={store.previewMode}
       />
+
+      {(revisionsEnabled || scheduleEnabled) && (
+        <div className='mt-4 flex flex-wrap items-center gap-2'>
+          {revisionsEnabled && (existing?.id || id || store.articleId) && (
+            <button
+              type='button'
+              onClick={() => setShowRevisionHistory(true)}
+              className='rounded-lg border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
+            >
+              Revision history
+            </button>
+          )}
+          {scheduleEnabled && (
+            <>
+              <input
+                type='datetime-local'
+                value={scheduledAt}
+                onChange={(event) => setScheduledAt(event.target.value)}
+                className='h-10 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 text-sm text-[color:var(--text-primary)]'
+              />
+              <button
+                type='button'
+                onClick={() => void handleSchedule()}
+                className='rounded-lg border border-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--accent-dim)]'
+              >
+                Schedule publish
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {(existing?.id || id || store.articleId) && (
+        <RevisionHistoryPanel
+          articleId={existing?.id ?? id ?? store.articleId ?? ''}
+          open={showRevisionHistory}
+          onClose={() => setShowRevisionHistory(false)}
+        />
+      )}
 
       {pendingAction && (
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]'>
@@ -1193,6 +1262,12 @@ export default function WritePage() {
                   {sendingApprovalMessage ? 'Sending...' : 'Send message'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {coauthorEnabled && (existing?.id || id || store.articleId) && (
+            <div className='mt-6'>
+              <CoauthorPicker articleId={existing?.id ?? id ?? store.articleId ?? ''} />
             </div>
           )}
 

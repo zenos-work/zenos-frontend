@@ -6,9 +6,16 @@ interface Props {
   onClose:    () => void
   title?:     string
   children:   React.ReactNode
+  size?:      'md' | 'lg' | 'xl'
 }
 
-export default function Modal({ open, onClose, title, children }: Props) {
+const SIZE_CLASS = {
+  md: 'max-w-md',
+  lg: 'max-w-3xl',
+  xl: 'max-w-5xl',
+}
+
+export default function Modal({ open, onClose, title, children, size = 'md' }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -26,7 +33,7 @@ export default function Modal({ open, onClose, title, children }: Props) {
     >
       <div
         ref={ref}
-        className='bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md shadow-2xl'
+        className={`bg-gray-900 border border-gray-800 rounded-2xl w-full ${SIZE_CLASS[size]} shadow-2xl max-h-[90vh] overflow-y-auto`}
       >
         {title && (
           <div className='flex items-center justify-between px-6 py-4 border-b border-gray-800'>

@@ -25,6 +25,7 @@ import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import Modal from '../components/ui/Modal'
 import MetricTile from '../components/ui/MetricTile'
+import FeatureFlagsPanel from '../components/admin/FeatureFlagsPanel'
 import {
   Shield,
   Users,
@@ -56,7 +57,7 @@ import {
 } from 'recharts'
 import type { ArticleDetail, RankingWeights, User, UserRole } from '../types'
 
-type Tab = 'stats' | 'queue' | 'users'
+type Tab = 'stats' | 'queue' | 'users' | 'feature_flags'
 type ModerationAction = 'approve' | 'publish' | 'reject'
 
 const ROLE_OPTIONS: UserRole[] = ['SUPERADMIN', 'APPROVER', 'AUTHOR', 'READER']
@@ -256,6 +257,7 @@ export default function AdminPage() {
             { id: 'stats' as const, icon: BarChart2, label: 'Stats' },
             { id: 'queue' as const, icon: InboxIcon, label: 'Queue', badge: queueMeta?.total ?? queueItems.length },
             { id: 'users' as const, icon: Users, label: 'Users' },
+            { id: 'feature_flags' as const, icon: Radio, label: 'Feature Flags' },
           ]
         : [
             { id: 'queue' as const, icon: InboxIcon, label: 'Queue', badge: queueMeta?.total ?? queueItems.length },
@@ -903,6 +905,8 @@ export default function AdminPage() {
           </>
         )
       )}
+
+      {tab === 'feature_flags' && isSuperadmin && <FeatureFlagsPanel />}
 
       <Modal
         open={!!rejectArticle}

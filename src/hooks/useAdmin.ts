@@ -11,6 +11,11 @@ import type {
   PaginationMeta,
   Notification,
   Comment,
+  FeatureFlagAdmin,
+  FeatureFlagListResponse,
+  FeatureAnnouncementPreview,
+  FeatureFlagMetadata,
+  FeatureFlagTargetType,
 } from '../types'
 
 type ApprovalQueueResponse = {
@@ -44,6 +49,18 @@ type BulkQueueActionResponse = {
 type ModerationCommentsResponse = {
   data: Comment[]
   pagination: PaginationMeta
+}
+
+type FeatureFlagPayload = {
+  flag_key: string
+  name: string
+  description?: string
+  category: string
+  is_active: boolean
+  target_type: FeatureFlagTargetType
+  targets: string[]
+  rollout_pct: number
+  metadata?: FeatureFlagMetadata
 }
 
 export const useAdminStats = (enabled = true) =>
@@ -203,3 +220,49 @@ export const useModerateComment = () => {
     },
   })
 }
+
+export const useAdminFeatureFlags = (enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'feature-flags'],
+    enabled,
+    queryFn: () =>
+      api.get<FeatureFlagListResponse>('/api/admin/feature-flags').then((r) => r.data),
+  })
+
+export const useCreateAdminFeatureFlag = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: FeatureFlagPayload) =>
+      api.post<FeatureFlagAdmin>('/api/admin/feature-flags', payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] })
+    },
+  })
+}
+
+export const useUpdateAdminFeatureFlag = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ flagId, payload }: { flagId: string; payload: Partial<FeatureFlagPayload> }) =>
+      api.put<FeatureFlagAdmin>(`/api/admin/feature-flags/${flagId}`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] })
+    },
+  })
+}
+
+export const useDeleteAdminFeatureFlag = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (flagId: string) => api.delete(`/api/admin/feature-flags/${flagId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] })
+    },
+  })
+}
+
+export const usePreviewFeatureAnnouncement = () =>
+  useMutation({
+    mutationFn: (payload: Partial<FeatureFlagPayload> & { action: 'enabled' | 'disabled' }) =>
+      api.post<FeatureAnnouncementPreview>('/api/admin/feature-flags/preview-announcement', payload).then((r) => r.data),
+  })
