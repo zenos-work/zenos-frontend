@@ -53,12 +53,24 @@ export type OrgSsoConfig = {
   default_role?: string
 }
 
+export type OrgVaultSecret = {
+  id: string
+  org_id: string
+  name: string
+  secret_type?: string
+  provider?: string
+  key_ref?: string
+  created_at: string
+  updated_at?: string
+}
+
 const orgInfraKeys = {
   all: ['org-infra'] as const,
   apiKeys: (orgId: string, page: number, limit: number) => [...orgInfraKeys.all, 'api-keys', orgId, page, limit] as const,
   auditLog: (orgId: string, page: number, limit: number) => [...orgInfraKeys.all, 'audit-log', orgId, page, limit] as const,
   subdomain: (orgId: string) => [...orgInfraKeys.all, 'subdomain', orgId] as const,
   ssoConfigs: (orgId: string) => [...orgInfraKeys.all, 'sso-configs', orgId] as const,
+  vaultSecrets: (orgId: string) => [...orgInfraKeys.all, 'vault-secrets', orgId] as const,
 }
 
 export const useOrgApiKeys = (orgId: string, enabled = true, page = 1, limit = 20) =>
@@ -161,5 +173,69 @@ export const useUpdateSsoConfig = (orgId: string) => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: orgInfraKeys.ssoConfigs(orgId) })
     },
+  })
+}
+
+export const useVaultSecrets = (orgId: string, enabled = true) =>
+  useQuery({
+    queryKey: orgInfraKeys.vaultSecrets(orgId),
+    enabled: enabled && !!orgId,
+    queryFn: () => api.get<{ secrets: OrgVaultSecret[] }>(`/api/organizations/${orgId}/vault/secrets`).then((r) => r.data),
+  })
+
+export const useStoreSecret = (orgId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: {
+      name: string
+      value: string
+      secret_type?: string
+      provider?: string
+      key_ref?: string
+    }) =>
+      api
+        .post<{ id: string }>(`/api/organizations/${orgId}/vault/secrets`, {
+          name: payload.name,
+          secret_type: payload.secret_type ?? 'generic',
+          provider: payload.provider ?? 'cloudflare',
+          key_ref: payload.key_ref,
+          secret_value: payload.value,
+          metadata: JSON.stringify({
+            provider: payload.provider ?? 'cloudflare',
+            key_ref: payload.key_ref ?? null,
+            value_present: Boolean(payload.value),
+          }),
+        })
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgInfraKeys.vaultSecrets(orgId) })
+    },
+  })
+}
+
+export const useRevokeSecret = (orgId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (secretId: string) => api.delete<{ deleted: boolean }>(`/api/organizations/${orgId}/vault/secrets/${secretId}`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgInfraKeys.vaultSecrets(orgId) })
+    },
+  })
+}
+
+export const useRotateSecret = (orgId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ name }: { name: string }) =>
+      api.post<{ id: string }>(`/api/organizations/${orgId}/vault/secrets/${name}/rotate`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: orgInfraKeys.vaultSecrets(orgId) })
+    },
+  })
+}
+
+export const useTestSecret = (orgId: string) => {
+  return useMutation({
+    mutationFn: (name: string) => api.post<{ exists?: boolean; is_active?: boolean; message?: string }>(`/api/organizations/${orgId}/vault/secrets/${name}/test`).then((r) => r.data),
   })
 }

@@ -9,6 +9,9 @@ import ApiKeysPanel from '../components/org/ApiKeysPanel'
 import AuditLogPanel from '../components/org/AuditLogPanel'
 import SubdomainPanel from '../components/org/SubdomainPanel'
 import SsoConfigPanel from '../components/org/SsoConfigPanel'
+import VaultPanel from '../components/org/VaultPanel'
+import ConnectorsPanel from '../components/org/ConnectorsPanel'
+import UsagePanel from '../components/org/UsagePanel'
 
 type SettingsTab =
   | 'general'
@@ -17,6 +20,7 @@ type SettingsTab =
   | 'sso'
   | 'subdomain'
   | 'vault'
+  | 'connectors'
   | 'add-ons'
   | 'usage'
 
@@ -27,6 +31,7 @@ const TABS: Array<{ key: SettingsTab; label: string }> = [
   { key: 'sso', label: 'SSO' },
   { key: 'subdomain', label: 'Subdomain' },
   { key: 'vault', label: 'Vault' },
+  { key: 'connectors', label: 'Connectors' },
   { key: 'add-ons', label: 'Add-ons' },
   { key: 'usage', label: 'Usage' },
 ]
@@ -38,6 +43,9 @@ export default function OrgSettingsPage() {
   const { enabled: auditLogEnabled } = useFeatureFlag('audit_log', enabled)
   const { enabled: orgSubdomainEnabled } = useFeatureFlag('org_subdomain', enabled)
   const { enabled: ssoEnabled } = useFeatureFlag('sso', enabled)
+  const { enabled: vaultEnabled } = useFeatureFlag('vault', enabled)
+  const { enabled: connectorsEnabled } = useFeatureFlag('connectors', enabled)
+  const { enabled: usageEnabled } = useFeatureFlag('usage_alerts', enabled)
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const orgQuery = useOrg(id, enabled)
 
@@ -145,7 +153,31 @@ export default function OrgSettingsPage() {
           )
         )}
 
-        {!['general', 'api-keys', 'audit-log', 'sso', 'subdomain'].includes(activeTab) && (
+        {activeTab === 'vault' && (
+          vaultEnabled ? (
+            <VaultPanel orgId={id} enabled={vaultEnabled} />
+          ) : (
+            <FeatureComingSoon name='Secrets Vault' description='Secrets vault is currently behind vault.' />
+          )
+        )}
+
+        {activeTab === 'connectors' && (
+          connectorsEnabled ? (
+            <ConnectorsPanel orgId={id} enabled={connectorsEnabled} />
+          ) : (
+            <FeatureComingSoon name='Connectors' description='Connector marketplace and MCP registry are currently behind connectors.' />
+          )
+        )}
+
+        {activeTab === 'usage' && (
+          usageEnabled ? (
+            <UsagePanel orgId={id} enabled={usageEnabled} />
+          ) : (
+            <FeatureComingSoon name='Usage & Quota' description='Usage and quota controls are currently behind usage_alerts.' />
+          )
+        )}
+
+        {!['general', 'api-keys', 'audit-log', 'sso', 'subdomain', 'vault', 'connectors', 'usage'].includes(activeTab) && (
           <div className='space-y-2'>
             <h2 className='text-base font-semibold text-[color:var(--text-primary)]'>
               {TABS.find((tab) => tab.key === activeTab)?.label}

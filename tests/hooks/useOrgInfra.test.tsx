@@ -8,8 +8,13 @@ import {
   useOrgAuditLog,
   useOrgSsoConfigs,
   useOrgSubdomain,
+  useRevokeSecret,
+  useRotateSecret,
+  useStoreSecret,
+  useTestSecret,
   useUpdateSsoConfig,
   useUpdateSubdomain,
+  useVaultSecrets,
 } from '../../src/hooks/useOrgInfra'
 import { createQueryClientWrapper } from '../utils/queryClient'
 
@@ -57,6 +62,23 @@ describe('useOrgInfra hooks', () => {
     expect(api.get).toHaveBeenCalledWith('/api/organizations/org-1/sso/configs')
   })
 
+  it('fetches vault secrets', async () => {
+    vi.mocked(api.get).mockResolvedValueOnce({
+      data: {
+        secrets: [{ id: 'sec-1', org_id: 'org-1', name: 'SENDGRID_API_KEY', created_at: '2026-01-01' }],
+      },
+    } as never)
+
+    const wrapper = createQueryClientWrapper()
+    const secrets = renderHook(() => useVaultSecrets('org-1', true), { wrapper: wrapper.Wrapper })
+
+    await waitFor(() => {
+      expect(secrets.result.current.isSuccess).toBe(true)
+    })
+
+    expect(api.get).toHaveBeenCalledWith('/api/organizations/org-1/vault/secrets')
+  })
+
   it('creates api key, updates subdomain, and creates/updates sso config', async () => {
     vi.mocked(api.post)
       .mockResolvedValueOnce({ data: { id: 'k1', key: 'secret-1', key_prefix: 'abcd', name: 'Main key' } } as never)
@@ -86,5 +108,42 @@ describe('useOrgInfra hooks', () => {
     expect(api.put).toHaveBeenCalledWith('/api/organizations/org-1/subdomain', { subdomain: 'team-beta' })
     expect(api.post).toHaveBeenCalledWith('/api/organizations/org-1/sso/configs', { provider_type: 'okta', protocol: 'saml' })
     expect(api.put).toHaveBeenCalledWith('/api/organizations/org-1/sso/configs/s1', { provider_type: 'okta', protocol: 'oidc' })
+  })
+
+  it('stores, rotates, tests, and revokes vault secrets', async () => {
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({ data: { id: 'sec-1' } } as never)
+      .mockResolvedValueOnce({ data: { id: 'sec-1' } } as never)
+      .mockResolvedValueOnce({ data: { ok: true } } as never)
+    vi.mocked(api.delete).mockResolvedValueOnce({ data: { deleted: true } } as never)
+
+    const a = createQueryClientWrapper()
+    const b = createQueryClientWrapper()
+    const c = createQueryClientWrapper()
+    const d = createQueryClientWrapper()
+
+    const storeSecret = renderHook(() => useStoreSecret('org-1'), { wrapper: a.Wrapper })
+    const rotateSecret = renderHook(() => useRotateSecret('org-1'), { wrapper: b.Wrapper })
+    const testSecret = renderHook(() => useTestSecret('org-1'), { wrapper: c.Wrapper })
+    const revokeSecret = renderHook(() => useRevokeSecret('org-1'), { wrapper: d.Wrapper })
+
+    await act(async () => {
+      await storeSecret.result.current.mutateAsync({ name: 'SENDGRID_API_KEY', value: 'secret' })
+      await rotateSecret.result.current.mutateAsync({ name: 'SENDGRID_API_KEY' })
+      await testSecret.result.current.mutateAsync('SENDGRID_API_KEY')
+      await revokeSecret.result.current.mutateAsync('sec-1')
+    })
+
+    expect(api.post).toHaveBeenCalledWith('/api/organizations/org-1/vault/secrets', {
+      name: 'SENDGRID_API_KEY',
+      secret_type: 'generic',
+      provider: 'cloudflare',
+      key_ref: undefined,
+      secret_value: 'secret',
+      metadata: JSON.stringify({ provider: 'cloudflare', key_ref: null, value_present: true }),
+    })
+    expect(api.post).toHaveBeenCalledWith('/api/organizations/org-1/vault/secrets/SENDGRID_API_KEY/rotate')
+    expect(api.post).toHaveBeenCalledWith('/api/organizations/org-1/vault/secrets/SENDGRID_API_KEY/test')
+    expect(api.delete).toHaveBeenCalledWith('/api/organizations/org-1/vault/secrets/sec-1')
   })
 })

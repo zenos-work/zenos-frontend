@@ -266,3 +266,60 @@ export const usePreviewFeatureAnnouncement = () =>
     mutationFn: (payload: Partial<FeatureFlagPayload> & { action: 'enabled' | 'disabled' }) =>
       api.post<FeatureAnnouncementPreview>('/api/admin/feature-flags/preview-announcement', payload).then((r) => r.data),
   })
+
+export const useAdminEarningsCalculate = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: {
+      period_start: string
+      period_end: string
+      active_subscribers: number
+      payout_ratio?: number
+      min_payout_cents?: number
+    }) => api.post('/api/admin/earnings/calculate', payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
+export const useAdminEarningsPeriod = (period: string, enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'earnings', 'period', period],
+    enabled: enabled && !!period,
+    queryFn: () => api.get(`/api/admin/earnings/period/${period}`).then((r) => r.data),
+  })
+
+export const useAdminBillingReconciliation = (period: string, enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'billing', 'reconciliation', period],
+    enabled: enabled && !!period,
+    queryFn: () => api.get(`/api/admin/billing/reconciliation/${period}`).then((r) => r.data),
+  })
+
+export const useAdminRunReconciliation = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { period: string; threshold_cents?: number }) => api.post('/api/admin/billing/reconcile', payload).then((r) => r.data),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'billing', 'reconciliation', vars.period] })
+    },
+  })
+}
+
+export const useErasureQueue = (enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'compliance', 'erasure-queue'],
+    enabled,
+    queryFn: () => api.get<{ items: Array<Record<string, unknown>> }>('/api/admin/compliance/erasure-queue').then((r) => r.data),
+  })
+
+export const useExecuteErasure = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (requestId: string) => api.post(`/api/admin/compliance/erasure/${requestId}/execute`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'compliance', 'erasure-queue'] })
+    },
+  })
+}

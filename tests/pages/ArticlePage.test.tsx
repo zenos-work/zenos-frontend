@@ -223,7 +223,7 @@ describe('ArticlePage', () => {
     expect(screen.getAllByText('Subtitle').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Cloud').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Follow author-1').length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /share article/i })).toBeInTheDocument()
     expect(screen.getByText('TOC')).toBeInTheDocument()
     expect(screen.getByText(/Time spent reading:/i)).toBeInTheDocument()
     expect(await screen.findByText('Written by')).toBeInTheDocument()

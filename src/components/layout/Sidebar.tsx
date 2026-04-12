@@ -10,10 +10,12 @@ import {
   Home,
   History,
   PenSquare,
+  Radio,
   Search,
   Settings,
   Shield,
   Sparkles,
+  Users,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useFeatureFlag } from '../../hooks/useFeatureFlags'
@@ -102,6 +104,13 @@ export default function Sidebar() {
   const { enabled: readingListsEnabled } = useFeatureFlag('reading_lists', !!user)
   const { enabled: earningsEnabled } = useFeatureFlag('earnings_dashboard', !!user)
   const { enabled: newslettersEnabled } = useFeatureFlag('newsletters', !!user)
+  const { enabled: coursesEnabled } = useFeatureFlag('courses', !!user)
+  const { enabled: communityEnabled } = useFeatureFlag('community', !!user)
+  const { enabled: marketplaceEnabled } = useFeatureFlag('marketplace', !!user)
+  const { enabled: podcastsEnabled } = useFeatureFlag('podcasts', !!user)
+  const { enabled: publicationsEnabled } = useFeatureFlag('publications', !!user)
+  const { enabled: marketingEnabled } = useFeatureFlag('marketing_tools', !!user)
+  const { enabled: leadsEnabled } = useFeatureFlag('leads', !!user)
   const { sidebarOpen, toggleSidebar } = useUiStore()
   const open = sidebarOpen
   const canWrite = user && ['AUTHOR', 'APPROVER', 'SUPERADMIN'].includes(user.role)
@@ -112,6 +121,13 @@ export default function Sidebar() {
         ...(readingListsEnabled ? [{ to: '/reading-lists', icon: BookOpen, label: 'Reading Lists' }] : []),
         ...AUTH_NAV.slice(4, 6),
         ...(canWrite && newslettersEnabled ? [{ to: '/newsletters', icon: FileText, label: 'Newsletters' }] : []),
+        ...(coursesEnabled ? [{ to: '/courses', icon: BookOpen, label: 'Courses' }] : []),
+        ...(communityEnabled ? [{ to: '/community', icon: Home, label: 'Community' }] : []),
+        ...(marketplaceEnabled ? [{ to: '/marketplace', icon: Sparkles, label: 'Marketplace' }] : []),
+        ...(podcastsEnabled ? [{ to: '/podcasts', icon: Radio, label: 'Podcasts' }] : []),
+        ...(publicationsEnabled ? [{ to: '/publications', icon: FileText, label: 'Publications' }] : []),
+        ...(canWrite && marketingEnabled ? [{ to: '/marketing', icon: BarChart2, label: 'Marketing' }] : []),
+        ...(canWrite && leadsEnabled ? [{ to: '/leads', icon: Users, label: 'Leads' }] : []),
         ...AUTH_NAV.slice(6),
       ]
     : GUEST_NAV

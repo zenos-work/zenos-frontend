@@ -21,6 +21,7 @@ import AccountDataPanel from '../components/profile/AccountDataPanel'
 import ActiveSessionsPanel from '../components/profile/ActiveSessionsPanel'
 import BlockMutePanel from '../components/profile/BlockMutePanel'
 import CustomDomainPanel from '../components/profile/CustomDomainPanel'
+import ReferralWidget from '../components/profile/ReferralWidget'
 
 function haveSameTopics(left: string[], right: string[]) {
   if (left.length !== right.length) return false
@@ -176,6 +177,7 @@ export default function ProfilePage() {
   const { enabled: sessionManagementEnabled } = useFeatureFlag('session_management', !!user)
   const { enabled: blockMuteEnabled } = useFeatureFlag('block_mute', !!user)
   const { enabled: customDomainsEnabled } = useFeatureFlag('custom_domains', !!user)
+  const { enabled: referralsEnabled } = useFeatureFlag('referrals', !!user)
 
   const { data: availableTags = [] } = useTags({ onboarding: true })
   const { data: prefs } = useUserPrefs()
@@ -1052,6 +1054,7 @@ export default function ProfilePage() {
           {sessionManagementEnabled && <ActiveSessionsPanel />}
           {blockMuteEnabled && <BlockMutePanel />}
           {customDomainsEnabled && <CustomDomainPanel enabled={customDomainsEnabled} />}
+          {referralsEnabled && <ReferralWidget enabled={referralsEnabled} />}
         </section>
       )}
 

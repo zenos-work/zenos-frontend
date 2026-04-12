@@ -18,6 +18,7 @@ import type {
 } from '../../types'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
+import FeatureAnnouncement from '../ui/FeatureAnnouncement'
 import Modal from '../ui/Modal'
 import Spinner from '../ui/Spinner'
 
@@ -492,9 +493,12 @@ export default function FeatureFlagsPanel() {
                   <Badge variant='default'>{preview.scope}</Badge>
                   <Badge variant='info'>{preview.recipient_count} recipients</Badge>
                 </div>
-                <div className='rounded-lg border border-gray-800 bg-black p-4 text-sm leading-6 text-gray-100 whitespace-pre-wrap'>
-                  {preview.message}
-                </div>
+                <FeatureAnnouncement
+                  title={preview.action === 'enabled' ? (form.enabled_title || `${form.name} enabled`) : (form.disabled_title || `${form.name} disabled`)}
+                  message={preview.message}
+                  scope={preview.scope}
+                  channels={preview.channels}
+                />
                 <div className='flex flex-wrap gap-2 text-xs text-gray-300'>
                   {preview.channels.map((channel) => (
                     <span key={channel} className='rounded-full border border-gray-700 px-2 py-1'>

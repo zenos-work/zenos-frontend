@@ -34,6 +34,14 @@ vi.mock('../../src/components/org/SsoConfigPanel', () => ({
   default: () => <div>SsoConfigPanel</div>,
 }))
 
+vi.mock('../../src/components/org/VaultPanel', () => ({
+  default: () => <div>VaultPanel</div>,
+}))
+
+vi.mock('../../src/components/org/ConnectorsPanel', () => ({
+  default: () => <div>ConnectorsPanel</div>,
+}))
+
 describe('OrgSettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -72,5 +80,11 @@ describe('OrgSettingsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /api keys/i }))
     expect(screen.getByText('ApiKeysPanel')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /vault/i }))
+    expect(screen.getByText('VaultPanel')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /connectors/i }))
+    expect(screen.getByText('ConnectorsPanel')).toBeInTheDocument()
   })
 })

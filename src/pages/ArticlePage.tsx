@@ -12,6 +12,7 @@ import CommentList   from '../components/comments/CommentList'
 import BookmarkButton from '../components/social/BookmarkButton'
 import FollowButton  from '../components/social/FollowButton'
 import { useLike, useShare } from '../hooks/useSocial'
+import SocialSharePanel from '../components/social/SocialSharePanel'
 import { useUiStore } from '../stores/uiStore'
 import TagChip       from '../components/ui/TagChip'
 import Avatar        from '../components/ui/Avatar'
@@ -701,6 +702,12 @@ export default function ArticlePage() {
                 ))}
               </div>
             )}
+
+            <SocialSharePanel
+              articleId={article.id}
+              articleUrl={article.canonical_url || window.location.href}
+              articleTitle={article.title}
+            />
 
             <div className='flex items-center justify-between border-y divider py-4'>
               <ConsolidatedReactions articleId={article.id} reactions={reactions?.reactions} isLoading={reactionsLoading} />

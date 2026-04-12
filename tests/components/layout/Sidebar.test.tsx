@@ -26,7 +26,9 @@ vi.mock('../../../src/components/ui/Avatar', () => ({
 describe('Sidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useFeatureFlagMock.mockImplementation((key: string) => ({ enabled: key === 'reading_lists' || key === 'newsletters' }))
+    useFeatureFlagMock.mockImplementation((key: string) => ({
+      enabled: key === 'reading_lists' || key === 'newsletters' || key === 'courses' || key === 'community' || key === 'marketplace',
+    }))
   })
 
   it('renders open sidebar navigation for admin authors', () => {
@@ -50,6 +52,9 @@ describe('Sidebar', () => {
     expect(screen.getByText('Library')).toBeInTheDocument()
     expect(screen.getByText('Reading Lists')).toBeInTheDocument()
     expect(screen.getByText('Newsletters')).toBeInTheDocument()
+    expect(screen.getByText('Courses')).toBeInTheDocument()
+    expect(screen.getByText('Community')).toBeInTheDocument()
+    expect(screen.getByText('Marketplace')).toBeInTheDocument()
     expect(screen.getByText('Stats')).toBeInTheDocument()
     expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.queryByText('Home')).not.toBeInTheDocument()

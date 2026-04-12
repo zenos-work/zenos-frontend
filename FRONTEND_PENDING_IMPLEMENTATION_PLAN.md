@@ -458,7 +458,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P3-3: Workflow Builder (visual)
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `workflow_builder`
 **Backend:** `GET /api/workflow-node-types`, `GET /api/workflow-templates`, `POST /:id/clone`, `GET/POST /api/workflows`, `GET/PUT/DELETE /api/workflows/:id`, `POST /api/workflows/:id/runs`, `GET /api/workflow-tasks`, `PUT /api/workflow-tasks/:id`, `GET/PUT /api/workflow-approvals/:id`, `POST /api/webhooks/workflow/:id`
 
@@ -478,9 +478,15 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P3-4: Courses
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `courses`
 **Backend:** Full CRUD `/api/courses`, modules, lessons, quizzes, questions
+
+**Progress (Apr 11, 2026):**
+- Added `src/hooks/useCourses.ts` for courses/modules/lessons/enrollment/progress lifecycle.
+- Added `src/pages/CoursesPage.tsx`, `src/pages/CoursePage.tsx`, and `src/pages/CourseBuilderPage.tsx`.
+- Added routes in `src/App.tsx` for `/courses`, `/courses/:id`, `/courses/new`, `/courses/:id/edit` with guard parity.
+- Added targeted coverage in `tests/hooks/useCourses.test.tsx` and `tests/pages/CoursesPage.test.tsx`.
 
 **Files to create / modify:**
 
@@ -496,9 +502,15 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P3-5: Community Spaces
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `community`
 **Backend:** Full CRUD `/api/community`, members, posts, replies, post likes
+
+**Progress (Apr 11, 2026):**
+- Added `src/hooks/useCommunity.ts` for spaces/members/posts/replies/likes.
+- Added `src/pages/CommunityPage.tsx` and `src/pages/SpacePage.tsx`.
+- Added routes in `src/App.tsx` for `/community` and `/community/:id` behind auth guard.
+- Added targeted coverage in `tests/hooks/useCommunity.test.tsx` and `tests/pages/CommunityPage.test.tsx`.
 
 **Files to create / modify:**
 
@@ -513,9 +525,14 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P3-6: Connectors
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `connectors`
 **Backend:** `GET /api/connector-marketplace`, `GET/POST/DELETE /api/connectors/installs`, `GET/POST /api/connectors/mcp-servers`, `GET/POST /api/connectors/definitions`
+
+**Progress (Apr 11, 2026):**
+- Added `src/hooks/useConnectors.ts` for marketplace listings, installs, MCP servers, and definitions.
+- Added `src/components/org/ConnectorsPanel.tsx` and integrated Connectors tab into `src/pages/OrgSettingsPage.tsx` behind `connectors` flag.
+- Added targeted coverage in `tests/hooks/useConnectors.test.tsx`, `tests/components/org/ConnectorsPanel.test.tsx`, and updated `tests/pages/OrgSettingsPage.test.tsx`.
 
 **Files to create / modify:**
 
@@ -529,9 +546,15 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P3-7: Marketplace
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `marketplace`
 **Backend:** `GET/POST /api/marketplace`, `PUT/DELETE /api/marketplace/:id`, `POST /:id/publish`, `GET/POST /:id/purchases`, `GET/POST /:id/reviews`, `GET /api/marketplace/my-purchases`
+
+**Progress (Apr 11, 2026):**
+- Added `src/hooks/useMarketplace.ts` for listing/detail/purchase/review workflows.
+- Added `src/pages/MarketplacePage.tsx` and `src/pages/MarketplaceItemPage.tsx` with feature-flag fallback.
+- Added routes in `src/App.tsx` for `/marketplace` and `/marketplace/:id`.
+- Added targeted coverage in `tests/hooks/useMarketplace.test.tsx` and `tests/pages/MarketplacePage.test.tsx`.
 
 **Files to create / modify:**
 
@@ -546,9 +569,14 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ## P4 — Enterprise & Advanced Features
 
+**Progress (Apr 11, 2026):**
+- Completed P4-1 through P4-11 across backend, frontend, DB, and jobs wiring.
+- Added backend regression coverage for P4 feature-gate enforcement and SUPERADMIN-only admin extensions.
+- Admin extensions (`admin_earnings`, `admin_billing`, `admin_compliance`) are guarded by both role checks and feature flags.
+
 ### P4-1: Podcasts
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `podcasts`
 **Backend:** Full CRUD `/api/podcasts`, episodes
 
@@ -564,7 +592,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-2: Publications
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `publications`
 **Backend:** `/api/publications/subscriptions`, `/issues`, `/issues/:id/items`
 
@@ -579,7 +607,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-3: Marketing Channels + A/B Tests
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `marketing_tools`
 **Backend:** `GET/POST/PUT/DELETE /api/marketing/channels`, `/scheduled`, `/ab-tests`
 
@@ -594,7 +622,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-4: Leads & CRM
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `leads`
 **Backend:** `GET/POST/PUT/DELETE /api/leads/forms`, `/score-rules`, `/contacts`
 
@@ -609,7 +637,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-5: Referrals
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `referrals`
 **Backend:** `GET/POST /api/referrals`, `POST /api/referrals/track`, `GET /api/referrals/events`, `/stats`
 
@@ -625,7 +653,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-6: Usage Alerts & Quota
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `usage_alerts`
 **Backend:** `GET /api/usage/quota`, `GET /api/usage/export`, `GET/POST/PUT/DELETE /api/usage/alerts/:id`
 
@@ -641,7 +669,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-7: Secrets Vault
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `vault`
 **Backend:** `GET/POST/DELETE /api/organizations/:id/vault/secrets`, rotate, test
 
@@ -657,7 +685,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-8: Workflow Costs
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `workflow_costs`
 **Backend:** `GET/POST/PUT/DELETE /api/workflow-costs/rates`, `/runs/:run_id`, `/workflows/:wid`, `/summaries`, `/monthly`, budget cap
 
@@ -673,7 +701,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-9: Admin — Earnings Calculation
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `admin_earnings`
 **Backend:** `POST /api/admin/earnings/calculate`, `GET /api/admin/earnings/period/:period_start`
 
@@ -688,7 +716,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-10: Admin — Billing Reconciliation
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `admin_billing`
 **Backend:** `GET /api/admin/billing/reconciliation/:period`, `POST /api/admin/billing/reconcile`
 
@@ -703,7 +731,7 @@ Generic placeholder rendered when a feature flag is off in consumer context. Sho
 
 ### P4-11: Admin — Compliance / Erasure Queue
 
-**Status:** `[ ]`
+**Status:** `[x]`
 **Feature flag key:** `admin_compliance`
 **Backend:** `GET /api/admin/compliance/erasure-queue`, `POST /api/admin/compliance/erasure/:id/execute`
 
@@ -811,7 +839,7 @@ When a flag transitions state, the `FeatureAnnouncementBanner` (Section 0.2) wil
 4. P2-1            — Organizations (needed by all P2-x and P4-6/4-7/4-8) [x] completed
 5. P2-2 to P2-6    — API Keys, Audit Log, Domains, Subdomain, SSO [x] completed
 6. P3-1 to P3-2    — Newsletters, Analytics [x] completed
-7. P3-3            — Workflow Builder (complex — needs a canvas library eval first)
-8. P3-4 to P3-7    — Courses, Community, Connectors, Marketplace
-9. P4-1 to P4-11   — Podcasts, Publications, Marketing, Leads, Referrals, Usage, Vault, Costs, Admin extensions
+7. P3-3            — Workflow Builder [x completed]
+8. P3-4 to P3-7    — Courses, Community, Connectors, Marketplace [x] completed
+9. P4-1 to P4-11   — Podcasts, Publications, Marketing, Leads, Referrals, Usage, Costs, Admin extensions [x completed]
 ```

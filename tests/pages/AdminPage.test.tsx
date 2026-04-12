@@ -17,6 +17,10 @@ const useBulkQueueActionMock = vi.fn()
 const useModerationCommentsMock = vi.fn()
 const useModerateCommentMock = vi.fn()
 const useAdminUsersMock = vi.fn()
+const useAdminEarningsPeriodMock = vi.fn()
+const useAdminBillingReconciliationMock = vi.fn()
+const useErasureQueueMock = vi.fn()
+const useFeatureFlagMock = vi.fn()
 const useUiStoreMock = vi.fn()
 const toastMock = vi.fn()
 const banMutateAsyncMock = vi.fn()
@@ -38,8 +42,18 @@ vi.mock('../../src/hooks/useAdmin', () => ({
   useModerationComments: (...args: unknown[]) => useModerationCommentsMock(...args),
   useModerateComment: (...args: unknown[]) => useModerateCommentMock(...args),
   useAdminUsers: (...args: unknown[]) => useAdminUsersMock(...args),
+  useAdminEarningsCalculate: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAdminEarningsPeriod: (...args: unknown[]) => useAdminEarningsPeriodMock(...args),
+  useAdminBillingReconciliation: (...args: unknown[]) => useAdminBillingReconciliationMock(...args),
+  useAdminRunReconciliation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useErasureQueue: (...args: unknown[]) => useErasureQueueMock(...args),
+  useExecuteErasure: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useBanUser: () => ({ mutateAsync: banMutateAsyncMock }),
   useUnbanUser: () => ({ mutateAsync: unbanMutateAsyncMock }),
+}))
+
+vi.mock('../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: (...args: unknown[]) => useFeatureFlagMock(...args),
 }))
 
 vi.mock('../../src/stores/uiStore', () => ({
@@ -58,6 +72,10 @@ describe('AdminPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useUiStoreMock.mockReturnValue(toastMock)
+    useFeatureFlagMock.mockReturnValue({ enabled: true, isLoading: false })
+    useAdminEarningsPeriodMock.mockReturnValue({ data: null })
+    useAdminBillingReconciliationMock.mockReturnValue({ data: null })
+    useErasureQueueMock.mockReturnValue({ data: { items: [] }, isLoading: false })
     banMutateAsyncMock.mockResolvedValue({})
     unbanMutateAsyncMock.mockResolvedValue({})
     vi.mocked(api.put).mockResolvedValue({ data: {} } as never)
