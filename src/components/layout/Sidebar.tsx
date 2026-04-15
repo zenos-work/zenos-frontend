@@ -74,7 +74,6 @@ const AUTH_NAV = [
   { to: '/onboarding/writer', icon: Sparkles, label: 'Writer Onboarding' },
   { to: '/workflow', icon: FileText, label: 'Workflow' },
   { to: '/stats', icon: BarChart2, label: 'Stats' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 const GUEST_NAV = [
@@ -225,15 +224,13 @@ export default function Sidebar() {
 
       {user && (
         <div style={{ borderTop: '1px solid var(--border)', padding: open ? '12px' : '8px', flexShrink: 0 }}>
-          <NavLink
-            to='/settings'
+          <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 10,
               padding: '10px 12px',
               borderRadius: 18,
-              textDecoration: 'none',
               background: 'var(--surface-1)',
             }}
           >
@@ -267,7 +264,7 @@ export default function Sidebar() {
                 </p>
               </div>
             )}
-          </NavLink>
+          </div>
         </div>
       )}
 

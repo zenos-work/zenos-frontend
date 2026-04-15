@@ -979,6 +979,12 @@ export default function WritePage() {
                   onChange={(e) => setNewTagName(e.target.value)}
                   placeholder='Create a new tag (e.g. fintech or #fintech)'
                   className='w-full rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)]'
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newTagName.trim() && !creatingTag) {
+                      e.preventDefault()
+                      void handleCreateTag()
+                    }
+                  }}
                 />
                 <select
                   value={newTagType}

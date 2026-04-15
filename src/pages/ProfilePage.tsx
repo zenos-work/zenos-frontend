@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useRef, useState } from 'react'
 import { PencilLine, Upload, Trash2 } from 'lucide-react'
@@ -146,7 +146,9 @@ function YesNoToggle({
 
 export default function ProfilePage() {
   const { id }   = useParams()
+  const location = useLocation()
   const { user } = useAuth()
+  const isSettingsPage = location.pathname.startsWith('/settings')
   const qc = useQueryClient()
   const toast = useUiStore((s) => s.toast)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
@@ -341,7 +343,7 @@ export default function ProfilePage() {
     const nextPrefs = {
       topics: selectedTopics,
       email_notifs: prefs?.email_notifs ?? 1,
-      theme: prefs?.theme ?? 'dark',
+      theme: (prefs?.theme === 'light' ? 'light' : 'dark') as 'light' | 'dark',
     }
 
     await updatePrefsMutation.mutateAsync(nextPrefs)
@@ -381,9 +383,12 @@ export default function ProfilePage() {
     }
     const baselineReading: ReadingSettingsForm = {
       ...DEFAULT_READING_SETTINGS,
-      defaultFont: readingPrefs.fontFamily,
-      defaultFontSize: readingPrefs.fontSize,
-      defaultWidth: readingPrefs.contentWidth,
+      // @ts-ignore mapping db types to local types
+      defaultFont: prefs?.font_family ?? readingPrefs.fontFamily,
+      // @ts-ignore
+      defaultFontSize: prefs?.font_size ?? readingPrefs.fontSize,
+      // @ts-ignore
+      defaultWidth: prefs?.content_width ?? readingPrefs.contentWidth,
     }
 
     if (!profile || !isOwnProfile || !effectiveUserId) {
@@ -524,7 +529,7 @@ export default function ProfilePage() {
     const nextPrefs = {
       topics: selectedTopics,
       email_notifs: notificationSettings.emailWeeklyDigest ? 1 : 0,
-      theme: prefs?.theme ?? 'dark',
+      theme: (prefs?.theme === 'light' ? 'light' : 'dark') as 'light' | 'dark',
     }
 
     await updatePrefsMutation.mutateAsync(nextPrefs)
@@ -646,29 +651,31 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <section data-testid='profile-articles' className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 shadow-sm'>
-        <div className='mb-4 flex items-center justify-between gap-3'>
-          <div>
-            <h2 className='text-lg font-semibold text-[color:var(--text-primary)]'>Articles</h2>
-            <p className='mt-1 text-sm text-[color:var(--text-secondary)]'>
-              {isOwnProfile ? 'Your latest writing activity.' : `Recent work by ${profile.name}.`}
-            </p>
+      {!isSettingsPage && (
+        <section data-testid='profile-articles' className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 shadow-sm'>
+          <div className='mb-4 flex items-center justify-between gap-3'>
+            <div>
+              <h2 className='text-lg font-semibold text-[color:var(--text-primary)]'>Articles</h2>
+              <p className='mt-1 text-sm text-[color:var(--text-secondary)]'>
+                {isOwnProfile ? 'Your latest writing activity.' : `Recent work by ${profile.name}.`}
+              </p>
+            </div>
+            <span className='text-sm text-[color:var(--text-muted)]'>{visibleArticleCount} total</span>
           </div>
-          <span className='text-sm text-[color:var(--text-muted)]'>{visibleArticleCount} total</span>
-        </div>
 
-        {visibleArticles.length > 0 ? (
-          <div className='space-y-4'>
-            {visibleArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} compact showStatus={isOwnProfile} />
-            ))}
-          </div>
-        ) : (
-          <div className='rounded-xl border border-dashed border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-6 text-sm text-[color:var(--text-muted)]'>
-            {isOwnProfile ? 'No articles created yet.' : 'No published articles yet.'}
-          </div>
-        )}
-      </section>
+          {visibleArticles.length > 0 ? (
+            <div className='space-y-4'>
+              {visibleArticles.map((article) => (
+                <ArticleCard key={article.id} article={article} compact showStatus={isOwnProfile} />
+              ))}
+            </div>
+          ) : (
+            <div className='rounded-xl border border-dashed border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-6 text-sm text-[color:var(--text-muted)]'>
+              {isOwnProfile ? 'No articles created yet.' : 'No published articles yet.'}
+            </div>
+          )}
+        </section>
+      )}
 
       {isOwnProfile && (
         <div className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 pt-3 shadow-sm'>

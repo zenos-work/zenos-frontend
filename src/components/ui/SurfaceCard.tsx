@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 
 type SurfaceCardTone = 'default' | 'subtle'
-type SurfaceCardPadding = 'sm' | 'md' | 'lg'
+type SurfaceCardPadding = 'sm' | 'md' | 'lg' | 'none'
 
 function paddingClass(padding: SurfaceCardPadding): string {
+  if (padding === 'none') return 'p-0'
   if (padding === 'sm') return 'p-3'
   if (padding === 'lg') return 'p-6'
   return 'p-4'

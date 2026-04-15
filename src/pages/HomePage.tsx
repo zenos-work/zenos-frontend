@@ -6,7 +6,6 @@ import {
   BookOpen,
   ChevronRight,
   Globe,
-  Monitor,
   Moon,
   PenSquare,
   Shield,
@@ -42,7 +41,7 @@ type GuestFeatureCard = {
 export default function HomePage() {
   const [tab, setTab] = useState<'home' | 'following' | 'trending'>('home')
   const { user } = useAuth()
-  const { theme, resolvedTheme, cycleTheme } = useUiStore()
+  const { resolvedTheme, setTheme } = useUiStore()
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
   const [newsletterEmail, setNewsletterEmail] = useState('')
   const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -213,12 +212,12 @@ export default function HomePage() {
           <nav className='flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-secondary)] md:gap-3'>
             <button
               type='button'
-              onClick={cycleTheme}
+              onClick={() => setTheme(resolvedTheme === 'light' ? 'dark' : 'light')}
               className='grid h-8 w-8 place-items-center rounded-full border border-[color:var(--border-strong)] text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
-              aria-label='Cycle theme mode (light, dark, system)'
-              title='Cycle theme mode (light, dark, system)'
+              aria-label='Toggle theme'
+              title='Toggle theme'
             >
-              {theme === 'system' ? <Monitor size={14} /> : resolvedTheme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+              {resolvedTheme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
             </button>
             <Link to='/info/features' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Features</Link>
             <Link to='/info/about' className='rounded-full px-3 py-1.5 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--text-primary)]'>Writers</Link>

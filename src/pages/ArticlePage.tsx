@@ -32,6 +32,7 @@ import { toReadingHistoryItem, upsertReadingHistoryItem } from '../lib/readingHi
 import type { User } from '../types'
 import { exportArticle, type ExportFormat } from '../lib/articleExport'
 import ReportModal from '../components/article/ReportModal'
+import ReviewToolbar from '../components/article/ReviewToolbar'
 
 type TocHeading = {
   id: string
@@ -455,6 +456,9 @@ export default function ArticlePage() {
       <div className='min-h-screen'>
         <div className={`mx-auto grid max-w-[1240px] gap-8 ${tocVisible ? 'xl:grid-cols-[minmax(0,1fr)_260px]' : ''}`}>
         <article className={`mx-auto w-full px-4 py-8 sm:px-6 sm:py-10 ${tocVisible ? 'xl:mx-0 xl:px-0' : ''}`} style={{ maxWidth: articleWidth }}>
+          {(user?.role === 'APPROVER' || user?.role === 'SUPERADMIN') && article.status !== 'PUBLISHED' && (
+            <ReviewToolbar article={article} />
+          )}
           <div className='space-y-8'>
             {article.tags?.length > 0 && (
               <div className='mt-2 flex flex-wrap items-center gap-2'>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import {
@@ -12,7 +13,13 @@ import {
 } from 'lucide-react'
 import api from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
-import { useApprovalQueue, useNotifications } from '../hooks/useAdmin'
+import {
+  useApprovalQueue,
+  useNotifications,
+  useApproveArticle,
+  usePublishArticle,
+  useRejectArticle,
+} from '../hooks/useAdmin'
 import { useMyArticles } from '../hooks/useArticles'
 import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import { useUiStore } from '../stores/uiStore'
@@ -163,30 +170,9 @@ export default function WorkflowPage() {
     return buildWorkflowSteps(selected, canReview)
   }, [canReview, selected])
 
-  const approveMutation = useMutation({
-    mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/approve`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
-      qc.invalidateQueries({ queryKey: ['articles'] })
-    },
-  })
-
-  const publishMutation = useMutation({
-    mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/publish`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
-      qc.invalidateQueries({ queryKey: ['articles'] })
-    },
-  })
-
-  const rejectMutation = useMutation({
-    mutationFn: ({ articleId, note }: { articleId: string; note: string }) =>
-      api.post(`/api/articles/${articleId}/reject`, { note }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
-      qc.invalidateQueries({ queryKey: ['articles'] })
-    },
-  })
+  const approveMutation = useApproveArticle()
+  const publishMutation = usePublishArticle()
+  const rejectMutation = useRejectArticle()
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ articleId, message }: { articleId: string; message: string }) =>
@@ -425,13 +411,13 @@ export default function WorkflowPage() {
                     <span>{selected.likes_count} likes</span>
                   </div>
                 </div>
-                <a
-                  href={`/article/${selected.slug}`}
+                <Link
+                  to={`/article/${selected.slug}`}
                   className='inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]'
                 >
                   <Eye size={13} />
                   Preview
-                </a>
+                </Link>
               </div>
             </SurfaceCard>
 

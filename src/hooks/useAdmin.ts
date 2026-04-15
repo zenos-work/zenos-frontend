@@ -201,6 +201,28 @@ export const useMarkNotificationRead = () => {
   })
 }
 
+export const useDeleteNotification = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (notificationId: string) => api.delete(`/api/admin/notifications/${notificationId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
+export const useDeleteAllNotifications = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete('/api/admin/notifications/all'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
 export const useModerationComments = (page = 1, limit = 20, enabled = true) =>
   useQuery({
     queryKey: ['admin', 'comments', page, limit],
@@ -313,6 +335,40 @@ export const useErasureQueue = (enabled = true) =>
     enabled,
     queryFn: () => api.get<{ items: Array<Record<string, unknown>> }>('/api/admin/compliance/erasure-queue').then((r) => r.data),
   })
+
+export const useApproveArticle = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/approve`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
+      qc.invalidateQueries({ queryKey: ['articles'] })
+    },
+  })
+}
+
+export const usePublishArticle = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/publish`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
+      qc.invalidateQueries({ queryKey: ['articles'] })
+    },
+  })
+}
+
+export const useRejectArticle = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ articleId, note }: { articleId: string; note: string }) =>
+      api.post(`/api/articles/${articleId}/reject`, { note }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
+      qc.invalidateQueries({ queryKey: ['articles'] })
+    },
+  })
+}
 
 export const useExecuteErasure = () => {
   const qc = useQueryClient()

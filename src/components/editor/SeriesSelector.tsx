@@ -89,6 +89,7 @@ export default function SeriesSelector({
 
           <div className="flex gap-2">
             <input
+              id="new-series-input"
               type="text"
               placeholder="Create new series..."
               className="flex-1 rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)]"
@@ -100,7 +101,15 @@ export default function SeriesSelector({
               }}
             />
             <button
+              type="button"
               disabled={createMutation.isPending}
+              onClick={() => {
+                const input = document.getElementById('new-series-input') as HTMLInputElement
+                if (input && input.value.trim()) {
+                  void handleCreateAndSelect(input.value.trim())
+                  input.value = ''
+                }
+              }}
               className="rounded-lg border border-[color:var(--accent)] px-3 py-2 text-xs font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--accent-dim)] disabled:opacity-50"
             >
               {createMutation.isPending ? 'Creating...' : 'Create'}

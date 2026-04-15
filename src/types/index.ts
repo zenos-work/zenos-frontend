@@ -129,7 +129,7 @@ export interface Notification {
 export interface UserPrefs {
   topics:       string[]
   email_notifs: number
-  theme:        'dark' | 'light' | 'system'
+  theme:        'dark' | 'light'
 }
 
 export interface AdminStats {

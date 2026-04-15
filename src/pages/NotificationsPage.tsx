@@ -9,11 +9,14 @@ import {
   MessageCircle,
   TrendingUp,
   UserPlus,
+  Trash2,
 } from 'lucide-react'
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
+  useDeleteAllNotifications,
+  useDeleteNotification,
 } from '../hooks/useAdmin'
 import Spinner from '../components/ui/Spinner'
 import type { Notification } from '../types'
@@ -28,6 +31,8 @@ export default function NotificationsPage() {
   const { data, isLoading, isError } = useNotifications()
   const markAllReadMutation = useMarkAllNotificationsRead()
   const markOneReadMutation = useMarkNotificationRead()
+  const deleteAllMutation = useDeleteAllNotifications()
+  const deleteOneMutation = useDeleteNotification()
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'comment' | 'follower' | 'system'>('all')
   const [localRead, setLocalRead] = useState<Record<string, boolean>>({})
 
@@ -117,6 +122,20 @@ export default function NotificationsPage() {
               Mark all read
             </button>
           )}
+          {notifications.length > 0 && (
+            <button
+              type='button'
+              onClick={() => {
+                if (window.confirm('Are you sure you want to clear all notifications?')) {
+                  deleteAllMutation.mutate()
+                }
+              }}
+              disabled={deleteAllMutation.isPending}
+              className='flex items-center gap-1.5 rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-600 hover:bg-rose-50 disabled:opacity-60'
+            >
+              <Trash2 size={14} /> Clear all
+            </button>
+          )}
         </div>
       </header>
 
@@ -196,6 +215,19 @@ export default function NotificationsPage() {
                       Mark read
                     </button>
                   )}
+
+                  <button
+                    type='button'
+                    onClick={() => {
+                      if (window.confirm('Delete this notification?')) {
+                        deleteOneMutation.mutate(notification.id)
+                      }
+                    }}
+                    disabled={deleteOneMutation.isPending}
+                    className='text-xs font-semibold uppercase tracking-wide text-rose-500 hover:underline disabled:opacity-60'
+                  >
+                    Delete
+                  </button>
 
                   {articleHref && (
                     <Link

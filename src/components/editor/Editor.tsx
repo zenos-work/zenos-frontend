@@ -106,8 +106,9 @@ export default function Editor({
 
   const unsplashCandidates = useMemo(() => {
     const q = (unsplashQuery || 'writing desk').trim()
-    return Array.from({ length: 8 }, (_, i) =>
-      `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(q)}&sig=${i + 1}`,
+    // Use loremflickr for better content-based keyword search than picsum seed
+    return Array.from({ length: 12 }).map((_, i) =>
+      `https://loremflickr.com/1200/800/${encodeURIComponent(q.replace(/\s+/g, ','))}?lock=${i + 10}`
     )
   }, [unsplashQuery])
 
@@ -289,7 +290,11 @@ export default function Editor({
 
   const insertFromUnsplash = (src: string) => {
     if (!editor) return
-    editor.chain().focus().setImage({ src, alt: unsplashQuery || 'Unsplash image' }).run()
+    editor
+      .chain()
+      .focus()
+      .setImage({ src, alt: unsplashQuery || 'Unsplash image' })
+      .run()
     setShowUnsplashPicker(false)
     setShowInsertMenu(false)
   }
@@ -450,19 +455,33 @@ export default function Editor({
       </div>
 
       {showUnsplashPicker && (
-        <div className='absolute left-10 top-4 z-20 w-[760px] max-w-[90%] rounded-xl border border-slate-300 bg-white p-4 shadow-2xl'>
+        <div
+          className='absolute left-10 z-20 w-[760px] max-w-[90%] rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] p-4 shadow-2xl'
+          style={{ top: `${cursorAnchor.top + 40}px` }}
+        >
           <div className='mb-3 flex items-center gap-3'>
             <input
               value={unsplashQuery}
               onChange={e => setUnsplashQuery(e.target.value)}
               placeholder='Search Unsplash images...'
-              className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500'
+              className='w-full rounded-md border border-[color:var(--border-strong)] bg-[color:var(--surface-1)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]'
             />
-            <button type='button' onClick={() => setShowUnsplashPicker(false)} className='rounded-md border border-slate-300 px-3 py-2 text-sm'>Close</button>
+            <button
+              type='button'
+              onClick={() => setShowUnsplashPicker(false)}
+              className='rounded-md border border-[color:var(--border-strong)] px-3 py-2 text-sm text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]'
+            >
+              Close
+            </button>
           </div>
           <div className='grid grid-cols-2 gap-3 md:grid-cols-4'>
             {unsplashCandidates.map(url => (
-              <button key={url} type='button' onClick={() => insertFromUnsplash(url)} className='overflow-hidden rounded-lg border border-slate-200'>
+              <button
+                key={url}
+                type='button'
+                onClick={() => insertFromUnsplash(url)}
+                className='overflow-hidden rounded-lg border border-[color:var(--border)] hover:border-[color:var(--accent)]'
+              >
                 <img src={url} alt='Unsplash option' className='h-24 w-full object-cover' loading='lazy' />
               </button>
             ))}
