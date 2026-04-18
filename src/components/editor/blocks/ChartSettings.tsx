@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ChartData } from '../../ui/blocks/ChartBlock';
-import { Save, X, Plus, Trash2 } from 'lucide-react';
+import { Save, X, Plus } from 'lucide-react';
 
 interface ChartSettingsProps {
   currentData: ChartData;
@@ -60,7 +60,7 @@ export default function ChartSettings({ currentData, onSave, onClose }: ChartSet
           <label className="block text-xs font-semibold uppercase tracking-wider text-[color:var(--text-muted)] mb-1">Chart Type</label>
           <select
             value={data.type}
-            onChange={e => setData(prev => ({ ...prev, type: e.target.value as any }))}
+            onChange={e => setData(prev => ({ ...prev, type: e.target.value as ChartData['type'] }))}
             className="w-full bg-[color:var(--surface-2)] border border-[color:var(--border)] rounded px-3 py-2 text-sm outline-none focus:border-[color:var(--accent)]"
           >
             <option value="BAR">Bar Chart</option>

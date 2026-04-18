@@ -6,10 +6,14 @@ interface SurveyBlockProps {
   surveyId: string;
 }
 
+type SurveyAnswer =
+  | { question_id: string; answer_option_index: number }
+  | { question_id: string; answer_text: string };
+
 export default function SurveyBlock({ surveyId }: SurveyBlockProps) {
   const { data: survey, isLoading, error } = useSurvey(surveyId);
   const submitMutation = useSubmitSurveyResponse();
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, SurveyAnswer>>({});
   const [submitted, setSubmitted] = useState(false);
 
   if (isLoading) return <div className="p-4 flex justify-center"><Spinner /></div>;
