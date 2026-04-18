@@ -428,7 +428,7 @@ export default function ProfilePage() {
       notificationSettings,
       readingSettings,
     }
-  }, [effectiveUserId, isOwnProfile, prefs?.email_notifs, prefs?.content_width, prefs?.font_family, prefs?.font_size, profile, readingPrefs.contentWidth, readingPrefs.fontFamily, readingPrefs.fontSize])
+  }, [effectiveUserId, isOwnProfile, prefs?.email_notifs, profile, readingPrefs.contentWidth, readingPrefs.fontFamily, readingPrefs.fontSize])
 
   const profileBio = effectiveUserId
     ? (profileBioOverrides[effectiveUserId] ?? persistedSettings.profileBio)

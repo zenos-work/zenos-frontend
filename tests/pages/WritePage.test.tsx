@@ -108,6 +108,13 @@ vi.mock('@tanstack/react-query', () => ({
     mutateAsync: uploadMutateAsyncMock,
     isPending: false,
   }),
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    refetchQueries: vi.fn(),
+    cancelQueries: vi.fn(),
+  }),
 }))
 
 vi.mock('../../src/stores/editorStore', () => ({

@@ -6,9 +6,11 @@ interface SurveyBlockProps {
   surveyId: string;
 }
 
-type SurveyAnswer =
-  | { question_id: string; answer_option_index: number }
-  | { question_id: string; answer_text: string };
+type SurveyAnswer = {
+  question_id: string;
+  answer_option_index?: number;
+  answer_text?: string;
+};
 
 export default function SurveyBlock({ surveyId }: SurveyBlockProps) {
   const { data: survey, isLoading, error } = useSurvey(surveyId);
