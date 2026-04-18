@@ -6,6 +6,9 @@ import { makeArticle } from '../utils/fixtures'
 
 const useMyArticlesMock = vi.fn()
 const useAuthMock = vi.fn()
+const useFeatureFlagMock = vi.fn()
+const useMyOrgsMock = vi.fn()
+const useAnalyticsDashboardMock = vi.fn()
 
 vi.mock('../../src/hooks/useArticles', () => ({
   useMyArticles: () => useMyArticlesMock(),
@@ -13,6 +16,18 @@ vi.mock('../../src/hooks/useArticles', () => ({
 
 vi.mock('../../src/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
+}))
+
+vi.mock('../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: (...args: unknown[]) => useFeatureFlagMock(...args),
+}))
+
+vi.mock('../../src/hooks/useOrg', () => ({
+  useMyOrgs: (...args: unknown[]) => useMyOrgsMock(...args),
+}))
+
+vi.mock('../../src/hooks/useAnalytics', () => ({
+  useAnalyticsDashboard: (...args: unknown[]) => useAnalyticsDashboardMock(...args),
 }))
 
 vi.mock('../../src/components/ui/Spinner', () => ({
@@ -23,6 +38,9 @@ describe('StatsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useAuthMock.mockReturnValue({ user: { id: 'u1', role: 'AUTHOR' } })
+    useFeatureFlagMock.mockReturnValue({ enabled: false })
+    useMyOrgsMock.mockReturnValue({ data: { organizations: [{ id: 'org-1' }] } })
+    useAnalyticsDashboardMock.mockReturnValue({ isLoading: false, data: { events: [], conversions: [], experiments: [] } })
   })
 
   it('shows loading state while fetching article stats', () => {
@@ -73,5 +91,35 @@ describe('StatsPage', () => {
     expect(screen.getByText('Top performing stories')).toBeInTheDocument()
     expect(screen.getAllByText('Published One').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Published Two').length).toBeGreaterThan(0)
+  })
+
+  it('shows analytics tab and analytics content when analytics flag is enabled', () => {
+    useFeatureFlagMock.mockReturnValue({ enabled: true })
+    useMyArticlesMock.mockReturnValue({
+      isLoading: false,
+      data: { items: [makeArticle({ id: 'p1', title: 'Published One', status: 'PUBLISHED' })] },
+    })
+    useAnalyticsDashboardMock.mockReturnValue({
+      isLoading: false,
+      data: {
+        events: [{ category: 'article', count: 42 }],
+        conversions: [{ goal: 'Subscribe', count: 5, total_value_cents: 12000 }],
+        experiments: [{ id: 'e1', name: 'Headline test', status: 'running', variants: [{ id: 'v1', name: 'Control', impressions: 120, conversions: 14 }] }],
+      },
+    })
+
+    render(
+      <MemoryRouter>
+        <StatsPage />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Analytics' }))
+
+    expect(screen.getByText('Event breakdown')).toBeInTheDocument()
+    expect(screen.getByText('article')).toBeInTheDocument()
+    expect(screen.getByText('Conversion summary')).toBeInTheDocument()
+    expect(screen.getByText('Experiment health')).toBeInTheDocument()
+    expect(useAnalyticsDashboardMock).toHaveBeenCalled()
   })
 })

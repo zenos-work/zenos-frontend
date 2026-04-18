@@ -87,7 +87,7 @@ export default function OnboardingPreferencesPage() {
     await savePrefs.mutateAsync({
       topics: selectedTopics,
       email_notifs: prefs?.email_notifs ?? 1,
-      theme: prefs?.theme ?? 'dark',
+      theme: (prefs?.theme === 'light' ? 'light' : 'dark') as 'light' | 'dark',
     })
 
     const nextPath = sessionStorage.getItem('post_onboarding_redirect')

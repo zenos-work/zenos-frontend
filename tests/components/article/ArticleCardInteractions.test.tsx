@@ -19,6 +19,16 @@ vi.mock('../../../src/hooks/useSocial', () => ({
   useShare: () => ({ isPending: false, mutateAsync: shareMutateAsyncMock }),
 }))
 
+vi.mock('../../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: () => ({ enabled: false }),
+}))
+
+vi.mock('../../../src/hooks/useReadingLists', () => ({
+  useReadingLists: () => ({ data: { reading_lists: [] } }),
+  useCreateReadingList: () => ({ mutateAsync: vi.fn() }),
+  useAddToReadingList: () => ({ mutateAsync: vi.fn() }),
+}))
+
 vi.mock('../../../src/stores/uiStore', () => ({
   useUiStore: (selector: (state: { toast: typeof toastMock }) => unknown) => selector({ toast: toastMock }),
 }))

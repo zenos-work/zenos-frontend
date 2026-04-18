@@ -4,14 +4,14 @@ import Image from '@tiptap/extension-image'
 import { TextStyle } from '@tiptap/extension-text-style'
 import TextAlign from '@tiptap/extension-text-align'
 import Placeholder from '@tiptap/extension-placeholder'
-import Youtube from '@tiptap/extension-youtube'
+// import Youtube from '@tiptap/extension-youtube'
 import { marked } from 'marked'
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import {
   Plus,
   ImagePlus,
+  /* Video, */
   Code,
-  Video,
   Link2,
   Search,
   Bold,
@@ -29,13 +29,14 @@ import {
 } from 'lucide-react'
 import { FontSize } from './extensions/FontSize'
 import { PrivateNote } from './extensions/PrivateNote'
-import { IframeEmbed, VideoEmbed } from './extensions/EmbedNodes'
+import { IframeEmbed /*, VideoEmbed */ } from './extensions/EmbedNodes'
+// import { ChartExtension } from './extensions/ChartExtension'
+// import { SurveyExtension } from './extensions/SurveyExtension'
 
 interface Props {
-  content:  string
+  content: string
   onChange: (value: string) => void
   onInlineImageUpload?: (file: File) => Promise<string>
-  onInlineVideoUpload?: (file: File) => Promise<string>
   isInlineUploadInProgress?: boolean
   inlineUploadStatusText?: string
 }
@@ -52,21 +53,6 @@ type SelectionToolbarAnchor = {
   left: number
 }
 
-function toVimeoEmbed(url: URL): string | null {
-  const match = url.pathname.match(/\/(\d+)/)
-  if (!match) return null
-  return `https://player.vimeo.com/video/${match[1]}`
-}
-
-function toDailymotionEmbed(url: URL): string | null {
-  if (url.hostname === 'dai.ly') {
-    const id = url.pathname.replace('/', '')
-    return id ? `https://www.dailymotion.com/embed/video/${id}` : null
-  }
-  const match = url.pathname.match(/\/video\/([^_/?]+)/)
-  if (!match) return null
-  return `https://www.dailymotion.com/embed/video/${match[1]}`
-}
 
 function getNextFontSize(current: number, increase: boolean): number {
   const idx = FONT_STEPS.findIndex(v => v >= current)
@@ -82,13 +68,12 @@ export default function Editor({
   content,
   onChange,
   onInlineImageUpload,
-  onInlineVideoUpload,
   isInlineUploadInProgress = false,
   inlineUploadStatusText,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
-  const videoInputRef = useRef<HTMLInputElement | null>(null)
+  // const videoInputRef = useRef<HTMLInputElement | null>(null)
   const markdownInputRef = useRef<HTMLInputElement | null>(null)
 
   const [showInsertMenu, setShowInsertMenu] = useState(false)
@@ -106,8 +91,9 @@ export default function Editor({
 
   const unsplashCandidates = useMemo(() => {
     const q = (unsplashQuery || 'writing desk').trim()
-    return Array.from({ length: 8 }, (_, i) =>
-      `https://source.unsplash.com/featured/1200x800/?${encodeURIComponent(q)}&sig=${i + 1}`,
+    // Use loremflickr for better content-based keyword search than picsum seed
+    return Array.from({ length: 12 }).map((_, i) =>
+      `https://loremflickr.com/1200/800/${encodeURIComponent(q.replace(/\s+/g, ','))}?lock=${i + 10}`
     )
   }, [unsplashQuery])
 
@@ -134,8 +120,8 @@ export default function Editor({
           loading: 'lazy',
         },
       }),
-      VideoEmbed,
-      Youtube.configure({
+      // VideoEmbed,
+      /* Youtube.configure({
         controls: true,
         nocookie: true,
         width: 860,
@@ -143,7 +129,7 @@ export default function Editor({
         HTMLAttributes: {
           class: 'my-3 w-full rounded-lg border border-gray-300/40',
         },
-      }),
+      }), */
       IframeEmbed,
       TextStyle,
       FontSize,
@@ -151,8 +137,10 @@ export default function Editor({
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      // ChartExtension,
+      // SurveyExtension,
     ],
-    content:    '',
+    content: '',
     editorProps: {
       attributes: {
         class: [
@@ -237,14 +225,13 @@ export default function Editor({
     }
   }
 
+  /*
   const handleInlineVideoPick = async (file: File | undefined) => {
     if (!file || !editor) return
+
     setLocalInlineUploadKind('video')
     try {
-      const src = onInlineVideoUpload
-        ? await onInlineVideoUpload(file)
-        : URL.createObjectURL(file)
-
+      const src = URL.createObjectURL(file)
       editor
         .chain()
         .focus()
@@ -262,6 +249,7 @@ export default function Editor({
       if (videoInputRef.current) videoInputRef.current.value = ''
     }
   }
+  */
 
   const handleMarkdownPick = async (file: File | undefined) => {
     if (!file || !editor) return
@@ -289,11 +277,16 @@ export default function Editor({
 
   const insertFromUnsplash = (src: string) => {
     if (!editor) return
-    editor.chain().focus().setImage({ src, alt: unsplashQuery || 'Unsplash image' }).run()
+    editor
+      .chain()
+      .focus()
+      .setImage({ src, alt: unsplashQuery || 'Unsplash image' })
+      .run()
     setShowUnsplashPicker(false)
     setShowInsertMenu(false)
   }
 
+  /*
   const insertVideoByUrl = () => {
     if (!editor) return
     const raw = window.prompt('Paste a video URL (YouTube, Vimeo, Dailymotion):')?.trim()
@@ -322,14 +315,29 @@ export default function Editor({
       window.alert(e instanceof Error ? e.message : 'Invalid video URL')
     }
   }
+  */
 
-  const insertGenericEmbed = () => {
+  /*
+  const insertChart = () => {
     if (!editor) return
-    const raw = window.prompt('Paste an embeddable URL:')?.trim()
-    if (!raw) return
-    editor.chain().focus().insertContent({ type: 'iframeEmbed', attrs: { src: raw, title: 'Embedded content' } }).insertContent({ type: 'paragraph' }).run()
+    editor.chain()
+      .focus()
+      .insertContent({ type: 'chartBlock', attrs: { chartData: null } })
+      .insertContent({ type: 'paragraph' })
+      .run()
     setShowInsertMenu(false)
   }
+
+  const insertSurvey = () => {
+    if (!editor) return
+    editor.chain()
+      .focus()
+      .insertContent({ type: 'surveyBlock', attrs: { surveyId: null } })
+      .insertContent({ type: 'paragraph' })
+      .run()
+    setShowInsertMenu(false)
+  }
+  */
 
   const applyFontSize = (increase: boolean) => {
     if (!editor) return
@@ -430,39 +438,61 @@ export default function Editor({
             <button type='button' onClick={() => { setShowUnsplashPicker(v => !v); setUnsplashQuery(editor?.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || '') }} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Search Unsplash image'>
               <Search size={14} />
             </button>
+            {/*
             <button type='button' disabled={isInlineUploadBusy} onClick={() => videoInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60' title='Video from device'>
               <Video size={14} />
             </button>
+            */}
             <button type='button' onClick={() => markdownInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Markdown file'>
               <FileText size={14} />
             </button>
-            <button type='button' onClick={insertVideoByUrl} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='YouTube/Vimeo/Dailymotion URL'>
+            {/* <button type='button' onClick={insertVideoByUrl} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='YouTube/Vimeo/Dailymotion URL'>
               <Link2 size={14} />
-            </button>
+            </button> */}
             <button type='button' onClick={insertCodeBlock} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Code block'>
               <Code size={14} />
             </button>
-            <button type='button' onClick={insertGenericEmbed} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Embed item'>
+            {/* <button type='button' onClick={insertGenericEmbed} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Embed item'>
               {'<>'}
             </button>
+            <button type='button' onClick={insertChart} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Insert Chart'>
+              <BarChart2 size={14} />
+            </button>
+            <button type='button' onClick={insertSurvey} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Insert Survey'>
+              <ClipboardList size={14} />
+            </button> */}
           </div>
         )}
       </div>
 
       {showUnsplashPicker && (
-        <div className='absolute left-10 top-4 z-20 w-[760px] max-w-[90%] rounded-xl border border-slate-300 bg-white p-4 shadow-2xl'>
+        <div
+          className='absolute left-10 z-20 w-[760px] max-w-[90%] rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] p-4 shadow-2xl'
+          style={{ top: `${cursorAnchor.top + 40}px` }}
+        >
           <div className='mb-3 flex items-center gap-3'>
             <input
               value={unsplashQuery}
               onChange={e => setUnsplashQuery(e.target.value)}
               placeholder='Search Unsplash images...'
-              className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500'
+              className='w-full rounded-md border border-[color:var(--border-strong)] bg-[color:var(--surface-1)] px-3 py-2 text-sm text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]'
             />
-            <button type='button' onClick={() => setShowUnsplashPicker(false)} className='rounded-md border border-slate-300 px-3 py-2 text-sm'>Close</button>
+            <button
+              type='button'
+              onClick={() => setShowUnsplashPicker(false)}
+              className='rounded-md border border-[color:var(--border-strong)] px-3 py-2 text-sm text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]'
+            >
+              Close
+            </button>
           </div>
           <div className='grid grid-cols-2 gap-3 md:grid-cols-4'>
             {unsplashCandidates.map(url => (
-              <button key={url} type='button' onClick={() => insertFromUnsplash(url)} className='overflow-hidden rounded-lg border border-slate-200'>
+              <button
+                key={url}
+                type='button'
+                onClick={() => insertFromUnsplash(url)}
+                className='overflow-hidden rounded-lg border border-[color:var(--border)] hover:border-[color:var(--accent)]'
+              >
                 <img src={url} alt='Unsplash option' className='h-24 w-full object-cover' loading='lazy' />
               </button>
             ))}
@@ -483,6 +513,7 @@ export default function Editor({
         className='hidden'
         onChange={e => void handleInlineImagePick(e.target.files?.[0])}
       />
+      {/*
       <input
         ref={videoInputRef}
         type='file'
@@ -490,6 +521,7 @@ export default function Editor({
         className='hidden'
         onChange={e => void handleInlineVideoPick(e.target.files?.[0])}
       />
+      */}
       <input
         ref={markdownInputRef}
         type='file'

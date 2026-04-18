@@ -6,9 +6,9 @@ describe('queryClient defaults', () => {
     const defaults = queryClient.getDefaultOptions().queries
     expect(defaults?.staleTime).toBe(1000 * 60 * 5)
     expect(defaults?.gcTime).toBe(1000 * 60 * 15)
-    expect(defaults?.refetchOnWindowFocus).toBe(false)
+    expect(defaults?.refetchOnWindowFocus).toBe(true)
     expect(defaults?.refetchOnReconnect).toBe(true)
-    expect(defaults?.refetchOnMount).toBe(false)
+    expect(defaults?.refetchOnMount).toBe(true)
     expect(typeof defaults?.retry).toBe('function')
   })
 

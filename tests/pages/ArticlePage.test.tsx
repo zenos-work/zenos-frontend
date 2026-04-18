@@ -10,6 +10,7 @@ const useAuthorArticlesMock = vi.fn()
 const useRelatedArticlesMock = vi.fn()
 const useAuthMock = vi.fn()
 const apiGetMock = vi.fn()
+const useFeatureFlagMock = vi.fn()
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -27,6 +28,10 @@ vi.mock('../../src/hooks/useArticles', () => ({
 
 vi.mock('../../src/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
+}))
+
+vi.mock('../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: (...args: unknown[]) => useFeatureFlagMock(...args),
 }))
 
 vi.mock('../../src/lib/api', () => ({
@@ -92,6 +97,10 @@ vi.mock('../../src/components/reading/ReadingPreferencesPanel', () => ({
   ReadingPreferencesPanel: () => null,
 }))
 
+vi.mock('../../src/components/article/ReportModal', () => ({
+  default: () => <div>ReportModal</div>,
+}))
+
 vi.mock('../../src/hooks/useReadingPreferences', () => ({
   useReadingPreferences: () => ({
     preferences: {
@@ -122,6 +131,7 @@ vi.mock('../../src/stores/uiStore', () => ({
 describe('ArticlePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useFeatureFlagMock.mockReturnValue({ enabled: false })
     apiGetMock.mockResolvedValue({
       data: {
         user: {
@@ -213,7 +223,7 @@ describe('ArticlePage', () => {
     expect(screen.getAllByText('Subtitle').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Cloud').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Follow author-1').length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /share article/i })).toBeInTheDocument()
     expect(screen.getByText('TOC')).toBeInTheDocument()
     expect(screen.getByText(/Time spent reading:/i)).toBeInTheDocument()
     expect(await screen.findByText('Written by')).toBeInTheDocument()

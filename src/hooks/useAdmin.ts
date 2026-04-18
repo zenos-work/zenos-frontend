@@ -11,6 +11,11 @@ import type {
   PaginationMeta,
   Notification,
   Comment,
+  FeatureFlagAdmin,
+  FeatureFlagListResponse,
+  FeatureAnnouncementPreview,
+  FeatureFlagMetadata,
+  FeatureFlagTargetType,
 } from '../types'
 
 type ApprovalQueueResponse = {
@@ -44,6 +49,18 @@ type BulkQueueActionResponse = {
 type ModerationCommentsResponse = {
   data: Comment[]
   pagination: PaginationMeta
+}
+
+type FeatureFlagPayload = {
+  flag_key: string
+  name: string
+  description?: string
+  category: string
+  is_active: boolean
+  target_type: FeatureFlagTargetType
+  targets: string[]
+  rollout_pct: number
+  metadata?: FeatureFlagMetadata
 }
 
 export const useAdminStats = (enabled = true) =>
@@ -82,10 +99,11 @@ export const useUpdateAdminRankingWeights = () => {
   })
 }
 
-export const useApprovalQueue = (page = 1, enabled = true) =>
+export const useApprovalQueue = (page = 1, enabled = true, options = {}) =>
   useQuery({
     queryKey: ['admin', 'queue', page],
     enabled,
+    ...options,
     queryFn:  () =>
       api.get<ApprovalQueueResponse>('/api/admin/queue', { params: { page } })
          .then(r => r.data),
@@ -184,6 +202,28 @@ export const useMarkNotificationRead = () => {
   })
 }
 
+export const useDeleteNotification = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (notificationId: string) => api.delete(`/api/admin/notifications/${notificationId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
+export const useDeleteAllNotifications = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete('/api/admin/notifications/all'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
 export const useModerationComments = (page = 1, limit = 20, enabled = true) =>
   useQuery({
     queryKey: ['admin', 'comments', page, limit],
@@ -200,6 +240,147 @@ export const useModerateComment = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'comments'] })
       qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
+export const useAdminFeatureFlags = (enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'feature-flags'],
+    enabled,
+    queryFn: () =>
+      api.get<FeatureFlagListResponse>('/api/admin/feature-flags').then((r) => r.data),
+  })
+
+export const useCreateAdminFeatureFlag = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: FeatureFlagPayload) =>
+      api.post<FeatureFlagAdmin>('/api/admin/feature-flags', payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] })
+      qc.invalidateQueries({ queryKey: ['feature-flags'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
+
+export const useUpdateAdminFeatureFlag = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ flagId, payload }: { flagId: string; payload: Partial<FeatureFlagPayload> }) =>
+      api.put<FeatureFlagAdmin>(`/api/admin/feature-flags/${flagId}`, payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] })
+      qc.invalidateQueries({ queryKey: ['feature-flags'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
+
+export const useDeleteAdminFeatureFlag = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (flagId: string) => api.delete(`/api/admin/feature-flags/${flagId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] })
+    },
+  })
+}
+
+export const usePreviewFeatureAnnouncement = () =>
+  useMutation({
+    mutationFn: (payload: Partial<FeatureFlagPayload> & { action: 'enabled' | 'disabled' }) =>
+      api.post<FeatureAnnouncementPreview>('/api/admin/feature-flags/preview-announcement', payload).then((r) => r.data),
+  })
+
+export const useAdminEarningsCalculate = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: {
+      period_start: string
+      period_end: string
+      active_subscribers: number
+      payout_ratio?: number
+      min_payout_cents?: number
+    }) => api.post('/api/admin/earnings/calculate', payload).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'stats'] })
+    },
+  })
+}
+
+export const useAdminEarningsPeriod = (period: string, enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'earnings', 'period', period],
+    enabled: enabled && !!period,
+    queryFn: () => api.get(`/api/admin/earnings/period/${period}`).then((r) => r.data),
+  })
+
+export const useAdminBillingReconciliation = (period: string, enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'billing', 'reconciliation', period],
+    enabled: enabled && !!period,
+    queryFn: () => api.get(`/api/admin/billing/reconciliation/${period}`).then((r) => r.data),
+  })
+
+export const useAdminRunReconciliation = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { period: string; threshold_cents?: number }) => api.post('/api/admin/billing/reconcile', payload).then((r) => r.data),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'billing', 'reconciliation', vars.period] })
+    },
+  })
+}
+
+export const useErasureQueue = (enabled = true) =>
+  useQuery({
+    queryKey: ['admin', 'compliance', 'erasure-queue'],
+    enabled,
+    queryFn: () => api.get<{ items: Array<Record<string, unknown>> }>('/api/admin/compliance/erasure-queue').then((r) => r.data),
+  })
+
+export const useApproveArticle = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/approve`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
+      qc.invalidateQueries({ queryKey: ['articles'] })
+    },
+  })
+}
+
+export const usePublishArticle = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/publish`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
+      qc.invalidateQueries({ queryKey: ['articles'] })
+    },
+  })
+}
+
+export const useRejectArticle = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ articleId, note }: { articleId: string; note: string }) =>
+      api.post(`/api/articles/${articleId}/reject`, { note }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
+      qc.invalidateQueries({ queryKey: ['articles'] })
+    },
+  })
+}
+
+export const useExecuteErasure = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (requestId: string) => api.post(`/api/admin/compliance/erasure/${requestId}/execute`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'compliance', 'erasure-queue'] })
     },
   })
 }

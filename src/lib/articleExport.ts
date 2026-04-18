@@ -1,5 +1,5 @@
 import type { ArticleDetail } from '../types'
-import { jsPDF } from 'jspdf'
+import { generateArticlePdfBlob } from './articlePdfDocument'
 
 export type ExportFormat = 'pdf' | 'word' | 'markdown'
 
@@ -14,10 +14,6 @@ type RichNode = {
   text?: string
   content?: RichNode[]
 }
-
-type PdfBlock =
-  | { type: 'text'; text: string }
-  | { type: 'image'; src: string; alt: string }
 
 type EmbeddedImage = {
   dataUrl: string
@@ -119,6 +115,11 @@ function nodeToMarkdown(node: RichNode): string {
     return src ? `![${alt}](${src})\n\n` : ''
   }
 
+  if (node.type === 'videoEmbed' || node.type === 'embed') {
+    const src = String(node.attrs?.src || '').trim()
+    return src ? `[Video: ${src}]\n\n` : ''
+  }
+
   return childrenToMarkdown(node)
 }
 
@@ -149,6 +150,11 @@ function nodeToText(node: RichNode): string {
   if (node.type === 'image') {
     const src = String(node.attrs?.src || '')
     return src ? `[Image: ${src}]\n\n` : ''
+  }
+
+  if (node.type === 'videoEmbed' || node.type === 'embed') {
+    const src = String(node.attrs?.src || '').trim()
+    return src ? `[Video: ${src}]\n\n` : ''
   }
 
   return childrenToText(node)
@@ -186,13 +192,19 @@ function nodeToHtml(node: RichNode): string {
   if (node.type === 'bulletList') return `<ul>${childrenToHtml(node)}</ul>`
   if (node.type === 'orderedList') return `<ol>${childrenToHtml(node)}</ol>`
   if (node.type === 'listItem') return `<li>${childrenToHtml(node)}</li>`
-  if (node.type === 'blockquote') return `<blockquote>${childrenToHtml(node)}</blockquote>`
-  if (node.type === 'codeBlock') return `<pre><code>${escapeHtml(childrenToText(node))}</code></pre>`
+  if (node.type === 'blockquote') return `<blockquote style="border-left:4px solid #ccc;margin-left:0;padding-left:16px;color:#666;font-style:italic;">${childrenToHtml(node)}</blockquote>`
+  if (node.type === 'codeBlock') return `<pre style="background-color:#f3f3f3;border:1px solid #ddd;border-radius:4px;padding:12px;overflow-x:auto;font-family:monospace;font-size:12px;color:#333;"><code>${escapeHtml(childrenToText(node))}</code></pre>`
 
   if (node.type === 'image') {
     const src = escapeHtml(String(node.attrs?.src || ''))
     const alt = escapeHtml(String(node.attrs?.alt || ''))
     return src ? `<img src="${src}" alt="${alt}" />` : ''
+  }
+
+  if (node.type === 'videoEmbed' || node.type === 'embed') {
+    const src = String(node.attrs?.src || '').trim()
+    if (!src) return ''
+    return `<div style="margin:12pt 0;padding:12px;border:1px solid #e5e7eb;border-radius:4px;background-color:#f9fafb;"><a href="${escapeHtml(src)}" style="color:#0a66c2;text-decoration:none;">▶ Watch video: ${escapeHtml(src)}</a></div>`
   }
 
   return childrenToHtml(node)
@@ -266,15 +278,36 @@ async function embedImageSource(src: string): Promise<EmbeddedImage | null> {
       const response = await fetch(normalizedSrc)
       blob = await response.blob()
     } else {
-      const response = await fetch(normalizedSrc)
-      if (!response.ok) return null
-      blob = await response.blob()
+      try {
+        // Try fetching with CORS mode
+        const response = await fetch(normalizedSrc, {
+          mode: 'cors',
+          credentials: 'omit',
+        })
+        if (!response.ok) {
+          // Fallback: try without CORS restrictions
+          const fallbackResponse = await fetch(normalizedSrc)
+          if (!fallbackResponse.ok) return null
+          blob = await fallbackResponse.blob()
+        } else {
+          blob = await response.blob()
+        }
+      } catch {
+        // Last resort: try direct fetch
+        const directResponse = await fetch(normalizedSrc)
+        if (!directResponse.ok) return null
+        blob = await directResponse.blob()
+      }
     }
 
     const dataUrl = await blobToDataUrl(blob)
     const { width, height } = await getImageDimensions(dataUrl)
     const mime = blob.type.toLowerCase()
-    const format = mime.includes('png') ? 'PNG' : mime.includes('webp') ? 'WEBP' : 'JPEG'
+    const format: 'PNG' | 'JPEG' | 'WEBP' = mime.includes('png')
+      ? 'PNG'
+      : mime.includes('webp')
+        ? 'WEBP'
+        : 'JPEG'
 
     if (!width || !height) return null
 
@@ -284,81 +317,10 @@ async function embedImageSource(src: string): Promise<EmbeddedImage | null> {
       height,
       format,
     }
-  } catch {
+  } catch (error) {
+    console.warn(`Failed to embed image: ${src}`, error)
     return null
   }
-}
-
-function nodeToPdfBlocks(node: RichNode): PdfBlock[] {
-  if (node.type === 'image') {
-    const src = String(node.attrs?.src || '').trim()
-    const alt = String(node.attrs?.alt || 'image').trim() || 'image'
-    return src ? [{ type: 'image', src, alt }] : []
-  }
-
-  if (node.type === 'heading') {
-    const text = childrenToText(node).trim()
-    return text ? [{ type: 'text', text }] : []
-  }
-
-  if (node.type === 'paragraph') {
-    const text = childrenToText(node).trim()
-    return text ? [{ type: 'text', text }] : []
-  }
-
-  if (node.type === 'bulletList') {
-    const blocks = (node.content || [])
-      .map((item) => `- ${childrenToText(item).trim()}`)
-      .filter((line) => line !== '- ')
-      .join('\n')
-    return blocks ? [{ type: 'text', text: blocks }] : []
-  }
-
-  if (node.type === 'orderedList') {
-    const blocks = (node.content || [])
-      .map((item, index) => `${index + 1}. ${childrenToText(item).trim()}`)
-      .filter((line) => !line.endsWith('. '))
-      .join('\n')
-    return blocks ? [{ type: 'text', text: blocks }] : []
-  }
-
-  if (node.type === 'blockquote') {
-    const text = childrenToText(node)
-      .trim()
-      .split('\n')
-      .map((line) => `> ${line}`)
-      .join('\n')
-    return text ? [{ type: 'text', text }] : []
-  }
-
-  if (node.type === 'codeBlock') {
-    const text = childrenToText(node).trim()
-    return text ? [{ type: 'text', text: `\`\`\`\n${text}\n\`\`\`` }] : []
-  }
-
-  return (node.content || []).flatMap(nodeToPdfBlocks)
-}
-
-function buildPdfBlocks(article: ArticleDetail): PdfBlock[] {
-  const parsed = parseContent(article.content)
-  const blocks: PdfBlock[] = []
-
-  blocks.push({ type: 'text', text: article.title })
-  if (article.subtitle?.trim()) {
-    blocks.push({ type: 'text', text: article.subtitle.trim() })
-  }
-
-  if (parsed) {
-    blocks.push(...(parsed.content || []).flatMap(nodeToPdfBlocks))
-  } else if (article.content.trim()) {
-    blocks.push({ type: 'text', text: article.content.trim() })
-  }
-
-  if (article.citations?.length) {
-    blocks.push({ type: 'text', text: `Citations\n${article.citations.map((url) => `- ${url}`).join('\n')}` })
-  }
-
-  return blocks
 }
 
 async function embedImagesInHtml(html: string): Promise<string> {
@@ -370,13 +332,20 @@ async function embedImagesInHtml(html: string): Promise<string> {
 
   for (const image of images) {
     const src = image.getAttribute('src') || ''
+    if (!src) continue
+
     const embedded = await embedImageSource(src)
     if (embedded) {
       image.setAttribute('src', embedded.dataUrl)
+    } else {
+      // If embedding fails, keep original src but add error handling
+      console.warn(`Could not embed image: ${src}`)
     }
+
+    // Apply responsive image styling
     image.setAttribute(
       'style',
-      'display:block;max-width:100%;width:auto;height:auto;object-fit:contain;margin:12pt auto;page-break-inside:avoid;',
+      'display:block;max-width:100%;width:auto;height:auto;object-fit:contain;margin:12pt auto;page-break-inside:avoid;border-radius:4px;',
     )
   }
 
@@ -402,14 +371,47 @@ function buildBodyParts(article: ArticleDetail): { markdown: string; text: strin
     ? `\n\n## Citations\n${article.citations.map((url) => `- ${url}`).join('\n')}`
     : ''
 
+  const coverImage = article.cover_image_url?.trim()
+    ? `<div style="margin-bottom:24pt;text-align:center;page-break-inside:avoid;"><img src="${escapeHtml(article.cover_image_url)}" alt="Cover" style="max-width:100%;width:auto;height:auto;object-fit:contain;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);" /></div>`
+    : ''
+
   return {
     markdown: `# ${article.title}\n\n${article.subtitle ? `${article.subtitle}\n\n` : ''}${markdownBody}${citations}\n\n---\n${WATERMARK_PREFIX}[${WATERMARK_BRAND}](${WATERMARK_URL})`.trim(),
     text: `${article.title}\n\n${article.subtitle ? `${article.subtitle}\n\n` : ''}${textBody}${article.citations?.length ? `\n\nCitations\n${article.citations.join('\n')}` : ''}`.trim(),
     html: `
-      <h1>${escapeHtml(article.title)}</h1>
-      ${article.subtitle ? `<p><em>${escapeHtml(article.subtitle)}</em></p>` : ''}
-      ${htmlBody}
-      ${article.citations?.length ? `<h2>Citations</h2><ul>${article.citations.map((url) => `<li><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></li>`).join('')}</ul>` : ''}
+      <style>
+        * { margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }
+        h1, h2, h3, h4, h5, h6 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; line-height: 1.25; }
+        h1 { font-size: 32px; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; }
+        h2 { font-size: 24px; }
+        h3 { font-size: 20px; }
+        h4 { font-size: 18px; }
+        h5 { font-size: 16px; }
+        h6 { font-size: 14px; }
+        p { margin: 12px 0; text-align: justify; }
+        em { font-style: italic; }
+        strong, b { font-weight: 600; }
+        code { background-color: #f3f3f3; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        pre { background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 12px; overflow-x: auto; line-height: 1.4; page-break-inside: avoid; }
+        pre code { background-color: transparent; padding: 0; }
+        blockquote { border-left: 4px solid #0a66c2; margin-left: 0; margin-right: 0; padding-left: 16px; color: #666; font-style: italic; }
+        ul, ol { margin: 12px 0; padding-left: 24px; }
+        li { margin: 8px 0; }
+        a { color: #0a66c2; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        img { max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 4px; }
+        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        td, th { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f5f5f5; font-weight: 600; }
+      </style>
+      <div style="padding: 0; max-width: 100%;">
+        ${coverImage}
+        <h1>${escapeHtml(article.title)}</h1>
+        ${article.subtitle ? `<p style="font-size:16px;color:#666;font-style:italic;margin-bottom:24px;"><em>${escapeHtml(article.subtitle)}</em></p>` : ''}
+        ${htmlBody}
+        ${article.citations?.length ? `<hr style="border:none;border-top:2px solid #e5e7eb;margin:32px 0;"/><h2>Citations</h2><ul>${article.citations.map((url) => `<li><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></li>`).join('')}</ul>` : ''}
+      </div>
     `.trim(),
   }
 }
@@ -427,89 +429,15 @@ function downloadBlob(content: string, mimeType: string, filename: string) {
 }
 
 async function exportAsPdf(article: ArticleDetail) {
-  const blocks = buildPdfBlocks(article)
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
-  const fileName = `${sanitizeFileName(article.title)}.pdf`
-
-  const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const marginX = 48
-  const marginTop = 56
-  const marginBottom = 48
-  const footerY = pageHeight - 20
-  const contentWidth = pageWidth - marginX * 2
-  const lineHeight = 18
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(12)
-  let cursorY = marginTop
-
-  const ensurePageSpace = (requiredHeight: number) => {
-    if (cursorY + requiredHeight > pageHeight - marginBottom) {
-      doc.addPage()
-      cursorY = marginTop
-    }
-  }
-
-  for (const block of blocks) {
-    if (block.type === 'text') {
-      const lines = doc.splitTextToSize(block.text, contentWidth) as string[]
-      for (const line of lines) {
-        ensurePageSpace(lineHeight)
-        doc.text(line, marginX, cursorY)
-        cursorY += lineHeight
-      }
-      cursorY += lineHeight * 0.25
-      continue
-    }
-
-    const embeddedImage = await embedImageSource(block.src)
-    if (!embeddedImage) {
-      const fallbackLines = doc.splitTextToSize(`[Image: ${block.alt}]`, contentWidth) as string[]
-      for (const line of fallbackLines) {
-        ensurePageSpace(lineHeight)
-        doc.text(line, marginX, cursorY)
-        cursorY += lineHeight
-      }
-      cursorY += lineHeight * 0.25
-      continue
-    }
-
-    const imageRatio = embeddedImage.width / embeddedImage.height
-    const maxImageHeight = Math.min(pageHeight * 0.45, contentWidth)
-    let drawWidth = contentWidth
-    let drawHeight = drawWidth / imageRatio
-
-    if (drawHeight > maxImageHeight) {
-      drawHeight = maxImageHeight
-      drawWidth = drawHeight * imageRatio
-    }
-
-    ensurePageSpace(drawHeight + lineHeight)
-    const drawX = marginX + (contentWidth - drawWidth) / 2
-    doc.addImage(embeddedImage.dataUrl, embeddedImage.format, drawX, cursorY, drawWidth, drawHeight)
-    cursorY += drawHeight + lineHeight
-  }
-
-  const totalPages = doc.getNumberOfPages()
-  for (let page = 1; page <= totalPages; page += 1) {
-    doc.setPage(page)
-    doc.setFontSize(10)
-    doc.setTextColor(102, 102, 102)
-
-    const prefix = WATERMARK_PREFIX
-    const brand = WATERMARK_BRAND
-    const prefixWidth = doc.getTextWidth(prefix)
-    const brandWidth = doc.getTextWidth(brand)
-    const totalWidth = prefixWidth + brandWidth
-    const x = (pageWidth - totalWidth) / 2
-
-    doc.text(prefix, x, footerY)
-    doc.setTextColor(10, 102, 194)
-    doc.textWithLink(brand, x + prefixWidth, footerY, { url: WATERMARK_URL })
-  }
-
-  doc.save(fileName)
+  const blob = await generateArticlePdfBlob(article)
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `${sanitizeFileName(article.title)}.pdf`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
 }
 
 async function exportAsWord(article: ArticleDetail) {
@@ -522,8 +450,20 @@ async function exportAsWord(article: ArticleDetail) {
         <meta charset="utf-8" />
         <title>${escapeHtml(article.title)}</title>
         <style>
-          @page { margin: 2.5cm 2cm 2.2cm 2cm; }
-          body { font-family: Calibri, Arial, sans-serif; color: #111; }
+          @page {
+            margin: 2.5cm 2cm 3cm 2cm;
+            @bottom-center {
+              content: "${WATERMARK_PREFIX}${WATERMARK_BRAND}";
+            }
+          }
+          body {
+            font-family: Calibri, Arial, sans-serif;
+            color: #111;
+            margin-bottom: 80px;
+          }
+          main {
+            min-height: 100vh;
+          }
           main img {
             display: block;
             max-width: 100%;
@@ -533,18 +473,44 @@ async function exportAsWord(article: ArticleDetail) {
             margin: 12pt auto;
             page-break-inside: avoid;
           }
+          main blockquote {
+            border-left: 4px solid #ccc;
+            margin-left: 0;
+            padding-left: 16px;
+            color: #666;
+            font-style: italic;
+          }
+          main pre {
+            background-color: #f3f3f3;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+            color: #333;
+            page-break-inside: avoid;
+          }
+          main code {
+            background-color: #f3f3f3;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-family: monospace;
+            font-size: 12px;
+          }
           .watermark-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            page-break-before: always;
+            margin-top: 40px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
             text-align: center;
             font-size: 10.5pt;
             color: #666;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 4px;
           }
-          .watermark-footer a { color: #0a66c2; text-decoration: none; }
+          .watermark-footer a {
+            color: #0a66c2;
+            text-decoration: none;
+          }
         </style>
       </head>
       <body>

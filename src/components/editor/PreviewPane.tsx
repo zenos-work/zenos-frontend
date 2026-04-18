@@ -2,11 +2,12 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import { TextStyle } from '@tiptap/extension-text-style'
-import Youtube from '@tiptap/extension-youtube'
 import { useEffect } from 'react'
 import { FontSize } from './extensions/FontSize'
 import { PrivateNote } from './extensions/PrivateNote'
-import { IframeEmbed, VideoEmbed } from './extensions/EmbedNodes'
+import { IframeEmbed/*, VideoEmbed*/ } from './extensions/EmbedNodes'
+// import { SurveyExtension } from './extensions/SurveyExtension'
+// import { ChartExtension } from './extensions/ChartExtension'
 
 interface Props { title: string; content: string }
 
@@ -15,12 +16,14 @@ export default function PreviewPane({ title, content }: Props) {
     extensions: [
       StarterKit,
       Image,
-      VideoEmbed,
+      // VideoEmbed,
       IframeEmbed,
-      Youtube,
+      // Youtube,
       TextStyle,
       FontSize,
       PrivateNote,
+      // SurveyExtension,
+      // ChartExtension,
     ],
     editable:   false,
     content:    '',

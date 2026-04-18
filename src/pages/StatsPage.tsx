@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMyArticles } from '../hooks/useArticles'
 import { useAuth } from '../hooks/useAuth'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
+import { useMyOrgs } from '../hooks/useOrg'
+import { useAnalyticsDashboard } from '../hooks/useAnalytics'
 import {
   BarChart2,
   Eye,
@@ -40,7 +43,7 @@ import {
   YAxis,
 } from 'recharts'
 
-type DashboardTab = 'overview' | 'stories' | 'audience' | 'business'
+type DashboardTab = 'overview' | 'stories' | 'audience' | 'business' | 'analytics'
 type DashboardRange = '30d' | '90d' | 'all'
 
 type TrendPoint = {
@@ -90,6 +93,10 @@ function clampPercent(value: number): number {
   if (value < 0) return 0
   if (value > 100) return 100
   return value
+}
+
+function formatDateForApi(value: Date): string {
+  return value.toISOString().slice(0, 10)
 }
 
 function estimateReads(article: {
@@ -148,9 +155,12 @@ function formatDelta(delta: number | null): { label: string; positive: boolean }
 
 export default function StatsPage() {
   const { user } = useAuth()
+  const { enabled: analyticsEnabled } = useFeatureFlag('analytics_dashboard', !!user)
   const [tab, setTab] = useState<DashboardTab>('overview')
   const [range, setRange] = useState<DashboardRange>('90d')
   const { data, isLoading } = useMyArticles()
+  const orgsQuery = useMyOrgs(!!user && analyticsEnabled)
+  const analyticsOrgId = orgsQuery.data?.organizations?.[0]?.id ?? ''
   const articles = useMemo(() => data?.items ?? [], [data?.items])
 
   const draft = articles.filter(a => a.status === 'DRAFT')
@@ -159,6 +169,23 @@ export default function StatsPage() {
   const rejected = articles.filter(a => a.status === 'REJECTED')
 
   const rangeDays = range === '30d' ? 30 : range === '90d' ? 90 : null
+
+  const analyticsDateRange = useMemo(() => {
+    const end = new Date()
+    const start = new Date(end)
+    const dayWindow = range === '30d' ? 30 : range === '90d' ? 90 : 365
+    start.setDate(start.getDate() - dayWindow)
+    return {
+      start: formatDateForApi(start),
+      end: formatDateForApi(end),
+    }
+  }, [range])
+
+  const analyticsDashboard = useAnalyticsDashboard(
+    analyticsDateRange,
+    analyticsOrgId,
+    analyticsEnabled && !!analyticsOrgId && tab === 'analytics',
+  )
 
   const published = useMemo(() => articles.filter(a => a.status === 'PUBLISHED'), [articles])
   const referenceTimestamp = useMemo(() => {
@@ -284,11 +311,13 @@ export default function StatsPage() {
         { id: 'stories', label: 'Stories' },
         { id: 'audience', label: 'Audience & format' },
         { id: 'business', label: 'Business' },
+        ...(analyticsEnabled ? [{ id: 'analytics' as const, label: 'Analytics' }] : []),
       ]
     : [
         { id: 'overview', label: 'Overview' },
         { id: 'stories', label: 'Stories' },
         { id: 'audience', label: 'Audience & format' },
+        ...(analyticsEnabled ? [{ id: 'analytics' as const, label: 'Analytics' }] : []),
       ]
 
   const storyDiagnostics = useMemo<StoryDiagnostic[]>(() => {
@@ -874,6 +903,111 @@ export default function StatsPage() {
               </div>
             )}
           </SurfaceCard>
+        </div>
+      )}
+
+      {tab === 'analytics' && (
+        <div className='space-y-6'>
+          {!analyticsEnabled ? (
+            <SurfaceCard padding='lg'>
+              <p className='text-sm text-[color:var(--text-secondary)]'>Analytics dashboard is disabled for this workspace.</p>
+            </SurfaceCard>
+          ) : !analyticsOrgId ? (
+            <SurfaceCard padding='lg'>
+              <p className='text-sm text-[color:var(--text-secondary)]'>No organization found. Join or create an organization to view analytics.</p>
+            </SurfaceCard>
+          ) : analyticsDashboard.isLoading ? (
+            <div className='flex justify-center py-12'>
+              <Spinner />
+            </div>
+          ) : (
+            <>
+              <div className='grid gap-4 md:grid-cols-3'>
+                <MetricTile
+                  label='Event categories'
+                  value={String(analyticsDashboard.data?.events.length ?? 0)}
+                  detail='Distinct event groups in range'
+                />
+                <MetricTile
+                  label='Conversion goals'
+                  value={String(analyticsDashboard.data?.conversions.length ?? 0)}
+                  detail='Goals with recorded conversions'
+                />
+                <MetricTile
+                  label='Experiments'
+                  value={String(analyticsDashboard.data?.experiments.length ?? 0)}
+                  detail='A/B experiments available'
+                />
+              </div>
+
+              <div className='grid gap-6 xl:grid-cols-2'>
+                <SurfaceCard padding='lg'>
+                  <SectionHeader title='Event breakdown' description='Event categories counted in selected date range.' />
+                  {analyticsDashboard.data?.events.length ? (
+                    <div className='mt-4 space-y-2'>
+                      {analyticsDashboard.data.events.map((event) => (
+                        <div key={event.category} className='flex items-center justify-between rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2'>
+                          <span className='text-sm text-[color:var(--text-primary)]'>{event.category}</span>
+                          <span className='text-sm font-semibold text-[color:var(--accent)]'>{event.count.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className='mt-4 text-sm text-[color:var(--text-secondary)]'>No event data in selected range.</p>
+                  )}
+                </SurfaceCard>
+
+                <SurfaceCard padding='lg'>
+                  <SectionHeader title='Conversion summary' description='Goal completion counts and attributed value.' />
+                  {analyticsDashboard.data?.conversions.length ? (
+                    <div className='mt-4 space-y-2'>
+                      {analyticsDashboard.data.conversions.map((conversion) => (
+                        <div key={conversion.goal} className='rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2'>
+                          <div className='flex items-center justify-between gap-2'>
+                            <span className='text-sm font-medium text-[color:var(--text-primary)]'>{conversion.goal}</span>
+                            <span className='text-xs text-[color:var(--text-secondary)]'>{conversion.count.toLocaleString()} conversions</span>
+                          </div>
+                          <p className='mt-1 text-xs text-[color:var(--text-secondary)]'>
+                            Total value: ${(conversion.total_value_cents / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className='mt-4 text-sm text-[color:var(--text-secondary)]'>No conversion goals captured in selected range.</p>
+                  )}
+                </SurfaceCard>
+              </div>
+
+              <SurfaceCard padding='lg'>
+                <SectionHeader title='Experiment health' description='Variant impressions and conversions from active experiments.' />
+                {analyticsDashboard.data?.experiments.length ? (
+                  <div className='mt-4 space-y-3'>
+                    {analyticsDashboard.data.experiments.map((experiment) => (
+                      <div key={experiment.id} className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-3'>
+                        <div className='flex items-center justify-between gap-2'>
+                          <h3 className='text-sm font-semibold text-[color:var(--text-primary)]'>{experiment.name}</h3>
+                          <span className='text-xs text-[color:var(--text-secondary)]'>{experiment.status ?? 'active'}</span>
+                        </div>
+                        <div className='mt-3 grid gap-2 md:grid-cols-2'>
+                          {experiment.variants.map((variant) => (
+                            <div key={variant.id} className='rounded-lg border border-[color:var(--border)] px-3 py-2'>
+                              <p className='text-sm text-[color:var(--text-primary)]'>{variant.name}</p>
+                              <p className='text-xs text-[color:var(--text-secondary)]'>
+                                {variant.impressions.toLocaleString()} impressions · {variant.conversions.toLocaleString()} conversions
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className='mt-4 text-sm text-[color:var(--text-secondary)]'>No experiments found for this organization.</p>
+                )}
+              </SurfaceCard>
+            </>
+          )}
         </div>
       )}
     </div>

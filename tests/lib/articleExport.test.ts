@@ -1,51 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { exportArticle } from '../../src/lib/articleExport'
 import { makeArticleDetail } from '../utils/fixtures'
+import { generateArticlePdfBlob } from '../../src/lib/articlePdfDocument'
 
-let pdfDoc: {
-  internal: { pageSize: { getWidth: () => number; getHeight: () => number } }
-  setFont: ReturnType<typeof vi.fn>
-  setFontSize: ReturnType<typeof vi.fn>
-  splitTextToSize: ReturnType<typeof vi.fn>
-  addPage: ReturnType<typeof vi.fn>
-  text: ReturnType<typeof vi.fn>
-  addImage: ReturnType<typeof vi.fn>
-  getNumberOfPages: ReturnType<typeof vi.fn>
-  setPage: ReturnType<typeof vi.fn>
-  setTextColor: ReturnType<typeof vi.fn>
-  getTextWidth: ReturnType<typeof vi.fn>
-  textWithLink: ReturnType<typeof vi.fn>
-  save: ReturnType<typeof vi.fn>
-}
-
-vi.mock('jspdf', () => ({
-  jsPDF: vi.fn(function MockJsPDF() {
-    return pdfDoc
-  }),
+vi.mock('../../src/lib/articlePdfDocument', () => ({
+  generateArticlePdfBlob: vi.fn(),
 }))
 
 describe('articleExport', () => {
   beforeEach(() => {
-    pdfDoc = {
-      internal: { pageSize: { getWidth: () => 595, getHeight: () => 90 } },
-      setFont: vi.fn(),
-      setFontSize: vi.fn(),
-      splitTextToSize: vi.fn(() => ['line one', 'line two']),
-      addPage: vi.fn(),
-      text: vi.fn(),
-      addImage: vi.fn(),
-      getNumberOfPages: vi.fn(() => 1),
-      setPage: vi.fn(),
-      setTextColor: vi.fn(),
-      getTextWidth: vi.fn((value: string) => value.length * 5),
-      textWithLink: vi.fn(),
-      save: vi.fn(),
-    }
-
     vi.restoreAllMocks()
+    vi.mocked(generateArticlePdfBlob).mockResolvedValue(new Blob(['pdf-bytes'], { type: 'application/pdf' }))
   })
 
   it('exports PDF content with sanitized file names and watermark links', async () => {
+    let clickedDownload = ''
+    const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pdf')
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clickedDownload = this.download
+    })
+
     const article = makeArticleDetail({
       title: 'Fintech & Growth 2026!',
       content: 'Plain text body',
@@ -54,12 +29,11 @@ describe('articleExport', () => {
 
     await exportArticle('pdf', article)
 
-    expect(pdfDoc.splitTextToSize).toHaveBeenCalledWith(expect.stringContaining('Fintech & Growth 2026!'), 499)
-    expect(pdfDoc.addPage).toHaveBeenCalled()
-    expect(pdfDoc.textWithLink).toHaveBeenCalledWith('Zenos.work', expect.any(Number), 70, {
-      url: 'https://zenos.work',
-    })
-    expect(pdfDoc.save).toHaveBeenCalledWith('fintech-growth-2026.pdf')
+    expect(generateArticlePdfBlob).toHaveBeenCalledWith(article)
+    expect(createObjectURLSpy).toHaveBeenCalledTimes(1)
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+    expect(clickedDownload).toBe('fintech-growth-2026.pdf')
+    expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:pdf')
   })
 
   it('exports Word documents from structured content', async () => {
@@ -104,7 +78,10 @@ describe('articleExport', () => {
 
     expect(createObjectURLSpy).toHaveBeenCalledTimes(1)
     expect(clickSpy).toHaveBeenCalledTimes(1)
-    expect(fetchSpy).toHaveBeenCalledWith('https://example.com/image.png')
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://example.com/image.png',
+      expect.objectContaining({ mode: 'cors', credentials: 'omit' }),
+    )
     expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:word')
     expect(capturedBlob).toBeDefined()
     await expect(capturedBlob?.text()).resolves.toContain('<h2>Heading text</h2>')

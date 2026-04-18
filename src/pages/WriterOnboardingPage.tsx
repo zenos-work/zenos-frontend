@@ -89,7 +89,7 @@ export default function WriterOnboardingPage() {
     await savePrefs.mutateAsync({
       topics: effectiveSelectedTopics,
       email_notifs: prefs?.email_notifs ?? 1,
-      theme: prefs?.theme ?? 'dark',
+      theme: (prefs?.theme === 'light' ? 'light' : 'dark') as 'light' | 'dark',
     })
     navigate('/write', { replace: true })
   }

@@ -1,20 +1,19 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Bell, LogIn, Sun, Moon, Monitor, PenSquare, Bookmark, BarChart3, Settings, History } from 'lucide-react'
-import { useAuth }    from '../../hooks/useAuth'
+import { Search, Bell, LogIn, Sun, Moon, PenSquare, Bookmark, Settings } from 'lucide-react'
+import { useAuth } from '../../hooks/useAuth'
 import { useUiStore } from '../../stores/uiStore'
 import { useNotifications } from '../../hooks/useAdmin'
-import Avatar         from '../ui/Avatar'
+import Avatar from '../ui/Avatar'
 
 export default function Topbar() {
-  const { user, logout }        = useAuth()
-  const { setTheme, theme, resolvedTheme }  = useUiStore()
-  const navigate                = useNavigate()
+  const { user, logout } = useAuth()
+  const { setTheme, resolvedTheme } = useUiStore()
+  const navigate = useNavigate()
   const { data: notificationsData } = useNotifications(!!user)
-  const [query, setQuery]       = useState('')
-  const [menu, setMenu]         = useState(false)
-  const [themeMenu, setThemeMenu] = useState(false)
-  const isAdmin                 = !!user && ['SUPERADMIN', 'APPROVER'].includes(user.role)
+  const [query, setQuery] = useState('')
+  const [menu, setMenu] = useState(false)
+
   const unreadCount = (notificationsData?.notifications ?? []).filter((item) => !item.is_read).length
 
   const search = (e: React.FormEvent) => {
@@ -181,12 +180,13 @@ export default function Topbar() {
       `}</style>
 
       <header className='zenos-topbar'>
-        <Link to='/' className='zenos-topbar-brand' aria-label='Home'>
-          <span className='zenos-topbar-brand-wordmark'>
-            <span>Zenos</span>
-            <span className='zenos-topbar-brand-work'>.work</span>
-          </span>
-        </Link>
+        {!user && (
+          <Link to="/" className='zenos-topbar-brand' style={{ textDecoration: 'none' }}>
+            <span className='zenos-topbar-brand-wordmark'>
+              Zenos<span className='zenos-topbar-brand-work'>.work</span>
+            </span>
+          </Link>
+        )}
 
         <form onSubmit={search} className='zenos-search-wrap'>
           <Search size={13} className='zenos-search-icon' />
@@ -208,56 +208,22 @@ export default function Topbar() {
               <button className='zenos-icon-btn' onClick={() => navigate('/bookmarks')} title='Bookmarks'>
                 <Bookmark size={16} />
               </button>
-              <button className='zenos-icon-btn' onClick={() => navigate('/stats')} title='Stats'>
-                <BarChart3 size={16} />
-              </button>
-              <button className='zenos-icon-btn' onClick={() => navigate('/history')} title='Reading history'>
-                <History size={16} />
-              </button>
+
+
               <button className='zenos-icon-btn' onClick={() => navigate('/settings')} title='Settings'>
                 <Settings size={16} />
               </button>
             </>
           )}
 
-          <div style={{ position: 'relative' }}>
-            <button
-              className='zenos-icon-btn'
-              onClick={() => setThemeMenu((v) => !v)}
-              aria-label='Theme toggle'
-              title='Theme'
-              aria-haspopup='menu'
-              aria-expanded={themeMenu}
-            >
-              {theme === 'system' ? <Monitor size={16} /> : resolvedTheme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-
-            {themeMenu && (
-              <>
-                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setThemeMenu(false)} />
-                <div className='zenos-dropdown' style={{ width: 180, zIndex: 55 }}>
-                  <button
-                    className={`zenos-dropdown-item ${theme === 'light' ? 'zenos-dropdown-item-active' : ''}`}
-                    onClick={() => { setTheme('light'); setThemeMenu(false) }}
-                  >
-                    Light
-                  </button>
-                  <button
-                    className={`zenos-dropdown-item ${theme === 'dark' ? 'zenos-dropdown-item-active' : ''}`}
-                    onClick={() => { setTheme('dark'); setThemeMenu(false) }}
-                  >
-                    Dark
-                  </button>
-                  <button
-                    className={`zenos-dropdown-item ${theme === 'system' ? 'zenos-dropdown-item-active' : ''}`}
-                    onClick={() => { setTheme('system'); setThemeMenu(false) }}
-                  >
-                    System
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            className='zenos-icon-btn'
+            onClick={() => setTheme(resolvedTheme === 'light' ? 'dark' : 'light')}
+            aria-label='Toggle theme'
+            title='Toggle theme'
+          >
+            {resolvedTheme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
 
           {user ? (
             <>
@@ -294,7 +260,7 @@ export default function Topbar() {
                     outline: menu ? '2px solid var(--accent)' : 'none',
                     outlineOffset: 2, display: 'flex',
                   }}
-                  onClick={() => setMenu(v => !v)}
+                  onClick={() => setMenu((v: boolean) => !v)}
                 >
                   <Avatar name={user.name} src={user.avatar_url} size='sm' />
                 </button>
@@ -314,11 +280,7 @@ export default function Topbar() {
                       {[
                         ['Settings', '/settings'],
                         ['Writer onboarding', '/onboarding/writer'],
-                        ['Library', '/library'],
-                        ['Reading history', '/history'],
-                        ['Workflow', '/workflow'],
-                        ['Stats', '/stats'],
-                        ...(isAdmin ? [['Admin', '/admin']] : []),
+
                       ].map(([label, path]) => (
                         <button key={label} className='zenos-dropdown-item' onClick={() => { navigate(path); setMenu(false) }}>
                           {label}

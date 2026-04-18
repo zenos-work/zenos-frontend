@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import WorkflowPage from '../../src/pages/WorkflowPage'
 import { createQueryClientWrapper } from '../utils/queryClient'
@@ -9,8 +10,12 @@ import api from '../../src/lib/api'
 const useAuthMock = vi.fn()
 const useApprovalQueueMock = vi.fn()
 const useNotificationsMock = vi.fn()
+const useApproveArticleMock = vi.fn()
+const usePublishArticleMock = vi.fn()
+const useRejectArticleMock = vi.fn()
 const useMyArticlesMock = vi.fn()
 const useUiStoreMock = vi.fn()
+const useFeatureFlagMock = vi.fn()
 const toastMock = vi.fn()
 
 vi.mock('../../src/hooks/useAuth', () => ({
@@ -20,6 +25,9 @@ vi.mock('../../src/hooks/useAuth', () => ({
 vi.mock('../../src/hooks/useAdmin', () => ({
   useApprovalQueue: (...args: unknown[]) => useApprovalQueueMock(...args),
   useNotifications: (...args: unknown[]) => useNotificationsMock(...args),
+  useApproveArticle: () => useApproveArticleMock(),
+  usePublishArticle: () => usePublishArticleMock(),
+  useRejectArticle: () => useRejectArticleMock(),
 }))
 
 vi.mock('../../src/hooks/useArticles', () => ({
@@ -29,6 +37,22 @@ vi.mock('../../src/hooks/useArticles', () => ({
 vi.mock('../../src/stores/uiStore', () => ({
   useUiStore: (selector: (state: { toast: (...args: unknown[]) => void }) => unknown) =>
     selector({ toast: useUiStoreMock() }),
+}))
+
+vi.mock('../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: (...args: unknown[]) => useFeatureFlagMock(...args),
+}))
+
+vi.mock('../../src/components/workflow/WorkflowBuilder', () => ({
+  default: () => <div>WorkflowBuilder</div>,
+}))
+
+vi.mock('../../src/components/workflow/WorkflowTemplateGallery', () => ({
+  default: () => <div>WorkflowTemplateGallery</div>,
+}))
+
+vi.mock('../../src/components/workflow/WorkflowTaskInbox', () => ({
+  default: () => <div>WorkflowTaskInbox</div>,
 }))
 
 vi.mock('../../src/lib/api', () => ({
@@ -41,6 +65,10 @@ describe('WorkflowPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useUiStoreMock.mockReturnValue(toastMock)
+    useFeatureFlagMock.mockReturnValue({ enabled: false, isLoading: false })
+    useApproveArticleMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue({}), isPending: false })
+    usePublishArticleMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue({}), isPending: false })
+    useRejectArticleMock.mockReturnValue({ mutateAsync: vi.fn().mockResolvedValue({}), isPending: false })
 
     useApprovalQueueMock.mockReturnValue({
       data: {
@@ -86,7 +114,12 @@ describe('WorkflowPage', () => {
     useAuthMock.mockReturnValue({ user: { id: 'u-reviewer', role: 'APPROVER' } })
 
     const { Wrapper } = createQueryClientWrapper()
-    render(<WorkflowPage />, { wrapper: Wrapper })
+    render(
+      <MemoryRouter>
+        <WorkflowPage />
+      </MemoryRouter>,
+      { wrapper: Wrapper },
+    )
 
     expect(screen.getByText('Workflow')).toBeInTheDocument()
     expect(screen.getAllByText('Editorial Roadmap').length).toBeGreaterThan(0)
@@ -101,7 +134,12 @@ describe('WorkflowPage', () => {
     useAuthMock.mockReturnValue({ user: { id: 'u-reviewer', role: 'APPROVER' } })
 
     const { Wrapper } = createQueryClientWrapper()
-    render(<WorkflowPage />, { wrapper: Wrapper })
+    render(
+      <MemoryRouter>
+        <WorkflowPage />
+      </MemoryRouter>,
+      { wrapper: Wrapper },
+    )
 
     fireEvent.change(screen.getByPlaceholderText(/message approvers/i), {
       target: { value: 'Escalating for same-day publish.' },
@@ -116,5 +154,27 @@ describe('WorkflowPage', () => {
       })
       expect(toastMock).toHaveBeenCalledWith('Workflow message sent to approvers', 'success')
     })
+  })
+
+  it('renders workflow builder tabs when feature flag is enabled', () => {
+    useFeatureFlagMock.mockReturnValue({ enabled: true, isLoading: false })
+    useAuthMock.mockReturnValue({ user: { id: 'u-reviewer', role: 'APPROVER' } })
+
+    const { Wrapper } = createQueryClientWrapper()
+    render(
+      <MemoryRouter>
+        <WorkflowPage />
+      </MemoryRouter>,
+      { wrapper: Wrapper },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my workflows/i }))
+    expect(screen.getByText('WorkflowBuilder')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /templates/i }))
+    expect(screen.getByText('WorkflowTemplateGallery')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /task inbox/i }))
+    expect(screen.getByText('WorkflowTaskInbox')).toBeInTheDocument()
   })
 })

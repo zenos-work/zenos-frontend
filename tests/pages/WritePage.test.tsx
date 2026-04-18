@@ -14,6 +14,7 @@ const toastMock = vi.fn()
 const createMutateAsyncMock = vi.fn()
 const updateMutateAsyncMock = vi.fn()
 const submitMutateAsyncMock = vi.fn()
+const scheduleMutateAsyncMock = vi.fn()
 const uploadMutateAsyncMock = vi.fn()
 
 const hydrateMock = vi.fn()
@@ -80,6 +81,7 @@ const useArticleMock = vi.fn()
 const useCreateArticleMock = vi.fn()
 const useUpdateArticleMock = vi.fn()
 const useSubmitArticleMock = vi.fn()
+const useScheduleArticleMock = vi.fn()
 const useTagsMock = vi.fn()
 const useAuthMock = vi.fn()
 
@@ -106,6 +108,13 @@ vi.mock('@tanstack/react-query', () => ({
     mutateAsync: uploadMutateAsyncMock,
     isPending: false,
   }),
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+    refetchQueries: vi.fn(),
+    cancelQueries: vi.fn(),
+  }),
 }))
 
 vi.mock('../../src/stores/editorStore', () => ({
@@ -128,6 +137,7 @@ vi.mock('../../src/hooks/useArticles', () => ({
   useCreateArticle: () => useCreateArticleMock(),
   useUpdateArticle: (...args: unknown[]) => useUpdateArticleMock(...args),
   useSubmitArticle: (...args: unknown[]) => useSubmitArticleMock(...args),
+  useScheduleArticle: () => useScheduleArticleMock(),
 }))
 
 vi.mock('../../src/hooks/useTags', () => ({
@@ -221,6 +231,7 @@ describe('WritePage', () => {
     useCreateArticleMock.mockReturnValue({ mutateAsync: createMutateAsyncMock })
     useUpdateArticleMock.mockReturnValue({ mutateAsync: updateMutateAsyncMock })
     useSubmitArticleMock.mockReturnValue({ mutateAsync: submitMutateAsyncMock })
+    useScheduleArticleMock.mockReturnValue({ mutateAsync: scheduleMutateAsyncMock, isPending: false })
     useTagsMock.mockReturnValue({
       data: [
         { id: 't1', name: 'AI', slug: 'ai', article_count: 1 },
@@ -237,6 +248,7 @@ describe('WritePage', () => {
     createMutateAsyncMock.mockResolvedValue({ id: 'new-article-id' })
     updateMutateAsyncMock.mockResolvedValue({ id: 'existing-id' })
     submitMutateAsyncMock.mockResolvedValue({ status: 'submitted' })
+    scheduleMutateAsyncMock.mockResolvedValue({ id: 'scheduled-id' })
     uploadMutateAsyncMock.mockResolvedValue({ url: 'https://cdn.example.com/img.png', key: 'media/key' })
   })
 

@@ -10,12 +10,14 @@ import {
   Home,
   History,
   PenSquare,
+  Radio,
   Search,
-  Settings,
   Shield,
   Sparkles,
+  Users,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useFeatureFlag } from '../../hooks/useFeatureFlags'
 import { useUiStore } from '../../stores/uiStore'
 import Avatar from '../ui/Avatar'
 
@@ -68,10 +70,8 @@ const AUTH_NAV = [
   { to: '/history', icon: History, label: 'Reading History' },
   { to: '/bookmarks', icon: Bookmark, label: 'Bookmarks' },
   { to: '/library', icon: BookOpen, label: 'Library' },
-  { to: '/onboarding/writer', icon: Sparkles, label: 'Writer Onboarding' },
   { to: '/workflow', icon: FileText, label: 'Workflow' },
   { to: '/stats', icon: BarChart2, label: 'Stats' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
 const GUEST_NAV = [
@@ -79,30 +79,69 @@ const GUEST_NAV = [
   { to: '/search', icon: Search, label: 'Search' },
 ]
 
-const navStyle = (open: boolean, active: boolean): React.CSSProperties => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: open ? 10 : 0,
-  justifyContent: open ? 'flex-start' : 'center',
-  padding: open ? '10px 14px' : '10px',
-  borderRadius: 999,
-  marginBottom: 6,
-  fontSize: 13,
-  fontFamily: 'var(--font-ui)',
-  fontWeight: active ? 500 : 400,
-  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-  backgroundColor: active ? 'var(--surface-2)' : 'transparent',
-  textDecoration: 'none',
-  transition: 'background-color 0.15s, color 0.15s, transform 0.15s',
-})
+const navStyle = (open: boolean, active: boolean): React.CSSProperties => {
+  const p = open ? { py: 10, px: 14 } : { py: 10, px: 10 }
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: open ? 10 : 0,
+    justifyContent: open ? 'flex-start' : 'center',
+    paddingTop: p.py,
+    paddingBottom: p.py,
+    paddingLeft: p.px,
+    paddingRight: p.px,
+    borderRadius: 999,
+    marginBottom: 6,
+    fontSize: 13,
+    fontFamily: 'var(--font-ui)',
+    fontWeight: active ? 500 : 400,
+    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+    backgroundColor: active ? 'var(--surface-2)' : 'transparent',
+    textDecoration: 'none',
+    transition: 'background-color 0.15s, color 0.15s, transform 0.15s',
+  }
+}
 
 export default function Sidebar() {
   const { user } = useAuth()
+  const { enabled: readingListsEnabled } = useFeatureFlag('reading_lists', !!user)
+  const { enabled: earningsEnabled } = useFeatureFlag('earnings_dashboard', !!user)
+  const { enabled: newslettersEnabled } = useFeatureFlag('newsletters', !!user)
+  const { enabled: coursesEnabled } = useFeatureFlag('courses', !!user)
+  const { enabled: communityEnabled } = useFeatureFlag('community', !!user)
+  const { enabled: marketplaceEnabled } = useFeatureFlag('marketplace', !!user)
+  const { enabled: podcastsEnabled } = useFeatureFlag('podcasts', !!user)
+  const { enabled: publicationsEnabled } = useFeatureFlag('publications', !!user)
+  const { enabled: marketingEnabled } = useFeatureFlag('marketing_tools', !!user)
+  const { enabled: leadsEnabled } = useFeatureFlag('leads', !!user)
   const { sidebarOpen, toggleSidebar } = useUiStore()
   const open = sidebarOpen
   const canWrite = user && ['AUTHOR', 'APPROVER', 'SUPERADMIN'].includes(user.role)
   const isAdmin = user && ['SUPERADMIN', 'APPROVER'].includes(user.role)
-  const navItems = user ? AUTH_NAV : GUEST_NAV
+  const navItems = user
+    ? [
+      ...AUTH_NAV.slice(0, 4),
+      ...(readingListsEnabled ? [{ to: '/reading-lists', icon: BookOpen, label: 'Reading Lists' }] : []),
+      ...AUTH_NAV.slice(4, 6),
+      ...(canWrite && newslettersEnabled ? [{ to: '/newsletters', icon: FileText, label: 'Newsletters' }] : []),
+      ...(coursesEnabled ? [{ to: '/courses', icon: BookOpen, label: 'Courses' }] : []),
+      ...(communityEnabled ? [{ to: '/community', icon: Home, label: 'Community' }] : []),
+      ...(marketplaceEnabled ? [{ to: '/marketplace', icon: Sparkles, label: 'Marketplace' }] : []),
+      ...(podcastsEnabled ? [{ to: '/podcasts', icon: Radio, label: 'Podcasts' }] : []),
+      ...(publicationsEnabled ? [{ to: '/publications', icon: FileText, label: 'Publications' }] : []),
+      ...(canWrite && marketingEnabled ? [{ to: '/marketing', icon: BarChart2, label: 'Marketing' }] : []),
+      ...(canWrite && leadsEnabled ? [{ to: '/leads', icon: Users, label: 'Leads' }] : []),
+      ...AUTH_NAV.slice(6),
+    ]
+    : GUEST_NAV
+
+  const navItemsWithEarnings = user && earningsEnabled
+    ? [
+      ...navItems.slice(0, 7),
+      { to: '/earnings', icon: BarChart2, label: 'Earnings' },
+      ...navItems.slice(7),
+    ]
+    : navItems
 
   return (
     <nav style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--surface-5)' }}>
@@ -155,7 +194,7 @@ export default function Sidebar() {
             Workspace
           </p>
         )}
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {navItemsWithEarnings.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} style={({ isActive }) => navStyle(open, isActive)}>
             {({ isActive }) => (
               <>
@@ -189,15 +228,13 @@ export default function Sidebar() {
 
       {user && (
         <div style={{ borderTop: '1px solid var(--border)', padding: open ? '12px' : '8px', flexShrink: 0 }}>
-          <NavLink
-            to='/settings'
+          <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 10,
               padding: '10px 12px',
               borderRadius: 18,
-              textDecoration: 'none',
               background: 'var(--surface-1)',
             }}
           >
@@ -231,7 +268,7 @@ export default function Sidebar() {
                 </p>
               </div>
             )}
-          </NavLink>
+          </div>
         </div>
       )}
 

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 const THEME_STORAGE_KEY = 'zenos_theme'
 
-type ThemeMode = 'light' | 'dark' | 'system'
+type ThemeMode = 'light' | 'dark'
 type ThemeResolved = 'light' | 'dark'
 
 interface Toast {
@@ -27,12 +27,8 @@ interface UiState {
 }
 
 /** Apply theme class to <html> — called on init and every theme change */
-let detachSystemThemeListener: (() => void) | null = null
 
 function resolveTheme(theme: ThemeMode): ThemeResolved {
-  if (theme === 'system') {
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
   return theme
 }
 
@@ -44,36 +40,20 @@ function applyTheme(theme: ThemeMode): ThemeResolved {
   html.classList.remove('light', 'dark')
   html.classList.add(resolved)
 
-  if (detachSystemThemeListener) {
-    detachSystemThemeListener()
-    detachSystemThemeListener = null
-  }
-
-  if (theme === 'system' && typeof window !== 'undefined') {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = () => {
-      const nextResolved = mq.matches ? 'dark' : 'light'
-      html.classList.remove('light', 'dark')
-      html.classList.add(nextResolved)
-    }
-    mq.addEventListener('change', handler)
-    detachSystemThemeListener = () => mq.removeEventListener('change', handler)
-  }
-
   return resolved
 }
 
 function getInitialTheme(): ThemeMode {
-  if (typeof window === 'undefined') return 'system'
+  if (typeof window === 'undefined') return 'light'
 
   try {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+    if (stored === 'light' || stored === 'dark') return stored
   } catch {
     // Ignore storage access failures.
   }
 
-  return 'system'
+  return 'light'
 }
 
 const initialTheme = getInitialTheme()
@@ -110,7 +90,7 @@ export const useUiStore = create<UiState>((set) => ({
   }),
 
   cycleTheme: () => set((s) => {
-    const next: ThemeMode = s.theme === 'light' ? 'dark' : s.theme === 'dark' ? 'system' : 'light'
+    const next: ThemeMode = s.theme === 'light' ? 'dark' : 'light'
     const resolvedTheme = applyTheme(next) || 'light'
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, next)

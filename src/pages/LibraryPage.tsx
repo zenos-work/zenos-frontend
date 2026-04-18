@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMyArticles, useDeleteArticle } from '../hooks/useArticles'
+import { useMyArticles, useDeleteArticle, useDuplicateArticle } from '../hooks/useArticles'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import { useUiStore } from '../stores/uiStore'
 import ArticleCard from '../components/article/ArticleCard'
 import Spinner     from '../components/ui/Spinner'
 import Button      from '../components/ui/Button'
-import { PenSquare, Trash2, BookOpen, Search, SlidersHorizontal } from 'lucide-react'
+import { PenSquare, Trash2, BookOpen, Search, SlidersHorizontal, Copy } from 'lucide-react'
 import type { ArticleStatus } from '../types'
 
 const STATUS_TABS: { id: ArticleStatus | 'ALL'; label: string }[] = [
@@ -24,8 +25,10 @@ export default function LibraryPage() {
   const [filter, setFilter] = useState<ArticleStatus | 'ALL'>('ALL')
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<SortMode>('updated')
+  const { enabled: duplicateEnabled } = useFeatureFlag('article_duplicate')
   const { data, isLoading } = useMyArticles()
   const deleteMutation = useDeleteArticle()
+  const duplicateMutation = useDuplicateArticle()
   const toast = useUiStore(s => s.toast)
 
   const articles = useMemo(() => data?.items ?? [], [data?.items])
@@ -58,6 +61,15 @@ export default function LibraryPage() {
       toast('Article deleted', 'success')
     } catch {
       toast('Delete failed', 'error')
+    }
+  }
+
+  const handleDuplicate = async (id: string) => {
+    try {
+      await duplicateMutation.mutateAsync(id)
+      toast('Article duplicated', 'success')
+    } catch {
+      toast('Duplicate failed', 'error')
     }
   }
 
@@ -171,6 +183,14 @@ export default function LibraryPage() {
                       <PenSquare size={13} />
                     </Button>
                   </Link>
+                )}
+                {duplicateEnabled && (
+                  <Button
+                    size='sm' variant='secondary'
+                    onClick={() => void handleDuplicate(a.id)}
+                  >
+                    <Copy size={13} />
+                  </Button>
                 )}
                 <Button
                   size='sm' variant='danger'
