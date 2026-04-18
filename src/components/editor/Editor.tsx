@@ -11,7 +11,6 @@ import {
   Plus,
   ImagePlus,
   Code,
-  Video,
   Link2,
   Search,
   Bold,
@@ -26,8 +25,6 @@ import {
   AlignRight,
   AlignJustify,
   FileText,
-  BarChart2,
-  ClipboardList,
 } from 'lucide-react'
 import { FontSize } from './extensions/FontSize'
 import { PrivateNote } from './extensions/PrivateNote'
@@ -39,7 +36,6 @@ interface Props {
   content: string
   onChange: (value: string) => void
   onInlineImageUpload?: (file: File) => Promise<string>
-  onInlineVideoUpload?: (file: File) => Promise<string>
   isInlineUploadInProgress?: boolean
   inlineUploadStatusText?: string
 }
@@ -56,21 +52,6 @@ type SelectionToolbarAnchor = {
   left: number
 }
 
-function toVimeoEmbed(url: URL): string | null {
-  const match = url.pathname.match(/\/(\d+)/)
-  if (!match) return null
-  return `https://player.vimeo.com/video/${match[1]}`
-}
-
-function toDailymotionEmbed(url: URL): string | null {
-  if (url.hostname === 'dai.ly') {
-    const id = url.pathname.replace('/', '')
-    return id ? `https://www.dailymotion.com/embed/video/${id}` : null
-  }
-  const match = url.pathname.match(/\/video\/([^_/?]+)/)
-  if (!match) return null
-  return `https://www.dailymotion.com/embed/video/${match[1]}`
-}
 
 function getNextFontSize(current: number, increase: boolean): number {
   const idx = FONT_STEPS.findIndex(v => v >= current)
@@ -86,13 +67,11 @@ export default function Editor({
   content,
   onChange,
   onInlineImageUpload,
-  onInlineVideoUpload,
   isInlineUploadInProgress = false,
   inlineUploadStatusText,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
-  const videoInputRef = useRef<HTMLInputElement | null>(null)
   const markdownInputRef = useRef<HTMLInputElement | null>(null)
 
   const [showInsertMenu, setShowInsertMenu] = useState(false)
@@ -337,14 +316,6 @@ export default function Editor({
     }
   }
   */
-
-  const insertGenericEmbed = () => {
-    if (!editor) return
-    const raw = window.prompt('Paste an embeddable URL:')?.trim()
-    if (!raw) return
-    editor.chain().focus().insertContent({ type: 'iframeEmbed', attrs: { src: raw, title: 'Embedded content' } }).insertContent({ type: 'paragraph' }).run()
-    setShowInsertMenu(false)
-  }
 
   /*
   const insertChart = () => {

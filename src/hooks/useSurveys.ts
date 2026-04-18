@@ -54,7 +54,7 @@ export function useCreateSurvey() {
 
 export function useSubmitSurveyResponse() {
   return useMutation({
-    mutationFn: async ({ surveyId, answers, sessionId }: { surveyId: string, answers: any[], sessionId?: string }) => {
+    mutationFn: async ({ surveyId, answers, sessionId }: { surveyId: string, answers: unknown[], sessionId?: string }) => {
       const headers: Record<string, string> = {};
       if (sessionId) {
         headers['X-Session-ID'] = sessionId;

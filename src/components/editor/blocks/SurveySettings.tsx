@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMySurveys, useCreateSurvey } from '../../../hooks/useSurveys';
 import Spinner from '../../ui/Spinner';
-import { Save, X, Plus, Trash2, ListChecks, CheckCircle2 } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface SurveySettingsProps {
   currentId?: string;
@@ -31,7 +31,7 @@ export default function SurveySettings({ currentId, onSave, onClose }: SurveySet
         }]
       });
       onSave(survey.id);
-    } catch (err) {
+    } catch {
       alert("Failed to create survey.");
     }
   };

@@ -383,11 +383,11 @@ export default function ProfilePage() {
     }
     const baselineReading: ReadingSettingsForm = {
       ...DEFAULT_READING_SETTINGS,
-      // @ts-ignore mapping db types to local types
+      // @ts-expect-error mapping db types to local types
       defaultFont: prefs?.font_family ?? readingPrefs.fontFamily,
-      // @ts-ignore
+      // @ts-expect-error mapping db types to local types
       defaultFontSize: prefs?.font_size ?? readingPrefs.fontSize,
-      // @ts-ignore
+      // @ts-expect-error mapping db types to local types
       defaultWidth: prefs?.content_width ?? readingPrefs.contentWidth,
     }
 
@@ -428,7 +428,7 @@ export default function ProfilePage() {
       notificationSettings,
       readingSettings,
     }
-  }, [effectiveUserId, isOwnProfile, prefs?.email_notifs, profile, readingPrefs.contentWidth, readingPrefs.fontFamily, readingPrefs.fontSize])
+  }, [effectiveUserId, isOwnProfile, prefs?.email_notifs, prefs?.content_width, prefs?.font_family, prefs?.font_size, profile, readingPrefs.contentWidth, readingPrefs.fontFamily, readingPrefs.fontSize])
 
   const profileBio = effectiveUserId
     ? (profileBioOverrides[effectiveUserId] ?? persistedSettings.profileBio)
