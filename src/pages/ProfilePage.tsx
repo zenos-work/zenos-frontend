@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useRef, useState } from 'react'
 import { PencilLine, Upload, Trash2 } from 'lucide-react'
@@ -8,6 +8,7 @@ import { useTags } from '../hooks/useTags'
 import { useUpdateUserPrefs, useUserPrefs } from '../hooks/useUserPrefs'
 import { useReadingPreferences } from '../hooks/useReadingPreferences'
 import { useAuthorArticles } from '../hooks/useArticles'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import type { Tag, User } from '../types'
 import Avatar      from '../components/ui/Avatar'
 import Badge       from '../components/ui/Badge'
@@ -15,6 +16,12 @@ import Spinner     from '../components/ui/Spinner'
 import FollowButton from '../components/social/FollowButton'
 import ArticleCard from '../components/article/ArticleCard'
 import { useUiStore } from '../stores/uiStore'
+import NotificationPrefsPanel from '../components/profile/NotificationPrefsPanel'
+import AccountDataPanel from '../components/profile/AccountDataPanel'
+import ActiveSessionsPanel from '../components/profile/ActiveSessionsPanel'
+import BlockMutePanel from '../components/profile/BlockMutePanel'
+import CustomDomainPanel from '../components/profile/CustomDomainPanel'
+import ReferralWidget from '../components/profile/ReferralWidget'
 
 function haveSameTopics(left: string[], right: string[]) {
   if (left.length !== right.length) return false
@@ -139,7 +146,9 @@ function YesNoToggle({
 
 export default function ProfilePage() {
   const { id }   = useParams()
+  const location = useLocation()
   const { user } = useAuth()
+  const isSettingsPage = location.pathname.startsWith('/settings')
   const qc = useQueryClient()
   const toast = useUiStore((s) => s.toast)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
@@ -165,6 +174,12 @@ export default function ProfilePage() {
   const [readingOverrides, setReadingOverrides] = useState<Record<string, ReadingSettingsForm>>({})
   const [profileDraft, setProfileDraft] = useState<{ name: string; avatar_url: string; bio: string }>({ name: '', avatar_url: '', bio: '' })
   const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const { enabled: notificationPrefsEnabled } = useFeatureFlag('notification_preferences', !!user)
+  const { enabled: gdprControlsEnabled } = useFeatureFlag('gdpr_controls', !!user)
+  const { enabled: sessionManagementEnabled } = useFeatureFlag('session_management', !!user)
+  const { enabled: blockMuteEnabled } = useFeatureFlag('block_mute', !!user)
+  const { enabled: customDomainsEnabled } = useFeatureFlag('custom_domains', !!user)
+  const { enabled: referralsEnabled } = useFeatureFlag('referrals', !!user)
 
   const { data: availableTags = [] } = useTags({ onboarding: true })
   const { data: prefs } = useUserPrefs()
@@ -328,7 +343,7 @@ export default function ProfilePage() {
     const nextPrefs = {
       topics: selectedTopics,
       email_notifs: prefs?.email_notifs ?? 1,
-      theme: prefs?.theme ?? 'dark',
+      theme: (prefs?.theme === 'light' ? 'light' : 'dark') as 'light' | 'dark',
     }
 
     await updatePrefsMutation.mutateAsync(nextPrefs)
@@ -368,9 +383,12 @@ export default function ProfilePage() {
     }
     const baselineReading: ReadingSettingsForm = {
       ...DEFAULT_READING_SETTINGS,
-      defaultFont: readingPrefs.fontFamily,
-      defaultFontSize: readingPrefs.fontSize,
-      defaultWidth: readingPrefs.contentWidth,
+      // @ts-ignore mapping db types to local types
+      defaultFont: prefs?.font_family ?? readingPrefs.fontFamily,
+      // @ts-ignore
+      defaultFontSize: prefs?.font_size ?? readingPrefs.fontSize,
+      // @ts-ignore
+      defaultWidth: prefs?.content_width ?? readingPrefs.contentWidth,
     }
 
     if (!profile || !isOwnProfile || !effectiveUserId) {
@@ -511,7 +529,7 @@ export default function ProfilePage() {
     const nextPrefs = {
       topics: selectedTopics,
       email_notifs: notificationSettings.emailWeeklyDigest ? 1 : 0,
-      theme: prefs?.theme ?? 'dark',
+      theme: (prefs?.theme === 'light' ? 'light' : 'dark') as 'light' | 'dark',
     }
 
     await updatePrefsMutation.mutateAsync(nextPrefs)
@@ -534,7 +552,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className='max-w-2xl mx-auto space-y-8'>
+    <div className='max-w-4xl mx-auto space-y-8'>
       <div className='flex items-start gap-6 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 shadow-sm'>
         <div className='space-y-3'>
           <div className='flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[color:var(--accent)]/45'>
@@ -633,33 +651,35 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <section data-testid='profile-articles' className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 shadow-sm'>
-        <div className='mb-4 flex items-center justify-between gap-3'>
-          <div>
-            <h2 className='text-lg font-semibold text-[color:var(--text-primary)]'>Articles</h2>
-            <p className='mt-1 text-sm text-[color:var(--text-secondary)]'>
-              {isOwnProfile ? 'Your latest writing activity.' : `Recent work by ${profile.name}.`}
-            </p>
+      {!isSettingsPage && (
+        <section data-testid='profile-articles' className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 shadow-sm'>
+          <div className='mb-4 flex items-center justify-between gap-3'>
+            <div>
+              <h2 className='text-lg font-semibold text-[color:var(--text-primary)]'>Articles</h2>
+              <p className='mt-1 text-sm text-[color:var(--text-secondary)]'>
+                {isOwnProfile ? 'Your latest writing activity.' : `Recent work by ${profile.name}.`}
+              </p>
+            </div>
+            <span className='text-sm text-[color:var(--text-muted)]'>{visibleArticleCount} total</span>
           </div>
-          <span className='text-sm text-[color:var(--text-muted)]'>{visibleArticleCount} total</span>
-        </div>
 
-        {visibleArticles.length > 0 ? (
-          <div className='space-y-4'>
-            {visibleArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} compact showStatus={isOwnProfile} />
-            ))}
-          </div>
-        ) : (
-          <div className='rounded-xl border border-dashed border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-6 text-sm text-[color:var(--text-muted)]'>
-            {isOwnProfile ? 'No articles created yet.' : 'No published articles yet.'}
-          </div>
-        )}
-      </section>
+          {visibleArticles.length > 0 ? (
+            <div className='space-y-4'>
+              {visibleArticles.map((article) => (
+                <ArticleCard key={article.id} article={article} compact showStatus={isOwnProfile} />
+              ))}
+            </div>
+          ) : (
+            <div className='rounded-xl border border-dashed border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-6 text-sm text-[color:var(--text-muted)]'>
+              {isOwnProfile ? 'No articles created yet.' : 'No published articles yet.'}
+            </div>
+          )}
+        </section>
+      )}
 
       {isOwnProfile && (
         <div className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 pt-3 shadow-sm'>
-          <div className='flex flex-wrap gap-1 border-b border-[color:var(--border)]'>
+          <div className='flex overflow-x-auto gap-2 border-b border-[color:var(--border)] whitespace-nowrap no-scrollbar'>
             {([
               { id: 'personal', label: 'Personal details' },
               { id: 'notifications', label: 'Notifications' },
@@ -789,46 +809,52 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className='mt-5 space-y-4'>
-            {[
-              { key: 'emailNewFollower', label: 'Email: New followers' },
-              { key: 'emailArticlePublished', label: 'Email: Article published' },
-              { key: 'emailWeeklyDigest', label: 'Email: Weekly digest' },
-              { key: 'emailComments', label: 'Email: Comments' },
-              { key: 'pushNewFollower', label: 'Push: New followers' },
-              { key: 'pushComments', label: 'Push: Comments and replies' },
-              { key: 'pushMentions', label: 'Push: Mentions' },
-              { key: 'pushApproval', label: 'Push: Approval status' },
-            ].map((item) => (
-              <label key={item.key} className='flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-3'>
-                <span className='text-sm text-[color:var(--text-primary)]'>{item.label}</span>
-                <YesNoToggle
-                  value={notificationSettings[item.key as keyof NotificationSettings]}
-                  onChange={(next) => {
-                    setShowSavedNotificationNotice(false)
-                    setNotificationSettings((prev) => ({
-                      ...prev,
-                      [item.key]: next,
-                    }))
-                  }}
-                />
-              </label>
-            ))}
-          </div>
+          {notificationPrefsEnabled ? (
+            <NotificationPrefsPanel />
+          ) : (
+            <div className='mt-5 space-y-4'>
+              {[
+                { key: 'emailNewFollower', label: 'Email: New followers' },
+                { key: 'emailArticlePublished', label: 'Email: Article published' },
+                { key: 'emailWeeklyDigest', label: 'Email: Weekly digest' },
+                { key: 'emailComments', label: 'Email: Comments' },
+                { key: 'pushNewFollower', label: 'Push: New followers' },
+                { key: 'pushComments', label: 'Push: Comments and replies' },
+                { key: 'pushMentions', label: 'Push: Mentions' },
+                { key: 'pushApproval', label: 'Push: Approval status' },
+              ].map((item) => (
+                <label key={item.key} className='flex items-center justify-between rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] px-4 py-3'>
+                  <span className='text-sm text-[color:var(--text-primary)]'>{item.label}</span>
+                  <YesNoToggle
+                    value={notificationSettings[item.key as keyof NotificationSettings]}
+                    onChange={(next) => {
+                      setShowSavedNotificationNotice(false)
+                      setNotificationSettings((prev) => ({
+                        ...prev,
+                        [item.key]: next,
+                      }))
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          )}
 
-          <div className='mt-5 flex items-center justify-between'>
-            <span className='text-sm text-[color:var(--text-muted)]'>
-              {showSavedNotificationNotice ? 'All notification settings saved' : 'Update and save your notification choices'}
-            </span>
-            <button
-              type='button'
-              onClick={() => void saveNotificationSettings()}
-              disabled={updatePrefsMutation.isPending}
-              className='rounded-full bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50'
-            >
-              {updatePrefsMutation.isPending ? 'Saving...' : 'Save notifications'}
-            </button>
-          </div>
+          {!notificationPrefsEnabled && (
+            <div className='mt-5 flex items-center justify-between'>
+              <span className='text-sm text-[color:var(--text-muted)]'>
+                {showSavedNotificationNotice ? 'All notification settings saved' : 'Update and save your notification choices'}
+              </span>
+              <button
+                type='button'
+                onClick={() => void saveNotificationSettings()}
+                disabled={updatePrefsMutation.isPending}
+                className='rounded-full bg-[color:var(--accent)] px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50'
+              >
+                {updatePrefsMutation.isPending ? 'Saving...' : 'Save notifications'}
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -1030,6 +1056,12 @@ export default function ProfilePage() {
               {deactivateAccountMutation.isPending ? 'Deactivating...' : 'Deactivate account'}
             </button>
           </div>
+
+          {gdprControlsEnabled && <AccountDataPanel />}
+          {sessionManagementEnabled && <ActiveSessionsPanel />}
+          {blockMuteEnabled && <BlockMutePanel />}
+          {customDomainsEnabled && <CustomDomainPanel enabled={customDomainsEnabled} />}
+          {referralsEnabled && <ReferralWidget enabled={referralsEnabled} />}
         </section>
       )}
 

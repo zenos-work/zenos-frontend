@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 
+// ── Query key factory ──────────────────────────────────────────────────────
+export const seriesKeys = {
+  all: ['series'] as const,
+  mine: () => [...seriesKeys.all, 'mine'] as const,
+  article: (id: string) => [...seriesKeys.all, 'article', id] as const,
+}
+
 export interface Series {
   id: string
   author_id: string
@@ -9,6 +16,12 @@ export interface Series {
   cover_image_url?: string
   created_at: string
   updated_at: string
+  article_count?: number
+}
+
+export interface ArticleSeriesPart {
+  part: number
+  slug: string
 }
 
 export interface ArticleSeriesInfo {
@@ -18,11 +31,14 @@ export interface ArticleSeriesInfo {
   total: number
   description?: string
   cover_image_url?: string
+  next_article_slug?: string
+  prev_article_slug?: string
+  parts?: ArticleSeriesPart[]
 }
 
 export function useSeries() {
   return useQuery({
-    queryKey: ['series'],
+    queryKey: seriesKeys.mine(),
     queryFn: async () => {
       const res = await api.get<{ items: Series[] }>('/api/series?limit=100')
       return res.data.items ?? []
@@ -38,12 +54,13 @@ export function useCreateSeries() {
       return res.data.series
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['series'] })
+      void queryClient.invalidateQueries({ queryKey: seriesKeys.all })
     },
   })
 }
 
 export function useAssignArticleToSeries() {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({
       articleId,
@@ -59,6 +76,10 @@ export function useAssignArticleToSeries() {
         { series_id: seriesId, part_number: partNumber },
       )
       return res.data
+    },
+    onSuccess: (_, { articleId }) => {
+      void queryClient.invalidateQueries({ queryKey: seriesKeys.all })
+      void queryClient.invalidateQueries({ queryKey: seriesKeys.article(articleId) })
     },
   })
 }
@@ -80,7 +101,7 @@ export function useRemoveArticleFromSeries() {
 
 export function useArticleSeries(articleId: string) {
   return useQuery({
-    queryKey: ['article-series', articleId],
+    queryKey: seriesKeys.article(articleId),
     queryFn: async () => {
       try {
         const res = await api.get<{ series: ArticleSeriesInfo }>(`/api/articles/${articleId}/series`)

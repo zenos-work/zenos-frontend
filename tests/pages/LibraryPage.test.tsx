@@ -6,11 +6,18 @@ import { makeArticle } from '../utils/fixtures'
 
 const useMyArticlesMock = vi.fn()
 const useDeleteArticleMock = vi.fn()
+const useDuplicateArticleMock = vi.fn()
 const toastMock = vi.fn()
+const useFeatureFlagMock = vi.fn()
 
 vi.mock('../../src/hooks/useArticles', () => ({
   useMyArticles: () => useMyArticlesMock(),
   useDeleteArticle: () => useDeleteArticleMock(),
+  useDuplicateArticle: () => useDuplicateArticleMock(),
+}))
+
+vi.mock('../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: (...args: unknown[]) => useFeatureFlagMock(...args),
 }))
 
 vi.mock('../../src/stores/uiStore', () => ({
@@ -37,6 +44,8 @@ describe('LibraryPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubGlobal('confirm', vi.fn(() => true))
+    useDuplicateArticleMock.mockReturnValue({ mutateAsync: vi.fn() })
+    useFeatureFlagMock.mockReturnValue({ enabled: false })
   })
 
   it('shows loading state while library query is in flight', () => {
@@ -179,5 +188,30 @@ describe('LibraryPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /reset filters/i }))
     expect(screen.getByText('Only Draft [DRAFT]')).toBeInTheDocument()
+  })
+
+  it('duplicates an article when the flag is enabled', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(undefined)
+    useFeatureFlagMock.mockReturnValue({ enabled: true })
+    useMyArticlesMock.mockReturnValue({
+      data: { items: [makeArticle({ id: 'a1', title: 'Clone Me', status: 'DRAFT' })] },
+      isLoading: false,
+    })
+    useDeleteArticleMock.mockReturnValue({ mutateAsync: vi.fn() })
+    useDuplicateArticleMock.mockReturnValue({ mutateAsync })
+
+    const { container } = render(
+      <MemoryRouter>
+        <LibraryPage />
+      </MemoryRouter>,
+    )
+
+    const buttons = container.querySelectorAll('button[data-variant="secondary"]')
+    fireEvent.click(buttons[1] as HTMLButtonElement)
+
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalledWith('a1')
+    })
+    expect(toastMock).toHaveBeenCalledWith('Article duplicated', 'success')
   })
 })

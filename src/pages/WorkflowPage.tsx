@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import {
@@ -12,8 +13,15 @@ import {
 } from 'lucide-react'
 import api from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
-import { useApprovalQueue, useNotifications } from '../hooks/useAdmin'
+import {
+  useApprovalQueue,
+  useNotifications,
+  useApproveArticle,
+  usePublishArticle,
+  useRejectArticle,
+} from '../hooks/useAdmin'
 import { useMyArticles } from '../hooks/useArticles'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import { useUiStore } from '../stores/uiStore'
 import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
@@ -21,10 +29,15 @@ import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
 import SurfaceCard from '../components/ui/SurfaceCard'
 import SectionHeader from '../components/ui/SectionHeader'
+import WorkflowBuilder from '../components/workflow/WorkflowBuilder'
+import WorkflowTemplateGallery from '../components/workflow/WorkflowTemplateGallery'
+import WorkflowTaskInbox from '../components/workflow/WorkflowTaskInbox'
+import WorkflowCostPanel from '../components/workflow/WorkflowCostPanel'
 import type { ArticleDetail, ArticleList, Notification } from '../types'
 
 type WorkflowArticle = ArticleDetail | ArticleList
 type WorkflowStepStatus = 'completed' | 'in_progress' | 'pending' | 'rejected'
+type WorkflowTab = 'approval' | 'builder' | 'templates' | 'tasks' | 'costs'
 
 type WorkflowStep = {
   id: string
@@ -102,6 +115,9 @@ export default function WorkflowPage() {
   const { user } = useAuth()
   const toast = useUiStore((s) => s.toast)
   const qc = useQueryClient()
+  const { enabled: workflowBuilderEnabled } = useFeatureFlag('workflow_builder')
+  const { enabled: workflowCostsEnabled } = useFeatureFlag('workflow_costs')
+  const [activeTab, setActiveTab] = useState<WorkflowTab>('approval')
 
   const canReview = isReviewerRole(user?.role)
 
@@ -109,13 +125,13 @@ export default function WorkflowPage() {
     data: queueData,
     isLoading: queueLoading,
     isError: queueError,
-  } = useApprovalQueue(1, canReview)
+  } = useApprovalQueue(1, canReview, { refetchInterval: 3000 })
 
   const {
     data: mineData,
     isLoading: mineLoading,
     isError: mineError,
-  } = useMyArticles()
+  } = useMyArticles({ refetchInterval: 3000 })
 
   const {
     data: notificationsData,
@@ -154,30 +170,9 @@ export default function WorkflowPage() {
     return buildWorkflowSteps(selected, canReview)
   }, [canReview, selected])
 
-  const approveMutation = useMutation({
-    mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/approve`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
-      qc.invalidateQueries({ queryKey: ['articles'] })
-    },
-  })
-
-  const publishMutation = useMutation({
-    mutationFn: (articleId: string) => api.post(`/api/articles/${articleId}/publish`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
-      qc.invalidateQueries({ queryKey: ['articles'] })
-    },
-  })
-
-  const rejectMutation = useMutation({
-    mutationFn: ({ articleId, note }: { articleId: string; note: string }) =>
-      api.post(`/api/articles/${articleId}/reject`, { note }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'queue'] })
-      qc.invalidateQueries({ queryKey: ['articles'] })
-    },
-  })
+  const approveMutation = useApproveArticle()
+  const publishMutation = usePublishArticle()
+  const rejectMutation = useRejectArticle()
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ articleId, message }: { articleId: string; message: string }) =>
@@ -252,26 +247,14 @@ export default function WorkflowPage() {
   const loading = canReview ? queueLoading : mineLoading
   const hasError = canReview ? queueError : mineError
 
-  if (loading) {
+  if (activeTab === 'approval' && loading) {
     return <Spinner />
   }
 
-  if (hasError) {
+  if (activeTab === 'approval' && hasError) {
     return (
       <SurfaceCard className='border-red-900/35 bg-red-950/25 text-sm text-red-200' padding='md'>
         Failed to load workflow items.
-      </SurfaceCard>
-    )
-  }
-
-  if (!workflowItems.length) {
-    return (
-      <SurfaceCard className='py-10 text-center' padding='md'>
-        <CheckCircle2 size={32} className='mx-auto text-[color:#0e9f6e]' />
-        <p className='mt-3 text-sm font-medium text-[color:var(--text-primary)]'>No workflow items right now.</p>
-        <p className='mt-1 text-sm text-[color:var(--text-secondary)]'>
-          {canReview ? 'All review tasks are cleared for now.' : 'Submit a draft to start the editorial workflow.'}
-        </p>
       </SurfaceCard>
     )
   }
@@ -286,6 +269,104 @@ export default function WorkflowPage() {
         </div>
       </div>
 
+      <div className='flex flex-wrap gap-2'>
+        <button
+          type='button'
+          onClick={() => setActiveTab('approval')}
+          className={[
+            'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+            activeTab === 'approval'
+              ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white'
+              : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]',
+          ].join(' ')}
+        >
+          Approval Queue
+        </button>
+
+        {workflowBuilderEnabled && (
+          <>
+            <button
+              type='button'
+              onClick={() => setActiveTab('builder')}
+              className={[
+                'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                activeTab === 'builder'
+                  ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white'
+                  : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]',
+              ].join(' ')}
+            >
+              My Workflows
+            </button>
+            <button
+              type='button'
+              onClick={() => setActiveTab('templates')}
+              className={[
+                'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                activeTab === 'templates'
+                  ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white'
+                  : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]',
+              ].join(' ')}
+            >
+              Templates
+            </button>
+            <button
+              type='button'
+              onClick={() => setActiveTab('tasks')}
+              className={[
+                'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                activeTab === 'tasks'
+                  ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white'
+                  : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]',
+              ].join(' ')}
+            >
+              Task Inbox
+            </button>
+          </>
+        )}
+
+        {workflowCostsEnabled && (
+          <button
+            type='button'
+            onClick={() => setActiveTab('costs')}
+            className={[
+              'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+              activeTab === 'costs'
+                ? 'border-[color:var(--accent)] bg-[color:var(--accent)] text-white'
+                : 'border-[color:var(--border)] text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]',
+            ].join(' ')}
+          >
+            Costs
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'builder' && workflowBuilderEnabled && (
+        <WorkflowBuilder />
+      )}
+
+      {activeTab === 'templates' && workflowBuilderEnabled && (
+        <WorkflowTemplateGallery />
+      )}
+
+      {activeTab === 'tasks' && workflowBuilderEnabled && (
+        <WorkflowTaskInbox />
+      )}
+
+      {activeTab === 'costs' && workflowCostsEnabled && (
+        <WorkflowCostPanel orgId='' enabled={workflowCostsEnabled} />
+      )}
+
+      {activeTab === 'approval' && !workflowItems.length && (
+        <SurfaceCard className='py-10 text-center' padding='md'>
+          <CheckCircle2 size={32} className='mx-auto text-[color:#0e9f6e]' />
+          <p className='mt-3 text-sm font-medium text-[color:var(--text-primary)]'>No workflow items right now.</p>
+          <p className='mt-1 text-sm text-[color:var(--text-secondary)]'>
+            {canReview ? 'All review tasks are cleared for now.' : 'Submit a draft to start the editorial workflow.'}
+          </p>
+        </SurfaceCard>
+      )}
+
+      {activeTab === 'approval' && workflowItems.length > 0 && (
       <div className='grid gap-4 lg:grid-cols-[320px_1fr]'>
         <aside className='space-y-2'>
           {workflowItems.map((article) => {
@@ -330,13 +411,13 @@ export default function WorkflowPage() {
                     <span>{selected.likes_count} likes</span>
                   </div>
                 </div>
-                <a
-                  href={`/article/${selected.slug}`}
+                <Link
+                  to={`/article/${selected.slug}`}
                   className='inline-flex items-center gap-1 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)]'
                 >
                   <Eye size={13} />
                   Preview
-                </a>
+                </Link>
               </div>
             </SurfaceCard>
 
@@ -443,6 +524,7 @@ export default function WorkflowPage() {
           </section>
         )}
       </div>
+      )}
     </div>
   )
 }

@@ -129,7 +129,7 @@ export interface Notification {
 export interface UserPrefs {
   topics:       string[]
   email_notifs: number
-  theme:        'dark' | 'light' | 'system'
+  theme:        'dark' | 'light'
 }
 
 export interface AdminStats {
@@ -238,4 +238,114 @@ export interface AdminRankingResponse {
 
 export interface ApiError {
   error: { message: string; status: number; code: string }
+}
+
+export type FeatureFlagTargetType =
+  | 'global'
+  | 'user_ids'
+  | 'user_roles'
+  | 'org_ids'
+  | 'org_tiers'
+  | 'membership_tiers'
+  | 'percentage'
+
+export type FeatureAnnouncementChannel = 'in_app' | 'email' | 'push'
+
+export interface FeatureAnnouncementSettings {
+  title?: string
+  enabled_title?: string
+  disabled_title?: string
+  summary?: string
+  enabled_summary?: string
+  disabled_summary?: string
+  details?: string
+  action_required?: string
+  effective_at?: string
+  reason?: string
+  support_contact?: string
+  rollback_plan?: string
+  channels?: FeatureAnnouncementChannel[]
+}
+
+export interface FeatureDeliverySettings {
+  channels?: FeatureAnnouncementChannel[]
+}
+
+export interface FeatureFlagMetadata {
+  announcement?: FeatureAnnouncementSettings
+  delivery?: FeatureDeliverySettings
+}
+
+export interface FeatureFlagAdmin {
+  id: string
+  flag_key: string
+  name: string
+  description?: string
+  category: string
+  is_active: boolean
+  target_type: FeatureFlagTargetType
+  targets: string[]
+  rollout_pct: number
+  created_at: string
+  updated_at: string
+  metadata?: FeatureFlagMetadata
+  created_by?: string
+  updated_by?: string | null
+}
+
+export interface FeatureFlagListResponse {
+  flags: FeatureFlagAdmin[]
+  total: number
+}
+
+export interface FeatureAnnouncementPreview {
+  action: 'enabled' | 'disabled'
+  message: string
+  scope: string
+  channels: FeatureAnnouncementChannel[]
+  recipient_count: number
+  channel_recipient_counts: Record<string, number>
+}
+
+export interface ReadingList {
+  id: string
+  user_id: string
+  name: string
+  description?: string
+  cover_image_url?: string
+  is_public: boolean
+  is_default: boolean
+  article_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ReadingListItem {
+  id: string
+  list_id: string
+  article_id: string
+  sort_order: number
+  added_at: string
+  note?: string
+}
+
+export interface ArticleRevision {
+  id: string
+  article_id: string
+  version_number: number
+  title: string
+  editor_id: string
+  edit_type: string
+  word_count: number
+  char_diff: number
+  change_summary?: string
+  created_at: string
+}
+
+export interface ArticleRevisionDetail extends ArticleRevision {
+  content: string
+  subtitle?: string
+  cover_image_url?: string
+  reading_level?: string
+  tags_snapshot?: string
 }

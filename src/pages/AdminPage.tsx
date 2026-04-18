@@ -17,7 +17,14 @@ import {
   useAdminUsers,
   useBanUser,
   useUnbanUser,
+  useAdminEarningsCalculate,
+  useAdminEarningsPeriod,
+  useAdminBillingReconciliation,
+  useAdminRunReconciliation,
+  useErasureQueue,
+  useExecuteErasure,
 } from '../hooks/useAdmin'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import { useUiStore } from '../stores/uiStore'
 import Spinner from '../components/ui/Spinner'
 import Badge from '../components/ui/Badge'
@@ -25,6 +32,7 @@ import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import Modal from '../components/ui/Modal'
 import MetricTile from '../components/ui/MetricTile'
+import FeatureFlagsPanel from '../components/admin/FeatureFlagsPanel'
 import {
   Shield,
   Users,
@@ -56,7 +64,7 @@ import {
 } from 'recharts'
 import type { ArticleDetail, RankingWeights, User, UserRole } from '../types'
 
-type Tab = 'stats' | 'queue' | 'users'
+type Tab = 'stats' | 'queue' | 'users' | 'feature_flags'
 type ModerationAction = 'approve' | 'publish' | 'reject'
 
 const ROLE_OPTIONS: UserRole[] = ['SUPERADMIN', 'APPROVER', 'AUTHOR', 'READER']
@@ -79,6 +87,9 @@ export default function AdminPage() {
   const [selectedArticleIds, setSelectedArticleIds] = useState<string[]>([])
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [selectedRole, setSelectedRole] = useState<UserRole>('READER')
+  const [adminPeriod, setAdminPeriod] = useState('')
+  const [activeSubscribers, setActiveSubscribers] = useState('0')
+  const [billingThreshold, setBillingThreshold] = useState('1000')
   const [actionState, setActionState] = useState<{
     id: string
     action: ModerationAction
@@ -126,9 +137,18 @@ export default function AdminPage() {
 
   const banMutation = useBanUser()
   const unbanMutation = useUnbanUser()
+  const adminEarningsCalculateMutation = useAdminEarningsCalculate()
+  const adminRunReconcileMutation = useAdminRunReconciliation()
+  const executeErasureMutation = useExecuteErasure()
   const updateWeightsMutation = useUpdateAdminRankingWeights()
   const bulkQueueMutation = useBulkQueueAction()
   const moderateCommentMutation = useModerateComment()
+  const { enabled: adminEarningsFlag } = useFeatureFlag('admin_earnings', isSuperadmin)
+  const { enabled: adminBillingFlag } = useFeatureFlag('admin_billing', isSuperadmin)
+  const { enabled: adminComplianceFlag } = useFeatureFlag('admin_compliance', isSuperadmin)
+  const adminEarningsPeriodQuery = useAdminEarningsPeriod(adminPeriod, isSuperadmin && adminEarningsFlag)
+  const adminBillingQuery = useAdminBillingReconciliation(adminPeriod, isSuperadmin && adminBillingFlag)
+  const erasureQueueQuery = useErasureQueue(isSuperadmin && adminComplianceFlag)
 
   useEffect(() => {
     if (rankingWeights) setWeightForm(rankingWeights)
@@ -256,6 +276,7 @@ export default function AdminPage() {
             { id: 'stats' as const, icon: BarChart2, label: 'Stats' },
             { id: 'queue' as const, icon: InboxIcon, label: 'Queue', badge: queueMeta?.total ?? queueItems.length },
             { id: 'users' as const, icon: Users, label: 'Users' },
+            { id: 'feature_flags' as const, icon: Radio, label: 'Feature Flags' },
           ]
         : [
             { id: 'queue' as const, icon: InboxIcon, label: 'Queue', badge: queueMeta?.total ?? queueItems.length },
@@ -902,6 +923,146 @@ export default function AdminPage() {
             />
           </>
         )
+      )}
+
+      {tab === 'feature_flags' && isSuperadmin && (
+        <div className='space-y-4'>
+          <FeatureFlagsPanel />
+
+          <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+            <h3 className='text-base font-semibold text-[color:var(--text-primary)]'>Admin Period Controls</h3>
+            <div className='mt-3 flex flex-col gap-2 sm:flex-row'>
+              <input
+                value={adminPeriod}
+                onChange={(e) => setAdminPeriod(e.target.value)}
+                placeholder='Period start (YYYY-MM-DD)'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm'
+              />
+              <input
+                value={activeSubscribers}
+                onChange={(e) => setActiveSubscribers(e.target.value)}
+                placeholder='Active subscribers'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm'
+              />
+              <input
+                value={billingThreshold}
+                onChange={(e) => setBillingThreshold(e.target.value)}
+                placeholder='Billing threshold cents'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm'
+              />
+            </div>
+          </div>
+
+          {adminEarningsFlag && (
+            <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='flex items-center justify-between gap-2'>
+                <h3 className='text-base font-semibold text-[color:var(--text-primary)]'>Earnings Calculation</h3>
+                <Badge variant='default'>SUPERADMIN controls</Badge>
+              </div>
+              <div className='mt-3'>
+                <Button
+                  size='sm'
+                  loading={adminEarningsCalculateMutation.isPending}
+                  disabled={!adminPeriod}
+                  onClick={async () => {
+                    try {
+                      await adminEarningsCalculateMutation.mutateAsync({
+                        period_start: adminPeriod,
+                        period_end: adminPeriod,
+                        active_subscribers: Number(activeSubscribers) || 0,
+                      })
+                      toast('Earnings calculation triggered', 'success')
+                    } catch {
+                      toast('Failed to trigger earnings calculation', 'error')
+                    }
+                  }}
+                >
+                  Run earnings calculation
+                </Button>
+                {adminEarningsPeriodQuery.data && (
+                  <pre className='mt-3 overflow-auto rounded-lg bg-[color:var(--surface-0)] p-3 text-xs text-[color:var(--text-secondary)]'>
+                    {JSON.stringify(adminEarningsPeriodQuery.data, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </div>
+          )}
+
+          {adminBillingFlag && (
+            <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='flex items-center justify-between gap-2'>
+                <h3 className='text-base font-semibold text-[color:var(--text-primary)]'>Billing Reconciliation</h3>
+                <Badge variant='default'>SUPERADMIN controls</Badge>
+              </div>
+              <div className='mt-3'>
+                <Button
+                  size='sm'
+                  loading={adminRunReconcileMutation.isPending}
+                  disabled={!adminPeriod}
+                  onClick={async () => {
+                    try {
+                      await adminRunReconcileMutation.mutateAsync({
+                        period: adminPeriod,
+                        threshold_cents: Number(billingThreshold) || 1000,
+                      })
+                      toast('Billing reconciliation started', 'success')
+                    } catch {
+                      toast('Failed to run billing reconciliation', 'error')
+                    }
+                  }}
+                >
+                  Run reconciliation
+                </Button>
+                {adminBillingQuery.data && (
+                  <pre className='mt-3 overflow-auto rounded-lg bg-[color:var(--surface-0)] p-3 text-xs text-[color:var(--text-secondary)]'>
+                    {JSON.stringify(adminBillingQuery.data, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </div>
+          )}
+
+          {adminComplianceFlag && (
+            <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='flex items-center justify-between gap-2'>
+                <h3 className='text-base font-semibold text-[color:var(--text-primary)]'>Compliance Erasure Queue</h3>
+                <Badge variant='default'>SUPERADMIN controls</Badge>
+              </div>
+              {erasureQueueQuery.isLoading ? (
+                <div className='mt-3'><Spinner /></div>
+              ) : (
+                <ul className='mt-3 space-y-2'>
+                  {(erasureQueueQuery.data?.items ?? []).map((item) => {
+                    const requestId = String(item.id ?? '')
+                    return (
+                      <li key={requestId} className='flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm'>
+                        <span>{requestId || 'Unknown request'}</span>
+                        <Button
+                          size='sm'
+                          loading={executeErasureMutation.isPending}
+                          disabled={!requestId}
+                          onClick={async () => {
+                            try {
+                              await executeErasureMutation.mutateAsync(requestId)
+                              toast('Erasure executed', 'success')
+                            } catch {
+                              toast('Failed to execute erasure', 'error')
+                            }
+                          }}
+                        >
+                          Execute
+                        </Button>
+                      </li>
+                    )
+                  })}
+                  {(erasureQueueQuery.data?.items ?? []).length === 0 && (
+                    <li className='text-sm text-[color:var(--text-secondary)]'>No pending erasure requests.</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       <Modal

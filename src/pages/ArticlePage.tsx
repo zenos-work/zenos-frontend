@@ -12,6 +12,7 @@ import CommentList   from '../components/comments/CommentList'
 import BookmarkButton from '../components/social/BookmarkButton'
 import FollowButton  from '../components/social/FollowButton'
 import { useLike, useShare } from '../hooks/useSocial'
+import SocialSharePanel from '../components/social/SocialSharePanel'
 import { useUiStore } from '../stores/uiStore'
 import TagChip       from '../components/ui/TagChip'
 import Avatar        from '../components/ui/Avatar'
@@ -24,11 +25,14 @@ import { ConsolidatedReactions } from '../components/reading/ConsolidatedReactio
 import { ReadingProgressBar } from '../components/reading/ReadingProgressBar'
 import { useReadingPreferences } from '../hooks/useReadingPreferences'
 import { useArticleReactions } from '../hooks/useReactions'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import api from '../lib/api'
 import { useUpsertReadingHistoryItem } from '../hooks/useReadingHistory'
 import { toReadingHistoryItem, upsertReadingHistoryItem } from '../lib/readingHistory'
 import type { User } from '../types'
 import { exportArticle, type ExportFormat } from '../lib/articleExport'
+import ReportModal from '../components/article/ReportModal'
+import ReviewToolbar from '../components/article/ReviewToolbar'
 
 type TocHeading = {
   id: string
@@ -66,6 +70,7 @@ export default function ArticlePage() {
   const navigate = useNavigate()
   const toast = useUiStore((s) => s.toast)
   const { data: article, isLoading, error } = useArticle(slug ?? '')
+  const { enabled: reportsEnabled } = useFeatureFlag('content_reports', !!user)
   const { data: series } = useArticleSeries(article?.id ?? '')
   const { data: authorArticles } = useAuthorArticles(article?.author_id ?? '', {
     status: 'PUBLISHED',
@@ -88,6 +93,7 @@ export default function ArticlePage() {
   const [showReadingPrefs, setShowReadingPrefs] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showReportModal, setShowReportModal] = useState(false)
   const [liked, setLiked] = useState(false)
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null)
   const [readingProgress, setReadingProgress] = useState(0)
@@ -433,7 +439,8 @@ export default function ArticlePage() {
     try {
       await exportArticle(format, article)
       toast(`Exported as ${format.toUpperCase()}`, 'success')
-    } catch {
+    } catch (err) {
+      console.error('[ArticlePage] export failed:', err)
       toast('Could not export article', 'error')
     } finally {
       setExportingFormat(null)
@@ -449,6 +456,9 @@ export default function ArticlePage() {
       <div className='min-h-screen'>
         <div className={`mx-auto grid max-w-[1240px] gap-8 ${tocVisible ? 'xl:grid-cols-[minmax(0,1fr)_260px]' : ''}`}>
         <article className={`mx-auto w-full px-4 py-8 sm:px-6 sm:py-10 ${tocVisible ? 'xl:mx-0 xl:px-0' : ''}`} style={{ maxWidth: articleWidth }}>
+          {(user?.role === 'APPROVER' || user?.role === 'SUPERADMIN') && article.status !== 'PUBLISHED' && (
+            <ReviewToolbar article={article} />
+          )}
           <div className='space-y-8'>
             {article.tags?.length > 0 && (
               <div className='mt-2 flex flex-wrap items-center gap-2'>
@@ -635,6 +645,21 @@ export default function ArticlePage() {
                   )}
                 </div>
                 <BookmarkButton articleId={article.id} />
+                {reportsEnabled && (
+                  <button
+                    type='button'
+                    onClick={() => {
+                      if (!user) {
+                        navigate('/login')
+                        return
+                      }
+                      setShowReportModal(true)
+                    }}
+                    className='flex items-center gap-1.5 rounded-full border border-[color:var(--border)] px-3 py-1.5 text-sm text-[color:var(--text-secondary)] transition-colors hover:border-[color:#b42318] hover:text-[color:#b42318]'
+                  >
+                    Report
+                  </button>
+                )}
               </div>
             </div>
 
@@ -651,6 +676,9 @@ export default function ArticlePage() {
                   total={series.total}
                   description={series.description}
                   coverImageUrl={series.cover_image_url}
+                  nextSlug={series.next_article_slug}
+                  prevSlug={series.prev_article_slug}
+                  parts={series.parts}
                 />
               </div>
             )}
@@ -681,6 +709,12 @@ export default function ArticlePage() {
                 ))}
               </div>
             )}
+
+            <SocialSharePanel
+              articleId={article.id}
+              articleUrl={article.canonical_url || window.location.href}
+              articleTitle={article.title}
+            />
 
             <div className='flex items-center justify-between border-y divider py-4'>
               <ConsolidatedReactions articleId={article.id} reactions={reactions?.reactions} isLoading={reactionsLoading} />
@@ -714,6 +748,14 @@ export default function ArticlePage() {
                 {article.comments_count} {article.comments_count === 1 ? 'Comment' : 'Comments'}
               </h2>
               <CommentList articleId={article.id} />
+
+              {reportsEnabled && (
+                <ReportModal
+                  open={showReportModal}
+                  onClose={() => setShowReportModal(false)}
+                  articleId={article.id}
+                />
+              )}
             </section>
 
             {/* Phase 2: Related articles */}

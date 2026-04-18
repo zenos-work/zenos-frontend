@@ -4,10 +4,12 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
 import { TextStyle } from '@tiptap/extension-text-style'
-import Youtube from '@tiptap/extension-youtube'
+// import Youtube from '@tiptap/extension-youtube'
 import { FontSize } from '../editor/extensions/FontSize'
 import { PrivateNote } from '../editor/extensions/PrivateNote'
-import { IframeEmbed, VideoEmbed } from '../editor/extensions/EmbedNodes'
+import { IframeEmbed/*, VideoEmbed*/ } from '../editor/extensions/EmbedNodes'
+// import { SurveyExtension } from '../editor/extensions/SurveyExtension'
+// import { ChartExtension } from '../editor/extensions/ChartExtension'
 
 // Render TipTap JSON content in read-only mode
 export default function ArticleDetail({ content }: { content: string }) {
@@ -15,14 +17,16 @@ export default function ArticleDetail({ content }: { content: string }) {
     extensions: [
       StarterKit,
       Image,
-      VideoEmbed,
+      // VideoEmbed,
       IframeEmbed,
-      Youtube,
+      // Youtube,
       Link,
       Underline,
       TextStyle,
       FontSize,
       PrivateNote,
+      // SurveyExtension,
+      // ChartExtension,
     ],
     editable:   false,
     content:    (() => {

@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, Heart, MessageCircle, Clock, Share2, Download, FileText, FileCode2 } from 'lucide-react'
+import { Eye, Heart, MessageCircle, Clock, Share2, Download, FileText, FileCode2, BookMarked } from 'lucide-react'
 import { Copy, Facebook, Linkedin, Twitter } from 'lucide-react'
 import type { ArticleDetail, ArticleList } from '../../types'
 import { GraduationCap } from 'lucide-react'
 import Avatar  from '../ui/Avatar'
 import TagChip from '../ui/TagChip'
 import Badge   from '../ui/Badge'
+import Modal from '../ui/Modal'
 import { resolveAssetUrl } from '../../lib/assets'
 import { useShare } from '../../hooks/useSocial'
 import { useAuth } from '../../hooks/useAuth'
+import { useFeatureFlag } from '../../hooks/useFeatureFlags'
+import { useAddToReadingList, useCreateReadingList, useReadingLists } from '../../hooks/useReadingLists'
 import { useUiStore } from '../../stores/uiStore'
 import api from '../../lib/api'
 import { exportArticle, type ExportFormat } from '../../lib/articleExport'
@@ -33,11 +36,18 @@ interface Props {
 export default function ArticleCard({ article, showStatus, featured = false, compact = false }: Props) {
   const coverUrl = resolveAssetUrl(article.cover_image_url)
   const { user } = useAuth()
+  const { enabled: readingListsEnabled } = useFeatureFlag('reading_lists', !!user)
   const navigate = useNavigate()
   const toast = useUiStore((s) => s.toast)
   const shareMutation = useShare(article.id)
+  const readingListsQuery = useReadingLists(!!user && readingListsEnabled)
+  const createReadingList = useCreateReadingList()
+  const addToReadingList = useAddToReadingList()
   const [showShareMenu, setShowShareMenu] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showReadingListModal, setShowReadingListModal] = useState(false)
+  const [newReadingListName, setNewReadingListName] = useState('')
+  const [selectedReadingListId, setSelectedReadingListId] = useState<string>('')
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null)
 
   const handleLinkedInShare = async () => {
@@ -109,11 +119,46 @@ export default function ArticleCard({ article, showStatus, featured = false, com
       const response = await api.get<{ article: ArticleDetail }>(`/api/articles/${article.id}`)
       await exportArticle(format, response.data.article)
       toast(`Exported as ${format.toUpperCase()}`, 'success')
-    } catch {
+    } catch (err) {
+      console.error('[ArticleCard] export failed:', err)
       toast('Could not export article', 'error')
     } finally {
       setExportingFormat(null)
       setShowExportMenu(false)
+    }
+  }
+
+  const handleCreateReadingList = async () => {
+    const name = newReadingListName.trim()
+    if (!name) {
+      toast('Reading list name is required', 'warning')
+      return
+    }
+    try {
+      const result = await createReadingList.mutateAsync({ name })
+      setSelectedReadingListId(result.id)
+      setNewReadingListName('')
+      toast('Reading list created', 'success')
+    } catch {
+      toast('Could not create reading list', 'error')
+    }
+  }
+
+  const handleSaveToReadingList = async () => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    if (!selectedReadingListId) {
+      toast('Select a reading list first', 'warning')
+      return
+    }
+    try {
+      await addToReadingList.mutateAsync({ listId: selectedReadingListId, articleId: article.id })
+      toast('Saved to reading list', 'success')
+      setShowReadingListModal(false)
+    } catch {
+      toast('Could not save to reading list', 'error')
     }
   }
 
@@ -328,6 +373,16 @@ export default function ArticleCard({ article, showStatus, featured = false, com
               </>
             )}
           </div>
+          {user && readingListsEnabled && (
+            <button
+              type='button'
+              onClick={() => setShowReadingListModal(true)}
+              className='inline-flex items-center gap-1 text-[color:var(--accent)] transition-colors hover:text-[color:var(--accent-strong)]'
+              aria-label={`Save ${article.title} to reading list`}
+            >
+              <BookMarked size={11} /> Save to list
+            </button>
+          )}
         </div>
 
         {article.tags?.length > 1 && (
@@ -347,6 +402,58 @@ export default function ArticleCard({ article, showStatus, featured = false, com
           />
         </Link>
       )}
+
+      <Modal open={showReadingListModal} onClose={() => setShowReadingListModal(false)} title='Save to reading list'>
+        <div className='space-y-4'>
+          <div>
+            <p className='text-sm text-gray-300'>Choose a reading list for <span className='font-semibold text-white'>{article.title}</span>.</p>
+          </div>
+          <div className='space-y-2'>
+            {(readingListsQuery.data?.reading_lists ?? []).map((list) => (
+              <button
+                key={list.id}
+                type='button'
+                onClick={() => setSelectedReadingListId(list.id)}
+                className={[
+                  'w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors',
+                  selectedReadingListId === list.id
+                    ? 'border-[color:var(--accent)] bg-[color:var(--surface-1)] text-white'
+                    : 'border-gray-800 bg-gray-950 text-gray-300 hover:bg-gray-900',
+                ].join(' ')}
+              >
+                <div className='flex items-center justify-between gap-2'>
+                  <span>{list.name}</span>
+                  <span className='text-xs text-gray-500'>{list.article_count} saved</span>
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className='space-y-2'>
+            <input
+              value={newReadingListName}
+              onChange={(event) => setNewReadingListName(event.target.value)}
+              placeholder='Create a new reading list'
+              className='h-10 w-full rounded-lg border border-gray-800 bg-gray-950 px-3 text-sm text-white'
+            />
+            <button
+              type='button'
+              onClick={() => void handleCreateReadingList()}
+              className='rounded-lg border border-[color:var(--accent)] px-3 py-2 text-xs font-semibold text-white hover:bg-[color:var(--accent-dim)]'
+            >
+              Create list
+            </button>
+          </div>
+          <div className='flex justify-end'>
+            <button
+              type='button'
+              onClick={() => void handleSaveToReadingList()}
+              className='rounded-lg bg-[color:var(--accent)] px-4 py-2 text-sm font-semibold text-black hover:opacity-90'
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </Modal>
     </article>
   )
 }

@@ -185,6 +185,8 @@
   background: color-mix(in srgb, var(--text-muted) 45%, transparent);
   border-radius: 999px;
 }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -256,6 +258,18 @@
   border-radius: 0.35rem;
 }
 
+.prose video,
+.article-body video,
+.prose iframe,
+.article-body iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 1rem;
+  background: var(--surface-ink);
+  margin: 2rem 0;
+  display: block;
+}
+
 .prose pre,
 .article-body pre {
   background: var(--surface-1);
@@ -298,4 +312,19 @@
 
 .page-enter {
   animation: slideUp 0.34s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom and interactive Tiptap nodes */
+.chart-block-wrapper,
+.survey-block-wrapper,
+.video-block-wrapper {
+  margin: 2.5rem 0;
+  display: block;
+  min-height: 100px;
+}
+
+.ProseMirror-selectednode .chart-block-wrapper,
+.ProseMirror-selectednode .survey-block-wrapper {
+  outline: 2px solid var(--accent);
+  border-radius: 0.75rem;
 }

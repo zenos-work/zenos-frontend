@@ -135,3 +135,53 @@ export const useShare = (articleId: string) => {
     },
   })
 }
+
+// ── CONNECTED SOCIAL ACCOUNTS (SR-024) ───────────────────
+
+export type SocialAccount = {
+  id: string
+  provider: string
+  provider_uid: string
+  handle: string
+  display_name: string
+  scopes: string[]
+  connected_at: string
+  last_used_at: string | null
+  is_active: boolean
+}
+
+export const useSocialAccounts = () =>
+  useQuery({
+    queryKey: ['social', 'accounts'],
+    queryFn: () =>
+      api.get<{ data: SocialAccount[] }>('/api/social/accounts').then(r => r.data.data ?? []),
+  })
+
+export const useConnectSocialAccount = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: {
+      provider: string
+      provider_uid: string
+      handle?: string
+      display_name?: string
+      access_token?: string
+      refresh_token?: string
+      token_expires_at?: number
+      scopes?: string[]
+    }) => api.post('/api/social/accounts/connect', payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['social', 'accounts'] })
+    },
+  })
+}
+
+export const useDisconnectSocialAccount = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (provider: string) => api.delete(`/api/social/accounts/${provider}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['social', 'accounts'] })
+    },
+  })
+}

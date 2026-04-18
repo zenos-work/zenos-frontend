@@ -9,21 +9,95 @@
  * Because Tailwind utility classes require the plugin to be generating CSS.
  * CSS Grid written inline always works, even if Tailwind isn't loading.
  */
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 import { useLocation } from 'react-router-dom'
-import { useEffect, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import Sidebar   from './Sidebar'
 import Topbar    from './Topbar'
 import MobileNav from './MobileNav'
 import ToastContainer from '../ui/Toast'
+import FeatureAnnouncementBanner from '../ui/FeatureAnnouncementBanner'
 import { useUiStore } from '../../stores/uiStore'
 import { useAuth } from '../../hooks/useAuth'
+import { useFeatureFlags, type FeatureFlagEvaluation } from '../../hooks/useFeatureFlags'
+import { useMyOrgs } from '../../hooks/useOrg'
 import { trackEvent } from '../../lib/observability'
+
+type AnnouncementState = {
+  key: string
+  title: string
+  summary?: string
+  actionRequired?: string
+  version: string
+}
+
+const readSeenMap = () => {
+  if (typeof window === 'undefined') return {}
+  try {
+    const value = window.localStorage.getItem('zenos_feature_announcements_seen')
+    if (!value) return {}
+    const parsed = JSON.parse(value)
+    if (!parsed || typeof parsed !== 'object') return {}
+    return parsed as Record<string, string>
+  } catch {
+    return {}
+  }
+}
+
+const saveSeenMap = (value: Record<string, string>) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem('zenos_feature_announcements_seen', JSON.stringify(value))
+  } catch {
+    // Ignore localStorage errors in constrained environments.
+  }
+}
+
+const channelsFor = (flag: FeatureFlagEvaluation): string[] => {
+  const announcementChannels = flag.metadata?.announcement?.channels
+  if (Array.isArray(announcementChannels) && announcementChannels.length > 0) return announcementChannels
+  const deliveryChannels = flag.metadata?.delivery?.channels
+  if (Array.isArray(deliveryChannels) && deliveryChannels.length > 0) return deliveryChannels
+  return ['in_app']
+}
+
+const buildAnnouncement = (
+  flag: FeatureFlagEvaluation,
+  action: 'enabled' | 'disabled',
+): AnnouncementState => {
+  const announcement = flag.metadata?.announcement
+  const defaultTitle = action === 'enabled' ? `Feature enabled: ${flag.key}` : `Feature disabled: ${flag.key}`
+  const defaultSummary = action === 'enabled'
+    ? 'A new capability is now available in your workspace.'
+    : 'This capability has been turned off for your workspace.'
+
+  const title = action === 'enabled'
+    ? announcement?.enabled_title || announcement?.title || defaultTitle
+    : announcement?.disabled_title || announcement?.title || defaultTitle
+
+  const summary = action === 'enabled'
+    ? announcement?.enabled_summary || announcement?.summary || defaultSummary
+    : announcement?.disabled_summary || announcement?.summary || defaultSummary
+
+  return {
+    key: flag.key,
+    title,
+    summary,
+    actionRequired: announcement?.action_required,
+    version: announcement?.effective_at || 'v1',
+  }
+}
 
 export default function AppShell() {
   const { user } = useAuth()
   const location = useLocation()
   const sidebarOpen = useUiStore(s => s.sidebarOpen)
+  const toast = useUiStore(s => s.toast)
+  const { list: featureFlags } = useFeatureFlags(!!user)
+  const organizationsEnabled = featureFlags.some((flag) => flag.key === 'organizations' && flag.enabled)
+  const orgsQuery = useMyOrgs(!!user && organizationsEnabled)
+  const primaryOrg = orgsQuery.data?.organizations?.[0]
+  const [announcement, setAnnouncement] = useState<AnnouncementState | null>(null)
   const sw = sidebarOpen ? 240 : 64   // sidebar width in px
   const isWriteRoute = location.pathname === '/write' || location.pathname.startsWith('/write/')
   const isHomeRoute = location.pathname === '/'
@@ -147,6 +221,71 @@ export default function AppShell() {
     ensureCanonical(defaults.canonical)
   }, [location.pathname, location.search])
 
+  useEffect(() => {
+    if (!featureFlags.length) return
+
+    const previousState: Record<string, boolean> = {}
+    if (typeof window !== 'undefined') {
+      try {
+        const value = window.localStorage.getItem('zenos_feature_flags_last_state')
+        if (value) {
+          const parsed = JSON.parse(value)
+          if (parsed && typeof parsed === 'object') {
+            Object.assign(previousState, parsed)
+          }
+        }
+      } catch {
+        // Ignore localStorage parse errors.
+      }
+    }
+
+    const nextState: Record<string, boolean> = {}
+    for (const flag of featureFlags) {
+      nextState[flag.key] = flag.enabled
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem('zenos_feature_flags_last_state', JSON.stringify(nextState))
+      } catch {
+        // Ignore localStorage write errors.
+      }
+    }
+
+    const seenMap = readSeenMap()
+    for (const flag of featureFlags) {
+      const channels = channelsFor(flag)
+      if (!channels.includes('in_app')) continue
+
+      const previous = previousState[flag.key]
+      const action: 'enabled' | 'disabled' = flag.enabled ? 'enabled' : 'disabled'
+      const item = buildAnnouncement(flag, action)
+      const seenKey = `${item.key}:${item.version}:${action}`
+
+      if (seenMap[seenKey]) continue
+
+      // Show banner if not seen
+      setTimeout(() => {
+        setAnnouncement(item)
+      }, 50)
+
+      // Only toast on immediate transition
+      if (previous !== undefined && previous !== flag.enabled) {
+        toast(item.title, flag.enabled ? 'success' : 'info')
+      }
+      break
+    }
+  }, [featureFlags, toast])
+
+  const handleDismissAnnouncement = () => {
+    if (!announcement) return
+    const seenMap = readSeenMap()
+    const seenKey = `${announcement.key}:${announcement.version}`
+    seenMap[seenKey] = 'dismissed'
+    saveSeenMap(seenMap)
+    setAnnouncement(null)
+  }
+
   const contentStyle: CSSProperties = {
     maxWidth: isWriteRoute ? '1560px' : isGuestHomeRoute ? '100%' : isGuest ? '1240px' : '1280px',
     padding: isWriteRoute ? '24px 28px 40px' : isGuestHomeRoute ? '20px 12px 88px' : '28px 24px 88px',
@@ -207,6 +346,69 @@ export default function AppShell() {
         <div className='zenos-main' style={{ marginLeft: showSidebar ? sw : 0 }}>
           {showTopbar && <Topbar />}
           <div className='zenos-content' style={contentStyle}>
+            {primaryOrg && (
+              <div
+                style={{
+                  marginBottom: 12,
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: '10px 12px',
+                  backgroundColor: 'var(--surface-1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Organization
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>
+                    {primaryOrg.name}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Link
+                    to={`/org/${primaryOrg.id}`}
+                    style={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      textDecoration: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '7px 10px',
+                    }}
+                  >
+                    Open Dashboard
+                  </Link>
+                  <Link
+                    to={`/org/${primaryOrg.id}/settings`}
+                    style={{
+                      border: '1px solid var(--accent)',
+                      borderRadius: 10,
+                      textDecoration: 'none',
+                      color: 'white',
+                      backgroundColor: 'var(--accent)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '7px 10px',
+                    }}
+                  >
+                    Org Settings
+                  </Link>
+                </div>
+              </div>
+            )}
+            {announcement && (
+              <FeatureAnnouncementBanner
+                title={announcement.title}
+                summary={announcement.summary}
+                actionRequired={announcement.actionRequired}
+                onDismiss={handleDismissAnnouncement}
+              />
+            )}
             <Outlet />
           </div>
         </div>

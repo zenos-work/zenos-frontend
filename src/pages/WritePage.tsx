@@ -4,16 +4,19 @@ import { useMutation } from '@tanstack/react-query'
 import { Upload, CheckCircle2, BookOpen, PenSquare as PenSquareIcon, Share2 as Share2Icon, Plus, X } from 'lucide-react'
 import api from '../lib/api'
 import Modal from '../components/ui/Modal'
-import { useEditorStore }  from '../stores/editorStore'
-import { useUiStore }      from '../stores/uiStore'
-import { useArticle, useCreateArticle, useUpdateArticle, useSubmitArticle } from '../hooks/useArticles'
-import { useTags }         from '../hooks/useTags'
-import { useAuth }         from '../hooks/useAuth'
+import { useEditorStore } from '../stores/editorStore'
+import { useUiStore } from '../stores/uiStore'
+import { useArticle, useCreateArticle, useUpdateArticle, useSubmitArticle, useScheduleArticle } from '../hooks/useArticles'
+import { useTags } from '../hooks/useTags'
+import { useAuth } from '../hooks/useAuth'
+import { useFeatureFlag } from '../hooks/useFeatureFlags'
 import { useAssignArticleToSeries } from '../hooks/useSeries'
-import Editor        from '../components/editor/Editor'
+import Editor from '../components/editor/Editor'
 import EditorToolbar from '../components/editor/EditorToolbar'
-import PreviewPane   from '../components/editor/PreviewPane'
+import PreviewPane from '../components/editor/PreviewPane'
 import SeriesSelector from '../components/editor/SeriesSelector'
+import RevisionHistoryPanel from '../components/editor/RevisionHistoryPanel'
+import CoauthorPicker from '../components/editor/CoauthorPicker'
 import Spinner from '../components/ui/Spinner'
 import { resolveAssetUrl } from '../lib/assets'
 import type { ArticleContentType, ContentTypeOption } from '../types'
@@ -60,7 +63,7 @@ type Approver = {
   avatar_url?: string
 }
 
-type PendingActionKind = 'inline-image' | 'cover-image' | 'save-draft' | 'submit-review'
+type PendingActionKind = 'inline-image' | 'inline-video' | 'cover-image' | 'save-draft' | 'submit-review'
 
 type PendingAction = {
   kind: PendingActionKind
@@ -168,13 +171,13 @@ function buildSeoDescription(subtitle: string, content: string): string {
 }
 
 export default function WritePage() {
-  const { id }    = useParams()
-  const navigate  = useNavigate()
-  const { user }  = useAuth()
-  const store     = useEditorStore()
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const store = useEditorStore()
   const hydrateEditor = useEditorStore(s => s.hydrate)
   const resetEditor = useEditorStore(s => s.reset)
-  const toast     = useUiStore(s => s.toast)
+  const toast = useUiStore(s => s.toast)
   const setSidebar = useUiStore(s => s.setSidebar)
   const [tagQuery, setTagQuery] = useState('')
   const [localTags, setLocalTags] = useState<Array<{ id: string; name: string; slug: string; tag_type?: 'topic' | 'outcome'; article_count: number }>>([])
@@ -197,6 +200,13 @@ export default function WritePage() {
   const [showPublishSuccess, setShowPublishSuccess] = useState(false)
   const [publishedArticleSlug, setPublishedArticleSlug] = useState<string | undefined>(undefined)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [showRevisionHistory, setShowRevisionHistory] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState('')
+  const { enabled: revisionsEnabled } = useFeatureFlag('article_revisions')
+  const { enabled: scheduleFlagEnabled } = useFeatureFlag('schedule_publish')
+  const { enabled: digitalMarketingEnabled } = useFeatureFlag('digital_marketing')
+  const { enabled: coauthorEnabled } = useFeatureFlag('collaboration_coauthor')
+  const scheduleEnabled = scheduleFlagEnabled || digitalMarketingEnabled
 
   const {
     data: allTags,
@@ -245,7 +255,7 @@ export default function WritePage() {
       canonicalUrl: existing.canonical_url ?? '',
       ogImageUrl: existing.og_image_url ?? '',
       citations: existing.citations ?? [],
-        readingLevel: existing.reading_level as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
+      readingLevel: existing.reading_level as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
       seoSchemaType: existing.seo_schema_type ?? 'Article',
       selectedTags: existing.tags,
     })
@@ -270,6 +280,7 @@ export default function WritePage() {
   const createMutation = useCreateArticle()
   const updateMutation = useUpdateArticle(id ?? store.articleId ?? '')
   const submitMutation = useSubmitArticle()
+  const scheduleMutation = useScheduleArticle()
   const assignSeriesMutation = useAssignArticleToSeries()
   const uploadMutation = useMutation({
     mutationFn: async ({ file, onProgress }: { file: File; onProgress?: (pct: number) => void }) => {
@@ -459,10 +470,10 @@ export default function WritePage() {
       const fallbackOgImageUrl = store.coverImageUrl || undefined
 
       const payload: ArticleDraftPayload = {
-        title:           store.title,
-        content:         store.content,
-        tag_ids:         store.selectedTags.map(t => t.id),
-        content_type:    store.contentType,
+        title: store.title,
+        content: store.content,
+        tag_ids: store.selectedTags.map(t => t.id),
+        content_type: store.contentType,
       }
       const optionalFields = omitEmptyFields({
         subtitle: store.subtitle || undefined,
@@ -572,8 +583,12 @@ export default function WritePage() {
     return result.url
   }
 
+  // const inlineUploadInProgress = uploadMutation.isPending && (uploadTarget === 'inline-image' || uploadTarget === 'inline-video')
   const inlineUploadInProgress = uploadMutation.isPending && uploadTarget === 'inline-image'
   const coverUploadInProgress = uploadMutation.isPending && uploadTarget === 'cover-image'
+  // const inlineUploadStatusText = inlineUploadInProgress
+  //   ? `Uploading ${uploadTarget === 'inline-video' ? 'video' : 'image'}${uploadProgressPct ? `... ${uploadProgressPct}%` : '...'}`
+  //   : undefined
   const inlineUploadStatusText = inlineUploadInProgress
     ? `Uploading image${uploadProgressPct ? `... ${uploadProgressPct}%` : '...'}`
     : undefined
@@ -595,6 +610,34 @@ export default function WritePage() {
       setPendingAction((prev) => (prev?.kind === 'inline-image' ? null : prev))
     }
   }
+
+  /*
+  const handleInlineVideoUpload = async (file: File) => {
+    if (!file.type.startsWith('video/')) {
+        toast('Please choose a video file', 'warning')
+        throw new Error('Invalid file type')
+    }
+    setPendingAction({ kind: 'inline-video', label: 'Uploading video...', timeoutMs: ACTION_TIMEOUT_MS * 4 }) // Videos take longer
+    setUploadTarget('inline-video')
+    setUploadProgressPct(0)
+    try {
+      const result = await withTimeout(
+        uploadMutation.mutateAsync({ file, onProgress: (pct) => setUploadProgressPct(pct) }),
+        ACTION_TIMEOUT_MS * 4,
+        'Video upload timed out. Please try again.'
+      )
+      toast('Video inserted', 'success')
+      return result.url
+    } catch (err) {
+      toast(getApiErrorMessage(err) ?? 'Video upload failed', 'error')
+      throw err
+    } finally {
+      setUploadTarget(null)
+      setUploadProgressPct(null)
+      setPendingAction((prev) => (prev?.kind === 'inline-video' ? null : prev))
+    }
+  }
+  */
 
   const handleCoverUpload = async (file: File | undefined) => {
     if (!file) return
@@ -639,6 +682,25 @@ export default function WritePage() {
       toast(getApiErrorMessage(err) ?? 'Submit failed', 'error')
     } finally {
       setPendingAction((prev) => (prev?.kind === 'submit-review' ? null : prev))
+    }
+  }
+
+  const handleSchedule = async () => {
+    if (!scheduledAt) {
+      toast('Choose a publish date first', 'warning')
+      return
+    }
+    const articleId = await handleSave()
+    if (!articleId) return
+    try {
+      await withTimeout(
+        scheduleMutation.mutateAsync({ articleId, scheduledAt }),
+        ACTION_TIMEOUT_MS,
+        'Scheduling publication timed out. Please try again.',
+      )
+      toast('Publication scheduled', 'success')
+    } catch (err) {
+      toast(getApiErrorMessage(err) ?? 'Could not schedule publication', 'error')
     }
   }
 
@@ -739,6 +801,45 @@ export default function WritePage() {
         previewMode={store.previewMode}
       />
 
+      {(revisionsEnabled || scheduleEnabled) && (
+        <div className='mt-4 flex flex-wrap items-center gap-2'>
+          {revisionsEnabled && (existing?.id || id || store.articleId) && (
+            <button
+              type='button'
+              onClick={() => setShowRevisionHistory(true)}
+              className='rounded-lg border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]'
+            >
+              Revision history
+            </button>
+          )}
+          {scheduleEnabled && (
+            <>
+              <input
+                type='datetime-local'
+                value={scheduledAt}
+                onChange={(event) => setScheduledAt(event.target.value)}
+                className='h-10 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 text-sm text-[color:var(--text-primary)]'
+              />
+              <button
+                type='button'
+                onClick={() => void handleSchedule()}
+                className='rounded-lg border border-[color:var(--accent)] px-3 py-2 text-sm font-semibold text-[color:var(--text-primary)] hover:bg-[color:var(--accent-dim)]'
+              >
+                Schedule publish
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {(existing?.id || id || store.articleId) && (
+        <RevisionHistoryPanel
+          articleId={existing?.id ?? id ?? store.articleId ?? ''}
+          open={showRevisionHistory}
+          onClose={() => setShowRevisionHistory(false)}
+        />
+      )}
+
       {pendingAction && (
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px]'>
           <div className='min-w-[280px] max-w-[420px] rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-5 py-4 shadow-[var(--shadow)]'>
@@ -822,6 +923,7 @@ export default function WritePage() {
             content={store.content}
             onChange={store.setContent}
             onInlineImageUpload={handleInlineImageUpload}
+            // {/* onInlineVideoUpload={handleInlineVideoUpload} */}
             isInlineUploadInProgress={inlineUploadInProgress}
             inlineUploadStatusText={inlineUploadStatusText}
           />
@@ -910,6 +1012,12 @@ export default function WritePage() {
                   onChange={(e) => setNewTagName(e.target.value)}
                   placeholder='Create a new tag (e.g. fintech or #fintech)'
                   className='w-full rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)] outline-none focus:border-[color:var(--accent)]'
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newTagName.trim() && !creatingTag) {
+                      e.preventDefault()
+                      void handleCreateTag()
+                    }
+                  }}
                 />
                 <select
                   value={newTagType}
@@ -1193,6 +1301,12 @@ export default function WritePage() {
                   {sendingApprovalMessage ? 'Sending...' : 'Send message'}
                 </button>
               </div>
+            </div>
+          )}
+
+          {coauthorEnabled && (existing?.id || id || store.articleId) && (
+            <div className='mt-6'>
+              <CoauthorPicker articleId={existing?.id ?? id ?? store.articleId ?? ''} />
             </div>
           )}
 

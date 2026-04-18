@@ -11,6 +11,7 @@ const useApprovalQueueMock = vi.fn()
 const useNotificationsMock = vi.fn()
 const useMyArticlesMock = vi.fn()
 const useUiStoreMock = vi.fn()
+const useFeatureFlagMock = vi.fn()
 const toastMock = vi.fn()
 
 vi.mock('../../src/hooks/useAuth', () => ({
@@ -31,6 +32,22 @@ vi.mock('../../src/stores/uiStore', () => ({
     selector({ toast: useUiStoreMock() }),
 }))
 
+vi.mock('../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: (...args: unknown[]) => useFeatureFlagMock(...args),
+}))
+
+vi.mock('../../src/components/workflow/WorkflowBuilder', () => ({
+  default: () => <div>WorkflowBuilder</div>,
+}))
+
+vi.mock('../../src/components/workflow/WorkflowTemplateGallery', () => ({
+  default: () => <div>WorkflowTemplateGallery</div>,
+}))
+
+vi.mock('../../src/components/workflow/WorkflowTaskInbox', () => ({
+  default: () => <div>WorkflowTaskInbox</div>,
+}))
+
 vi.mock('../../src/lib/api', () => ({
   default: {
     post: vi.fn().mockResolvedValue({ data: {} }),
@@ -41,6 +58,7 @@ describe('WorkflowPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useUiStoreMock.mockReturnValue(toastMock)
+    useFeatureFlagMock.mockReturnValue({ enabled: false, isLoading: false })
 
     useApprovalQueueMock.mockReturnValue({
       data: {
@@ -116,5 +134,22 @@ describe('WorkflowPage', () => {
       })
       expect(toastMock).toHaveBeenCalledWith('Workflow message sent to approvers', 'success')
     })
+  })
+
+  it('renders workflow builder tabs when feature flag is enabled', () => {
+    useFeatureFlagMock.mockReturnValue({ enabled: true, isLoading: false })
+    useAuthMock.mockReturnValue({ user: { id: 'u-reviewer', role: 'APPROVER' } })
+
+    const { Wrapper } = createQueryClientWrapper()
+    render(<WorkflowPage />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('button', { name: /my workflows/i }))
+    expect(screen.getByText('WorkflowBuilder')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /templates/i }))
+    expect(screen.getByText('WorkflowTemplateGallery')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /task inbox/i }))
+    expect(screen.getByText('WorkflowTaskInbox')).toBeInTheDocument()
   })
 })

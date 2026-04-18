@@ -8,9 +8,34 @@ import api from '../../src/lib/api'
 const useAuthMock = vi.fn()
 const useParamsMock = vi.fn()
 const toastMock = vi.fn()
+const useFeatureFlagMock = vi.fn()
 
 vi.mock('../../src/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
+}))
+
+vi.mock('../../src/hooks/useFeatureFlags', () => ({
+  useFeatureFlag: (...args: unknown[]) => useFeatureFlagMock(...args),
+}))
+
+vi.mock('../../src/components/profile/NotificationPrefsPanel', () => ({
+  default: () => <div>NotificationPrefsPanel</div>,
+}))
+
+vi.mock('../../src/components/profile/AccountDataPanel', () => ({
+  default: () => <div>AccountDataPanel</div>,
+}))
+
+vi.mock('../../src/components/profile/ActiveSessionsPanel', () => ({
+  default: () => <div>ActiveSessionsPanel</div>,
+}))
+
+vi.mock('../../src/components/profile/BlockMutePanel', () => ({
+  default: () => <div>BlockMutePanel</div>,
+}))
+
+vi.mock('../../src/components/profile/CustomDomainPanel', () => ({
+  default: () => <div>CustomDomainPanel</div>,
 }))
 
 vi.mock('../../src/stores/uiStore', () => ({
@@ -42,6 +67,7 @@ vi.mock('../../src/components/social/FollowButton', () => ({
 describe('ProfilePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useFeatureFlagMock.mockReturnValue({ enabled: false })
     vi.mocked(api.post).mockResolvedValue({ data: { avatar_url: 'https://cdn.test/new-avatar.jpg' } } as never)
     vi.mocked(api.delete).mockResolvedValue({ data: {} } as never)
     vi.mocked(api.put).mockResolvedValue({ data: {} } as never)
