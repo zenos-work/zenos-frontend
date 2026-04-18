@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import {
   Plus,
   ImagePlus,
+  /* Video, */
   Code,
   Link2,
   Search,
@@ -28,7 +29,7 @@ import {
 } from 'lucide-react'
 import { FontSize } from './extensions/FontSize'
 import { PrivateNote } from './extensions/PrivateNote'
-import { IframeEmbed/*, VideoEmbed*/ } from './extensions/EmbedNodes'
+import { IframeEmbed /*, VideoEmbed */ } from './extensions/EmbedNodes'
 // import { ChartExtension } from './extensions/ChartExtension'
 // import { SurveyExtension } from './extensions/SurveyExtension'
 
@@ -72,6 +73,7 @@ export default function Editor({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
+  // const videoInputRef = useRef<HTMLInputElement | null>(null)
   const markdownInputRef = useRef<HTMLInputElement | null>(null)
 
   const [showInsertMenu, setShowInsertMenu] = useState(false)
@@ -226,12 +228,10 @@ export default function Editor({
   /*
   const handleInlineVideoPick = async (file: File | undefined) => {
     if (!file || !editor) return
+
     setLocalInlineUploadKind('video')
     try {
-      const src = onInlineVideoUpload
-        ? await onInlineVideoUpload(file)
-        : URL.createObjectURL(file)
-
+      const src = URL.createObjectURL(file)
       editor
         .chain()
         .focus()
@@ -438,9 +438,11 @@ export default function Editor({
             <button type='button' onClick={() => { setShowUnsplashPicker(v => !v); setUnsplashQuery(editor?.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || '') }} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Search Unsplash image'>
               <Search size={14} />
             </button>
-            {/* <button type='button' disabled={isInlineUploadBusy} onClick={() => videoInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60' title='Video from device'>
+            {/*
+            <button type='button' disabled={isInlineUploadBusy} onClick={() => videoInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60' title='Video from device'>
               <Video size={14} />
-            </button> */}
+            </button>
+            */}
             <button type='button' onClick={() => markdownInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Markdown file'>
               <FileText size={14} />
             </button>
@@ -511,13 +513,15 @@ export default function Editor({
         className='hidden'
         onChange={e => void handleInlineImagePick(e.target.files?.[0])}
       />
-      {/* <input
+      {/*
+      <input
         ref={videoInputRef}
         type='file'
         accept='video/*'
         className='hidden'
         onChange={e => void handleInlineVideoPick(e.target.files?.[0])}
-      /> */}
+      />
+      */}
       <input
         ref={markdownInputRef}
         type='file'

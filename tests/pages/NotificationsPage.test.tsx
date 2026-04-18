@@ -6,11 +6,15 @@ import NotificationsPage from '../../src/pages/NotificationsPage'
 const useNotificationsMock = vi.fn()
 const useMarkAllNotificationsReadMock = vi.fn()
 const useMarkNotificationReadMock = vi.fn()
+const useDeleteAllNotificationsMock = vi.fn()
+const useDeleteNotificationMock = vi.fn()
 
 vi.mock('../../src/hooks/useAdmin', () => ({
   useNotifications: () => useNotificationsMock(),
   useMarkAllNotificationsRead: () => useMarkAllNotificationsReadMock(),
   useMarkNotificationRead: () => useMarkNotificationReadMock(),
+  useDeleteAllNotifications: () => useDeleteAllNotificationsMock(),
+  useDeleteNotification: () => useDeleteNotificationMock(),
 }))
 
 describe('NotificationsPage', () => {
@@ -18,6 +22,8 @@ describe('NotificationsPage', () => {
     vi.clearAllMocks()
     useMarkAllNotificationsReadMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
     useMarkNotificationReadMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    useDeleteAllNotificationsMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
+    useDeleteNotificationMock.mockReturnValue({ mutate: vi.fn(), isPending: false })
   })
 
   it('shows spinner while loading', () => {

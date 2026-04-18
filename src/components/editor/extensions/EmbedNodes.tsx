@@ -9,6 +9,7 @@ export const IframeEmbed = Node.create({
     return {
       src: { default: null },
       title: { default: 'Embedded media' },
+      height: { default: 420 },
     };
   },
 

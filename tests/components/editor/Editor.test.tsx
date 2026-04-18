@@ -193,6 +193,7 @@ describe('Editor', () => {
 
     expect(screen.getByText('Uploading image... 42%')).toBeTruthy()
     expect(screen.getByTitle('Image from device')).toBeDisabled()
-    expect(screen.getByTitle('Video from device')).toBeDisabled()
+    // Video embed support is currently commented out, so the video button is not expected here.
+    // expect(screen.getByTitle('Video from device')).toBeDisabled()
   })
 })

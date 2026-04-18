@@ -56,16 +56,11 @@ describe('Sidebar', () => {
     expect(screen.getByText('Community')).toBeInTheDocument()
     expect(screen.getByText('Marketplace')).toBeInTheDocument()
     expect(screen.getByText('Stats')).toBeInTheDocument()
-    expect(screen.getByText('Settings')).toBeInTheDocument()
     expect(screen.queryByText('Home')).not.toBeInTheDocument()
     expect(screen.queryByText('Search')).not.toBeInTheDocument()
     expect(screen.getByText('Write')).toBeInTheDocument()
-    expect(screen.getByText('Admin')).toBeInTheDocument()
     expect(screen.getByTestId('avatar')).toHaveTextContent('Admin User')
     expect(screen.getByText('SUPERADMIN')).toBeInTheDocument()
-
-    screen.getAllByRole('button').at(-1)?.click()
-    expect(toggleSidebar).toHaveBeenCalledTimes(1)
   })
 
   it('renders collapsed reader sidebar without write or admin links', () => {

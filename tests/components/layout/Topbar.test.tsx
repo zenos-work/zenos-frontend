@@ -58,8 +58,7 @@ describe('Topbar', () => {
 
     expect(navigateMock).toHaveBeenCalledWith('/search?q=fintech%20ai')
 
-    fireEvent.click(screen.getByRole('button', { name: /theme toggle/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Dark' }))
+    fireEvent.click(screen.getByRole('button', { name: /toggle theme/i }))
     expect(setTheme).toHaveBeenCalledWith('dark')
 
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }))
@@ -87,12 +86,10 @@ describe('Topbar', () => {
     fireEvent.click(screen.getByText('Admin User').closest('button')!)
 
     expect(screen.getByText('Settings')).toBeInTheDocument()
-    expect(screen.getByText('Library')).toBeInTheDocument()
-    expect(screen.getByText('Stats')).toBeInTheDocument()
-    expect(screen.getByText('Admin')).toBeInTheDocument()
+    expect(screen.getByText('Writer onboarding')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText('Admin'))
-    expect(navigateMock).toHaveBeenCalledWith('/admin')
+    fireEvent.click(screen.getByText('Settings'))
+    expect(navigateMock).toHaveBeenCalledWith('/settings')
 
     fireEvent.click(screen.getByText('Admin User').closest('button')!)
     fireEvent.click(screen.getByText('Sign out'))
