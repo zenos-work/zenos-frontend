@@ -10,6 +10,7 @@ import {
   TrendingUp,
   UserPlus,
   Trash2,
+  Megaphone,
 } from 'lucide-react'
 import {
   useMarkAllNotificationsRead,
@@ -47,6 +48,7 @@ export default function NotificationsPage() {
     const type = notification.type.toLowerCase()
     if (type.includes('comment') || type.includes('reply')) return 'comment'
     if (type.includes('follow')) return 'follower'
+    if (type.includes('feature')) return 'system'
     return 'system'
   }
 
@@ -80,6 +82,7 @@ export default function NotificationsPage() {
     if (type.includes('earning') || type.includes('revenue')) return <DollarSign size={16} />
     if (type.includes('milestone') || type.includes('trend')) return <TrendingUp size={16} />
     if (type.includes('like') || type.includes('reaction')) return <Heart size={16} />
+    if (type.includes('feature')) return <Megaphone size={16} />
     return <AlertCircle size={16} />
   }
 

@@ -676,6 +676,9 @@ export default function ArticlePage() {
                   total={series.total}
                   description={series.description}
                   coverImageUrl={series.cover_image_url}
+                  nextSlug={series.next_article_slug}
+                  prevSlug={series.prev_article_slug}
+                  parts={series.parts}
                 />
               </div>
             )}

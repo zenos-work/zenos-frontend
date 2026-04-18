@@ -84,10 +84,12 @@ export default function SeriesPage() {
       {/* Progress bar strip */}
       {articles.length > 0 && (
         <div className="flex gap-1">
-          {articles.map((_, i) => (
-            <div
+          {articles.map((article, i) => (
+            <Link
               key={i}
-              className="h-1 flex-1 rounded-full bg-[color:var(--accent)]/30"
+              to={`/article/${article.slug}`}
+              className="h-1.5 flex-1 rounded-full bg-[color:var(--accent)]/20 transition-all hover:bg-[color:var(--accent)]/50"
+              title={`Part ${i + 1}: ${article.title}`}
             />
           ))}
         </div>

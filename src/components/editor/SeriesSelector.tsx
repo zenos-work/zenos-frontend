@@ -1,6 +1,6 @@
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import type { Series } from '../../hooks/useSeries'
+import { useSeries, seriesKeys, type Series } from '../../hooks/useSeries'
 
 interface SeriesSelectorProps {
   seriesId?: string
@@ -15,22 +15,16 @@ export default function SeriesSelector({
   onSeriesRemove,
   currentPartNumber,
 }: SeriesSelectorProps) {
-  const { data: seriesList, isLoading } = useQuery({
-    queryKey: ['my-series'],
-    queryFn: async () => {
-      try {
-        const res = await api.get<{ items: Series[] }>('/api/series?limit=100')
-        return res.data.items ?? []
-      } catch {
-        return []
-      }
-    },
-  })
+  const qc = useQueryClient()
+  const { data: seriesList, isLoading } = useSeries()
 
   const createMutation = useMutation({
     mutationFn: async (name: string) => {
       const res = await api.post<{ series: Series }>('/api/series', { name })
       return res.data.series
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: seriesKeys.all })
     },
   })
 
@@ -71,7 +65,7 @@ export default function SeriesSelector({
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                 const series = seriesList.find((s: Series) => s.id === e.target.value)
                 if (series) {
-                  onSeriesSelect(series, 1)
+                  onSeriesSelect(series, (series.article_count || 0) + 1)
                 }
               }}
               className="w-full rounded-lg bg-[color:var(--surface-0)] border border-[color:var(--border)] px-3 py-2 text-sm text-[color:var(--text-primary)] mb-2"

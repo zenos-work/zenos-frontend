@@ -12,7 +12,6 @@ import {
   PenSquare,
   Radio,
   Search,
-  Settings,
   Shield,
   Sparkles,
   Users,
@@ -71,7 +70,6 @@ const AUTH_NAV = [
   { to: '/history', icon: History, label: 'Reading History' },
   { to: '/bookmarks', icon: Bookmark, label: 'Bookmarks' },
   { to: '/library', icon: BookOpen, label: 'Library' },
-  { to: '/onboarding/writer', icon: Sparkles, label: 'Writer Onboarding' },
   { to: '/workflow', icon: FileText, label: 'Workflow' },
   { to: '/stats', icon: BarChart2, label: 'Stats' },
 ]
@@ -81,22 +79,28 @@ const GUEST_NAV = [
   { to: '/search', icon: Search, label: 'Search' },
 ]
 
-const navStyle = (open: boolean, active: boolean): React.CSSProperties => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: open ? 10 : 0,
-  justifyContent: open ? 'flex-start' : 'center',
-  padding: open ? '10px 14px' : '10px',
-  borderRadius: 999,
-  marginBottom: 6,
-  fontSize: 13,
-  fontFamily: 'var(--font-ui)',
-  fontWeight: active ? 500 : 400,
-  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-  backgroundColor: active ? 'var(--surface-2)' : 'transparent',
-  textDecoration: 'none',
-  transition: 'background-color 0.15s, color 0.15s, transform 0.15s',
-})
+const navStyle = (open: boolean, active: boolean): React.CSSProperties => {
+  const p = open ? { py: 10, px: 14 } : { py: 10, px: 10 }
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: open ? 10 : 0,
+    justifyContent: open ? 'flex-start' : 'center',
+    paddingTop: p.py,
+    paddingBottom: p.py,
+    paddingLeft: p.px,
+    paddingRight: p.px,
+    borderRadius: 999,
+    marginBottom: 6,
+    fontSize: 13,
+    fontFamily: 'var(--font-ui)',
+    fontWeight: active ? 500 : 400,
+    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+    backgroundColor: active ? 'var(--surface-2)' : 'transparent',
+    textDecoration: 'none',
+    transition: 'background-color 0.15s, color 0.15s, transform 0.15s',
+  }
+}
 
 export default function Sidebar() {
   const { user } = useAuth()
@@ -116,27 +120,27 @@ export default function Sidebar() {
   const isAdmin = user && ['SUPERADMIN', 'APPROVER'].includes(user.role)
   const navItems = user
     ? [
-        ...AUTH_NAV.slice(0, 4),
-        ...(readingListsEnabled ? [{ to: '/reading-lists', icon: BookOpen, label: 'Reading Lists' }] : []),
-        ...AUTH_NAV.slice(4, 6),
-        ...(canWrite && newslettersEnabled ? [{ to: '/newsletters', icon: FileText, label: 'Newsletters' }] : []),
-        ...(coursesEnabled ? [{ to: '/courses', icon: BookOpen, label: 'Courses' }] : []),
-        ...(communityEnabled ? [{ to: '/community', icon: Home, label: 'Community' }] : []),
-        ...(marketplaceEnabled ? [{ to: '/marketplace', icon: Sparkles, label: 'Marketplace' }] : []),
-        ...(podcastsEnabled ? [{ to: '/podcasts', icon: Radio, label: 'Podcasts' }] : []),
-        ...(publicationsEnabled ? [{ to: '/publications', icon: FileText, label: 'Publications' }] : []),
-        ...(canWrite && marketingEnabled ? [{ to: '/marketing', icon: BarChart2, label: 'Marketing' }] : []),
-        ...(canWrite && leadsEnabled ? [{ to: '/leads', icon: Users, label: 'Leads' }] : []),
-        ...AUTH_NAV.slice(6),
-      ]
+      ...AUTH_NAV.slice(0, 4),
+      ...(readingListsEnabled ? [{ to: '/reading-lists', icon: BookOpen, label: 'Reading Lists' }] : []),
+      ...AUTH_NAV.slice(4, 6),
+      ...(canWrite && newslettersEnabled ? [{ to: '/newsletters', icon: FileText, label: 'Newsletters' }] : []),
+      ...(coursesEnabled ? [{ to: '/courses', icon: BookOpen, label: 'Courses' }] : []),
+      ...(communityEnabled ? [{ to: '/community', icon: Home, label: 'Community' }] : []),
+      ...(marketplaceEnabled ? [{ to: '/marketplace', icon: Sparkles, label: 'Marketplace' }] : []),
+      ...(podcastsEnabled ? [{ to: '/podcasts', icon: Radio, label: 'Podcasts' }] : []),
+      ...(publicationsEnabled ? [{ to: '/publications', icon: FileText, label: 'Publications' }] : []),
+      ...(canWrite && marketingEnabled ? [{ to: '/marketing', icon: BarChart2, label: 'Marketing' }] : []),
+      ...(canWrite && leadsEnabled ? [{ to: '/leads', icon: Users, label: 'Leads' }] : []),
+      ...AUTH_NAV.slice(6),
+    ]
     : GUEST_NAV
 
   const navItemsWithEarnings = user && earningsEnabled
     ? [
-        ...navItems.slice(0, 7),
-        { to: '/earnings', icon: BarChart2, label: 'Earnings' },
-        ...navItems.slice(7),
-      ]
+      ...navItems.slice(0, 7),
+      { to: '/earnings', icon: BarChart2, label: 'Earnings' },
+      ...navItems.slice(7),
+    ]
     : navItems
 
   return (

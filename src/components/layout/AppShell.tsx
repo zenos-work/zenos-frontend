@@ -258,17 +258,21 @@ export default function AppShell() {
       if (!channels.includes('in_app')) continue
 
       const previous = previousState[flag.key]
-      if (previous === undefined || previous === flag.enabled) continue
-
       const action: 'enabled' | 'disabled' = flag.enabled ? 'enabled' : 'disabled'
       const item = buildAnnouncement(flag, action)
-      const seenKey = `${item.key}:${item.version}`
+      const seenKey = `${item.key}:${item.version}:${action}`
+
       if (seenMap[seenKey]) continue
 
-      void Promise.resolve().then(() => {
+      // Show banner if not seen
+      setTimeout(() => {
         setAnnouncement(item)
-      })
-      toast(item.title, flag.enabled ? 'success' : 'info')
+      }, 50)
+
+      // Only toast on immediate transition
+      if (previous !== undefined && previous !== flag.enabled) {
+        toast(item.title, flag.enabled ? 'success' : 'info')
+      }
       break
     }
   }, [featureFlags, toast])

@@ -4,7 +4,7 @@ import Image from '@tiptap/extension-image'
 import { TextStyle } from '@tiptap/extension-text-style'
 import TextAlign from '@tiptap/extension-text-align'
 import Placeholder from '@tiptap/extension-placeholder'
-import Youtube from '@tiptap/extension-youtube'
+// import Youtube from '@tiptap/extension-youtube'
 import { marked } from 'marked'
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import {
@@ -26,13 +26,17 @@ import {
   AlignRight,
   AlignJustify,
   FileText,
+  BarChart2,
+  ClipboardList,
 } from 'lucide-react'
 import { FontSize } from './extensions/FontSize'
 import { PrivateNote } from './extensions/PrivateNote'
-import { IframeEmbed, VideoEmbed } from './extensions/EmbedNodes'
+import { IframeEmbed/*, VideoEmbed*/ } from './extensions/EmbedNodes'
+// import { ChartExtension } from './extensions/ChartExtension'
+// import { SurveyExtension } from './extensions/SurveyExtension'
 
 interface Props {
-  content:  string
+  content: string
   onChange: (value: string) => void
   onInlineImageUpload?: (file: File) => Promise<string>
   onInlineVideoUpload?: (file: File) => Promise<string>
@@ -135,8 +139,8 @@ export default function Editor({
           loading: 'lazy',
         },
       }),
-      VideoEmbed,
-      Youtube.configure({
+      // VideoEmbed,
+      /* Youtube.configure({
         controls: true,
         nocookie: true,
         width: 860,
@@ -144,7 +148,7 @@ export default function Editor({
         HTMLAttributes: {
           class: 'my-3 w-full rounded-lg border border-gray-300/40',
         },
-      }),
+      }), */
       IframeEmbed,
       TextStyle,
       FontSize,
@@ -152,8 +156,10 @@ export default function Editor({
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      // ChartExtension,
+      // SurveyExtension,
     ],
-    content:    '',
+    content: '',
     editorProps: {
       attributes: {
         class: [
@@ -238,6 +244,7 @@ export default function Editor({
     }
   }
 
+  /*
   const handleInlineVideoPick = async (file: File | undefined) => {
     if (!file || !editor) return
     setLocalInlineUploadKind('video')
@@ -263,6 +270,7 @@ export default function Editor({
       if (videoInputRef.current) videoInputRef.current.value = ''
     }
   }
+  */
 
   const handleMarkdownPick = async (file: File | undefined) => {
     if (!file || !editor) return
@@ -299,6 +307,7 @@ export default function Editor({
     setShowInsertMenu(false)
   }
 
+  /*
   const insertVideoByUrl = () => {
     if (!editor) return
     const raw = window.prompt('Paste a video URL (YouTube, Vimeo, Dailymotion):')?.trim()
@@ -327,6 +336,7 @@ export default function Editor({
       window.alert(e instanceof Error ? e.message : 'Invalid video URL')
     }
   }
+  */
 
   const insertGenericEmbed = () => {
     if (!editor) return
@@ -335,6 +345,28 @@ export default function Editor({
     editor.chain().focus().insertContent({ type: 'iframeEmbed', attrs: { src: raw, title: 'Embedded content' } }).insertContent({ type: 'paragraph' }).run()
     setShowInsertMenu(false)
   }
+
+  /*
+  const insertChart = () => {
+    if (!editor) return
+    editor.chain()
+      .focus()
+      .insertContent({ type: 'chartBlock', attrs: { chartData: null } })
+      .insertContent({ type: 'paragraph' })
+      .run()
+    setShowInsertMenu(false)
+  }
+
+  const insertSurvey = () => {
+    if (!editor) return
+    editor.chain()
+      .focus()
+      .insertContent({ type: 'surveyBlock', attrs: { surveyId: null } })
+      .insertContent({ type: 'paragraph' })
+      .run()
+    setShowInsertMenu(false)
+  }
+  */
 
   const applyFontSize = (increase: boolean) => {
     if (!editor) return
@@ -435,21 +467,27 @@ export default function Editor({
             <button type='button' onClick={() => { setShowUnsplashPicker(v => !v); setUnsplashQuery(editor?.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || '') }} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Search Unsplash image'>
               <Search size={14} />
             </button>
-            <button type='button' disabled={isInlineUploadBusy} onClick={() => videoInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60' title='Video from device'>
+            {/* <button type='button' disabled={isInlineUploadBusy} onClick={() => videoInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-60' title='Video from device'>
               <Video size={14} />
-            </button>
+            </button> */}
             <button type='button' onClick={() => markdownInputRef.current?.click()} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Markdown file'>
               <FileText size={14} />
             </button>
-            <button type='button' onClick={insertVideoByUrl} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='YouTube/Vimeo/Dailymotion URL'>
+            {/* <button type='button' onClick={insertVideoByUrl} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='YouTube/Vimeo/Dailymotion URL'>
               <Link2 size={14} />
-            </button>
+            </button> */}
             <button type='button' onClick={insertCodeBlock} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Code block'>
               <Code size={14} />
             </button>
-            <button type='button' onClick={insertGenericEmbed} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Embed item'>
+            {/* <button type='button' onClick={insertGenericEmbed} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Embed item'>
               {'<>'}
             </button>
+            <button type='button' onClick={insertChart} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Insert Chart'>
+              <BarChart2 size={14} />
+            </button>
+            <button type='button' onClick={insertSurvey} className='rounded-full border border-[color:var(--border-strong)] p-2 text-[color:var(--text-primary)] hover:bg-[color:var(--surface-2)]' title='Insert Survey'>
+              <ClipboardList size={14} />
+            </button> */}
           </div>
         )}
       </div>
@@ -502,13 +540,13 @@ export default function Editor({
         className='hidden'
         onChange={e => void handleInlineImagePick(e.target.files?.[0])}
       />
-      <input
+      {/* <input
         ref={videoInputRef}
         type='file'
         accept='video/*'
         className='hidden'
         onChange={e => void handleInlineVideoPick(e.target.files?.[0])}
-      />
+      /> */}
       <input
         ref={markdownInputRef}
         type='file'

@@ -65,9 +65,10 @@ export const useRelatedArticles = (articleId: string, limit: number = 5) =>
   })
 
 // My drafts + library — all my articles regardless of status
-export const useMyArticles = () =>
+export const useMyArticles = (options = {}) =>
   useQuery({
     queryKey: articleKeys.myList(),
+    ...options,
     queryFn:  () =>
       api.get<PaginatedResponse<ArticleList>>('/api/articles/mine')
          .then(r => r.data),

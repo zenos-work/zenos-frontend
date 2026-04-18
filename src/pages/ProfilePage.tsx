@@ -552,7 +552,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className='max-w-2xl mx-auto space-y-8'>
+    <div className='max-w-4xl mx-auto space-y-8'>
       <div className='flex items-start gap-6 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-6 shadow-sm'>
         <div className='space-y-3'>
           <div className='flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[color:var(--accent)]/45'>
@@ -679,7 +679,7 @@ export default function ProfilePage() {
 
       {isOwnProfile && (
         <div className='rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface-1)] px-3 pt-3 shadow-sm'>
-          <div className='flex flex-wrap gap-1 border-b border-[color:var(--border)]'>
+          <div className='flex overflow-x-auto gap-2 border-b border-[color:var(--border)] whitespace-nowrap no-scrollbar'>
             {([
               { id: 'personal', label: 'Personal details' },
               { id: 'notifications', label: 'Notifications' },

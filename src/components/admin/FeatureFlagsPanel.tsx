@@ -331,44 +331,44 @@ export default function FeatureFlagsPanel() {
         <div className='space-y-6'>
           <div className='grid gap-4 lg:grid-cols-2'>
             <label className='space-y-1'>
-              <span className='text-sm font-medium text-white'>Flag key</span>
+              <span className='text-sm font-medium text-[color:var(--text-primary)]'>Flag key</span>
               <input
                 value={form.flag_key}
                 onChange={(event) => updateForm('flag_key', event.target.value)}
                 disabled={editorMode !== 'create'}
-                className='w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white disabled:opacity-60'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)] disabled:opacity-60'
               />
             </label>
             <label className='space-y-1'>
-              <span className='text-sm font-medium text-white'>Name</span>
+              <span className='text-sm font-medium text-[color:var(--text-primary)]'>Name</span>
               <input
                 value={form.name}
                 onChange={(event) => updateForm('name', event.target.value)}
-                className='w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
               />
             </label>
             <label className='space-y-1 lg:col-span-2'>
-              <span className='text-sm font-medium text-white'>Description</span>
+              <span className='text-sm font-medium text-[color:var(--text-primary)]'>Description</span>
               <input
                 value={form.description}
                 onChange={(event) => updateForm('description', event.target.value)}
-                className='w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
               />
             </label>
             <label className='space-y-1'>
-              <span className='text-sm font-medium text-white'>Category</span>
+              <span className='text-sm font-medium text-[color:var(--text-primary)]'>Category</span>
               <input
                 value={form.category}
                 onChange={(event) => updateForm('category', event.target.value)}
-                className='w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
               />
             </label>
             <label className='space-y-1'>
-              <span className='text-sm font-medium text-white'>Target type</span>
+              <span className='text-sm font-medium text-[color:var(--text-primary)]'>Target type</span>
               <select
                 value={form.target_type}
                 onChange={(event) => updateForm('target_type', event.target.value as FeatureFlagTargetType)}
-                className='w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]'
               >
                 {TARGET_TYPES.map((targetType) => (
                   <option key={targetType} value={targetType}>{targetType}</option>
@@ -376,18 +376,18 @@ export default function FeatureFlagsPanel() {
               </select>
             </label>
             <label className='space-y-1 lg:col-span-2'>
-              <span className='text-sm font-medium text-white'>Targets</span>
+              <span className='text-sm font-medium text-[color:var(--text-primary)]'>Targets</span>
               <textarea
                 rows={3}
                 value={form.targets_text}
                 onChange={(event) => updateForm('targets_text', event.target.value)}
                 disabled={form.target_type === 'global' || form.target_type === 'percentage'}
                 placeholder='Comma or newline separated values'
-                className='w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white disabled:opacity-60'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)] disabled:opacity-60'
               />
             </label>
             <label className='space-y-1'>
-              <span className='text-sm font-medium text-white'>Rollout percentage</span>
+              <span className='text-sm font-medium text-[color:var(--text-primary)]'>Rollout percentage</span>
               <input
                 type='number'
                 min={0}
@@ -395,10 +395,10 @@ export default function FeatureFlagsPanel() {
                 value={form.rollout_pct}
                 onChange={(event) => updateForm('rollout_pct', Number(event.target.value))}
                 disabled={form.target_type !== 'percentage'}
-                className='w-full rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white disabled:opacity-60'
+                className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)] disabled:opacity-60'
               />
             </label>
-            <label className='flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white'>
+            <label className='flex items-center gap-3 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]'>
               <input
                 type='checkbox'
                 checked={form.is_active}
@@ -409,66 +409,66 @@ export default function FeatureFlagsPanel() {
           </div>
 
           <div className='grid gap-6 lg:grid-cols-2'>
-            <div className='space-y-4 rounded-xl border border-gray-800 bg-gray-950/70 p-4'>
-              <div className='flex items-center gap-2 text-white'>
+            <div className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='flex items-center gap-2 text-[color:var(--text-primary)]'>
                 <Flag size={15} />
                 <h3 className='text-sm font-semibold'>Announcement copy</h3>
               </div>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Enable title</span>
-                <input value={form.enabled_title} onChange={(event) => updateForm('enabled_title', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Enable title</span>
+                <input value={form.enabled_title} onChange={(event) => updateForm('enabled_title', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Enable summary</span>
-                <textarea rows={2} value={form.enabled_summary} onChange={(event) => updateForm('enabled_summary', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Enable summary</span>
+                <textarea rows={2} value={form.enabled_summary} onChange={(event) => updateForm('enabled_summary', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Disable title</span>
-                <input value={form.disabled_title} onChange={(event) => updateForm('disabled_title', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Disable title</span>
+                <input value={form.disabled_title} onChange={(event) => updateForm('disabled_title', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Disable summary</span>
-                <textarea rows={2} value={form.disabled_summary} onChange={(event) => updateForm('disabled_summary', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Disable summary</span>
+                <textarea rows={2} value={form.disabled_summary} onChange={(event) => updateForm('disabled_summary', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Details</span>
-                <textarea rows={3} value={form.details} onChange={(event) => updateForm('details', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Details</span>
+                <textarea rows={3} value={form.details} onChange={(event) => updateForm('details', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
             </div>
 
-            <div className='space-y-4 rounded-xl border border-gray-800 bg-gray-950/70 p-4'>
-              <div className='flex items-center gap-2 text-white'>
+            <div className='space-y-4 rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
+              <div className='flex items-center gap-2 text-[color:var(--text-primary)]'>
                 <Send size={15} />
                 <h3 className='text-sm font-semibold'>Delivery and ops</h3>
               </div>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Action required</span>
-                <textarea rows={2} value={form.action_required} onChange={(event) => updateForm('action_required', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Action required</span>
+                <textarea rows={2} value={form.action_required} onChange={(event) => updateForm('action_required', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Effective at</span>
-                <input value={form.effective_at} onChange={(event) => updateForm('effective_at', event.target.value)} placeholder='Effective immediately' className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Effective at</span>
+                <input value={form.effective_at} onChange={(event) => updateForm('effective_at', event.target.value)} placeholder='Effective immediately' className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Reason</span>
-                <textarea rows={2} value={form.reason} onChange={(event) => updateForm('reason', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Reason</span>
+                <textarea rows={2} value={form.reason} onChange={(event) => updateForm('reason', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Support contact</span>
-                <input value={form.support_contact} onChange={(event) => updateForm('support_contact', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Support contact</span>
+                <input value={form.support_contact} onChange={(event) => updateForm('support_contact', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <label className='space-y-1'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Rollback plan</span>
-                <textarea rows={2} value={form.rollback_plan} onChange={(event) => updateForm('rollback_plan', event.target.value)} className='w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white' />
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Rollback plan</span>
+                <textarea rows={2} value={form.rollback_plan} onChange={(event) => updateForm('rollback_plan', event.target.value)} className='w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-0)] px-3 py-2 text-sm text-[color:var(--text-primary)]' />
               </label>
               <div className='space-y-2'>
-                <span className='text-xs font-medium uppercase tracking-wide text-gray-400'>Delivery channels</span>
+                <span className='text-xs font-medium uppercase tracking-wide text-[color:var(--text-muted)]'>Delivery channels</span>
                 <div className='flex flex-wrap gap-2'>
                   <Badge variant='info'>in_app always on</Badge>
-                  <button type='button' onClick={() => toggleChannel('email')} className={`rounded-lg border px-3 py-2 text-xs ${form.channels.includes('email') ? 'border-[color:var(--accent)] bg-[color:rgba(195,164,92,0.18)] text-white' : 'border-gray-700 bg-black text-gray-300'}`}>
+                  <button type='button' onClick={() => toggleChannel('email')} className={`rounded-lg border px-3 py-2 text-xs ${form.channels.includes('email') ? 'border-[color:var(--accent)] bg-[color:rgba(195,164,92,0.18)] text-[color:var(--text-primary)]' : 'border-[color:var(--border)] bg-[color:var(--surface-0)] text-[color:var(--text-secondary)]'}`}>
                     <Mail size={12} className='mr-1 inline' /> Email
                   </button>
-                  <button type='button' onClick={() => toggleChannel('push')} className={`rounded-lg border px-3 py-2 text-xs ${form.channels.includes('push') ? 'border-[color:var(--accent)] bg-[color:rgba(195,164,92,0.18)] text-white' : 'border-gray-700 bg-black text-gray-300'}`}>
+                  <button type='button' onClick={() => toggleChannel('push')} className={`rounded-lg border px-3 py-2 text-xs ${form.channels.includes('push') ? 'border-[color:var(--accent)] bg-[color:rgba(195,164,92,0.18)] text-[color:var(--text-primary)]' : 'border-[color:var(--border)] bg-[color:var(--surface-0)] text-[color:var(--text-secondary)]'}`}>
                     <Smartphone size={12} className='mr-1 inline' /> Push
                   </button>
                 </div>
@@ -476,11 +476,11 @@ export default function FeatureFlagsPanel() {
             </div>
           </div>
 
-          <div className='rounded-xl border border-gray-800 bg-gray-950/70 p-4'>
+          <div className='rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-1)] p-4'>
             <div className='flex flex-wrap items-center justify-between gap-2'>
               <div>
-                <h3 className='text-sm font-semibold text-white'>Preview</h3>
-                <p className='text-sm text-gray-400'>See the exact announcement text and estimated audience before saving.</p>
+                <h3 className='text-sm font-semibold text-[color:var(--text-primary)]'>Preview</h3>
+                <p className='text-sm text-[color:var(--text-secondary)]'>See the exact announcement text and estimated audience before saving.</p>
               </div>
               <Button size='sm' variant='secondary' onClick={runPreview} loading={previewMutation.isPending}>
                 <Eye size={14} /> Refresh preview
@@ -499,16 +499,16 @@ export default function FeatureFlagsPanel() {
                   scope={preview.scope}
                   channels={preview.channels}
                 />
-                <div className='flex flex-wrap gap-2 text-xs text-gray-300'>
+                <div className='flex flex-wrap gap-2 text-xs text-[color:var(--text-secondary)]'>
                   {preview.channels.map((channel) => (
-                    <span key={channel} className='rounded-full border border-gray-700 px-2 py-1'>
+                    <span key={channel} className='rounded-full border border-[color:var(--border)] px-2 py-1'>
                       {channel}: {preview.channel_recipient_counts[channel] ?? 0}
                     </span>
                   ))}
                 </div>
               </div>
             ) : (
-              <p className='mt-4 text-sm text-gray-500'>No preview generated yet.</p>
+              <p className='mt-4 text-sm text-[color:var(--text-muted)]'>No preview generated yet.</p>
             )}
           </div>
 

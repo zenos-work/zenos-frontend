@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, Bell, LogIn, Sun, Moon, PenSquare, Bookmark, BarChart3, Settings, History } from 'lucide-react'
-import { useAuth }    from '../../hooks/useAuth'
+import { Search, Bell, LogIn, Sun, Moon, PenSquare, Bookmark, Settings } from 'lucide-react'
+import { useAuth } from '../../hooks/useAuth'
 import { useUiStore } from '../../stores/uiStore'
 import { useNotifications } from '../../hooks/useAdmin'
-import Avatar         from '../ui/Avatar'
+import Avatar from '../ui/Avatar'
 
 export default function Topbar() {
-  const { user, logout }        = useAuth()
-  const { setTheme, resolvedTheme }  = useUiStore()
-  const navigate                = useNavigate()
+  const { user, logout } = useAuth()
+  const { setTheme, resolvedTheme } = useUiStore()
+  const navigate = useNavigate()
   const { data: notificationsData } = useNotifications(!!user)
-  const [query, setQuery]       = useState('')
-  const [menu, setMenu]         = useState(false)
-  const isAdmin                 = !!user && ['SUPERADMIN', 'APPROVER'].includes(user.role)
+  const [query, setQuery] = useState('')
+  const [menu, setMenu] = useState(false)
+
   const unreadCount = (notificationsData?.notifications ?? []).filter((item) => !item.is_read).length
 
   const search = (e: React.FormEvent) => {
@@ -208,12 +208,8 @@ export default function Topbar() {
               <button className='zenos-icon-btn' onClick={() => navigate('/bookmarks')} title='Bookmarks'>
                 <Bookmark size={16} />
               </button>
-              <button className='zenos-icon-btn' onClick={() => navigate('/stats')} title='Stats'>
-                <BarChart3 size={16} />
-              </button>
-              <button className='zenos-icon-btn' onClick={() => navigate('/history')} title='Reading history'>
-                <History size={16} />
-              </button>
+
+
               <button className='zenos-icon-btn' onClick={() => navigate('/settings')} title='Settings'>
                 <Settings size={16} />
               </button>
@@ -284,11 +280,7 @@ export default function Topbar() {
                       {[
                         ['Settings', '/settings'],
                         ['Writer onboarding', '/onboarding/writer'],
-                        ['Library', '/library'],
-                        ['Reading history', '/history'],
-                        ['Workflow', '/workflow'],
-                        ['Stats', '/stats'],
-                        ...(isAdmin ? [['Admin', '/admin']] : []),
+
                       ].map(([label, path]) => (
                         <button key={label} className='zenos-dropdown-item' onClick={() => { navigate(path); setMenu(false) }}>
                           {label}

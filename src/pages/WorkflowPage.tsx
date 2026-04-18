@@ -125,13 +125,13 @@ export default function WorkflowPage() {
     data: queueData,
     isLoading: queueLoading,
     isError: queueError,
-  } = useApprovalQueue(1, canReview)
+  } = useApprovalQueue(1, canReview, { refetchInterval: 3000 })
 
   const {
     data: mineData,
     isLoading: mineLoading,
     isError: mineError,
-  } = useMyArticles()
+  } = useMyArticles({ refetchInterval: 3000 })
 
   const {
     data: notificationsData,

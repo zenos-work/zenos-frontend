@@ -33,12 +33,12 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: P
     >
       <div
         ref={ref}
-        className={`bg-gray-900 border border-gray-800 rounded-2xl w-full ${SIZE_CLASS[size]} shadow-2xl max-h-[90vh] overflow-y-auto`}
+        className={`bg-[color:var(--surface-5)] border border-[color:var(--border)] rounded-2xl w-full ${SIZE_CLASS[size]} shadow-2xl max-h-[90vh] overflow-y-auto`}
       >
         {title && (
-          <div className='flex items-center justify-between px-6 py-4 border-b border-gray-800'>
-            <h2 className='text-base font-semibold text-white'>{title}</h2>
-            <button onClick={onClose} className='text-gray-500 hover:text-white'>
+          <div className='flex items-center justify-between px-6 py-4 border-b border-[color:var(--border)]'>
+            <h2 className='text-base font-semibold text-[color:var(--text-primary)]'>{title}</h2>
+            <button onClick={onClose} className='text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'>
               <X size={18} />
             </button>
           </div>

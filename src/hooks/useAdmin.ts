@@ -99,10 +99,11 @@ export const useUpdateAdminRankingWeights = () => {
   })
 }
 
-export const useApprovalQueue = (page = 1, enabled = true) =>
+export const useApprovalQueue = (page = 1, enabled = true, options = {}) =>
   useQuery({
     queryKey: ['admin', 'queue', page],
     enabled,
+    ...options,
     queryFn:  () =>
       api.get<ApprovalQueueResponse>('/api/admin/queue', { params: { page } })
          .then(r => r.data),
@@ -258,6 +259,8 @@ export const useCreateAdminFeatureFlag = () => {
       api.post<FeatureFlagAdmin>('/api/admin/feature-flags', payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] })
+      qc.invalidateQueries({ queryKey: ['feature-flags'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
@@ -269,6 +272,8 @@ export const useUpdateAdminFeatureFlag = () => {
       api.put<FeatureFlagAdmin>(`/api/admin/feature-flags/${flagId}`, payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'feature-flags'] })
+      qc.invalidateQueries({ queryKey: ['feature-flags'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
