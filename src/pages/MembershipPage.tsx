@@ -9,9 +9,9 @@ const plans = [
   },
   {
     name: 'Creator Pro',
-    price: 'Free (launch offer)',
+    price: 'Free for first 1,000 active users **(launch offer)',
     description: 'For creators publishing frequently and collaborating with editors. Pricing starts after we cross 1,000 active users.',
-    features: ['Everything in Starter', 'Approval workflows', 'Priority support', 'Advanced publishing controls', 'Paid plan activates after 1,000 active users'],
+    features: ['Everything in Starter', 'Approval workflows', 'Priority support', 'Advanced publishing controls', 'Paid plan activates after 1,000 active users **' , '** Active User Definition: An active user is defined as an author who publishes at least two pieces of content per week.', 'Launch Offer: The first 1,000 active users will receive this plan free for life, provided they maintain their active user status and consistently grow their Engagement Score through active sharing and platform advocacy.', 'Future Pricing: The paid plan activates only after the platform reaches 1,000 active users. Pricing will be determined and announced by Zenos.work at that time.', 'Engagement Score: An engagement score is calculated for each active user based on publishing frequency, content quality, audience interaction, and external sharing. This score helps determine both the validity of the launch offer and future pricing tiers for Creator Pro users.'],
   },
   {
     name: 'Team Suite',
