@@ -1,4 +1,21 @@
-export async function onRequest(context: any) {
+interface Env {
+  VITE_API_BASE_URL?: string;
+}
+
+interface Article {
+  slug?: string;
+}
+
+interface Tag {
+  slug?: string;
+}
+
+interface ApiResponse<T> {
+  items?: T[];
+  tags?: T[];
+}
+
+export async function onRequest(context: { env: Env }) {
   const { env } = context;
   const SITE_URL = 'https://zenos.work';
   // Use the API URL from environment variables, fallback to local if not set
@@ -31,10 +48,10 @@ export async function onRequest(context: any) {
     const articlesResp = await fetch(`${API_BASE_URL}/api/articles?limit=1000`);
 
     if (articlesResp.ok) {
-      const data: any = await articlesResp.json();
+      const data = (await articlesResp.json()) as ApiResponse<Article>;
       const items = data.items || [];
       console.log(`[Sitemap Debug] Successfully fetched ${items.length} articles.`);
-      items.forEach((article: any) => {
+      items.forEach((article) => {
         if (article.slug) urls.push(`/article/${article.slug}`);
       });
     } else {
@@ -44,15 +61,16 @@ export async function onRequest(context: any) {
     // 2. Fetch public tags
     const tagsResp = await fetch(`${API_BASE_URL}/api/tags`);
     if (tagsResp.ok) {
-      const data: any = await tagsResp.json();
+      const data = (await tagsResp.json()) as ApiResponse<Tag>;
       const tags = data.tags || [];
       console.log(`[Sitemap Debug] Successfully fetched ${tags.length} tags.`);
-      tags.forEach((tag: any) => {
+      tags.forEach((tag) => {
         if (tag.slug) urls.push(`/tag/${tag.slug}`);
       });
     }
-  } catch (error: any) {
-    console.error('[Sitemap Debug] Fetch error:', error.message);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[Sitemap Debug] Fetch error:', message);
   }
 
   const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
