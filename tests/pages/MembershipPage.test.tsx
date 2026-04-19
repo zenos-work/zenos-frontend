@@ -30,7 +30,7 @@ describe('MembershipPage', () => {
         <MembershipPage />
       </MemoryRouter>,
     )
-    expect(screen.getByText(/launch offer/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/launch offer/i).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/1,000 active users/i).length).toBeGreaterThan(0)
   })
 
