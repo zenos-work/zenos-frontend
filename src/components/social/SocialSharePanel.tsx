@@ -11,9 +11,9 @@ type Props = {
 }
 
 const PROVIDERS: { id: Provider; label: string; icon: React.ReactNode; color: string }[] = [
-  { id: 'x',         label: 'X (Twitter)', icon: <Twitter className="h-4 w-4" />,  color: 'bg-black hover:bg-neutral-800 text-white' },
-  { id: 'linkedin',  label: 'LinkedIn',    icon: <Linkedin className="h-4 w-4" />, color: 'bg-[#0A66C2] hover:bg-[#004182] text-white' },
-  { id: 'facebook',  label: 'Facebook',    icon: <Facebook className="h-4 w-4" />, color: 'bg-[#1877F2] hover:bg-[#1558b0] text-white' },
+  { id: 'x',         label: 'X (Twitter)', icon: <Twitter className="h-4 w-4" />,  color: 'bg-black hover:bg-neutral-800 text-white dark:bg-neutral-700 dark:hover:bg-neutral-600' },
+  { id: 'linkedin',  label: 'LinkedIn',    icon: <Linkedin className="h-4 w-4" />, color: 'bg-[#0A66C2] hover:bg-[#004182] text-white dark:bg-[#0956a0] dark:hover:bg-[#073e7d]' },
+  { id: 'facebook',  label: 'Facebook',    icon: <Facebook className="h-4 w-4" />, color: 'bg-[#1877F2] hover:bg-[#1558b0] text-white dark:bg-[#1457d0] dark:hover:bg-[#103a9d]' },
 ]
 
 function buildShareUrl(provider: Provider, articleUrl: string, title: string): string {
