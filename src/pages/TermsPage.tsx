@@ -82,7 +82,7 @@ export default function TermsPage() {
         </div>
         <div className='hidden text-right text-xs text-[color:var(--text-muted)] sm:block'>
           <div>Effective: {effectiveDate}</div>
-          <div>Governing Law: Delaware, USA</div>
+          {/* <div>Governing Law: Delaware, USA</div> */}
         </div>
       </header>
 
@@ -118,6 +118,10 @@ export default function TermsPage() {
           <Important>
             PLEASE READ THIS AGREEMENT CAREFULLY. BY SIGNING IN OR SUBMITTING ANY CONTENT,
             YOU AGREE TO BE BOUND BY ALL TERMS BELOW.
+          </Important>
+
+          <Important>
+            <b>ALL PAYMENT TERMS ARE STRICTLY CONTINGENT UPON OFFICIAL NOTIFICATION. PRIOR TO SUCH ANNOUNCEMENT, NO PAYMENT TERMS SHALL APPLY.</b>
           </Important>
 
           <Section num='1.' title='Parties and Definitions'>
@@ -233,9 +237,9 @@ export default function TermsPage() {
                   ))}
                 </div>
                 {[
-                  ['Ebook — solo author','15% net receipts','Yet to be announced'],
+                  ['Ebook — solo author','15% net receipts (pro-rated)','Yet to be announced'],
                   ['Ebook — anthology','5% net receipts (pro-rated)','Yet to be announced'],
-                  ['Print book — solo author','10% net receipts','Yet to be announced'],
+                  ['Print book — solo author','10% net receipts (pro-rated)','Yet to be announced'],
                   ['Print book — anthology','3% net receipts (pro-rated)','Yet to be announced'],
                   ['AI training datasets','No royalty','N/A'],
                   ['Indexing / distribution','No royalty','N/A'],
@@ -286,10 +290,10 @@ export default function TermsPage() {
               <P>The Platform may modify this Agreement. For material changes reducing your rights,
               30 days' notice will be provided. Continued use after the effective date = acceptance.</P>
             </Sub>
-            <Sub num='8.2' title='Governing Law and Disputes'>
+            {/* <Sub num='8.2' title='Governing Law and Disputes'>
               <P>Delaware law, USA governs. All disputes go to binding JAMS arbitration in Wilmington,
               Delaware. Class action waived — all claims individual only.</P>
-            </Sub>
+            </Sub> */}
             <Sub num='8.3' title='Assignment'>
               <P>The Platform may assign this Agreement without your consent. You may not assign your
               rights without written Platform approval.</P>
