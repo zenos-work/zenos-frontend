@@ -1,6 +1,6 @@
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Image from '@tiptap/extension-image'
+import { CustomImage } from './extensions/CustomImage'
 import { TextStyle } from '@tiptap/extension-text-style'
 import TextAlign from '@tiptap/extension-text-align'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -112,11 +112,11 @@ export default function Editor({
       Placeholder.configure({
         placeholder: 'Type here. Use the + button to insert media, embeds, and code blocks.',
       }),
-      Image.configure({
-        inline: false,
+      CustomImage.configure({
+        inline: true,
         allowBase64: false,
         HTMLAttributes: {
-          class: 'my-3 rounded-xl w-full h-auto',
+          class: 'my-3 rounded-xl',
           loading: 'lazy',
         },
       }),
@@ -151,7 +151,7 @@ export default function Editor({
           'prose-code:text-emerald-900 prose-code:bg-emerald-100/80 prose-code:px-1 prose-code:py-0.5 prose-code:rounded',
           'prose-pre:bg-slate-900 prose-pre:text-slate-200 prose-pre:border prose-pre:border-slate-700',
           'prose-blockquote:border-l-slate-500 prose-blockquote:text-slate-700',
-          'prose-img:rounded-xl prose-img:w-full prose-img:h-auto',
+          'prose-img:rounded-xl prose-img:max-w-full prose-img:h-auto',
         ].join(' '),
       },
     },
@@ -367,6 +367,64 @@ export default function Editor({
       ref={containerRef}
       className='relative rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-0)] p-6 shadow-sm transition-colors focus-within:border-[color:var(--accent)]'
     >
+      {editor && (
+        <BubbleMenu
+          editor={editor}
+          tippyOptions={{ duration: 100, placement: 'top' }}
+          shouldShow={({ editor }) => {
+            return editor.isActive('image')
+          }}
+        >
+          <div className='flex items-center gap-1.5 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] p-1.5 shadow-xl text-[color:var(--text-primary)]'>
+            <span className='px-1 text-xs font-semibold text-[color:var(--text-secondary)] border-r border-[color:var(--border)] mr-1'>Size:</span>
+            {(['25%', '50%', '75%', '100%'] as const).map(size => {
+              const active = editor.getAttributes('image').width === size
+              return (
+                <button
+                  key={size}
+                  type='button'
+                  onClick={() => editor.chain().focus().updateAttributes('image', { width: size }).run()}
+                  className={`rounded px-1.5 py-0.5 text-xs font-medium transition-colors ${
+                    active
+                      ? 'bg-[color:var(--accent)] text-white'
+                      : 'hover:bg-[color:var(--surface-2)] text-[color:var(--text-secondary)]'
+                  }`}
+                >
+                  {size}
+                </button>
+              )
+            })}
+
+            <div className='h-4 w-px bg-[color:var(--border)] mx-1' />
+
+            <span className='px-1 text-xs font-semibold text-[color:var(--text-secondary)] border-r border-[color:var(--border)] mr-1'>Wrap:</span>
+            {[
+              { value: 'left', label: 'Wrap Left' },
+              { value: 'center', label: 'Center (Block)' },
+              { value: 'right', label: 'Wrap Right' },
+              { value: 'inline', label: 'Inline' }
+            ].map(align => {
+              const active = (editor.getAttributes('image').alignment || 'center') === align.value
+              return (
+                <button
+                  key={align.value}
+                  type='button'
+                  onClick={() => editor.chain().focus().updateAttributes('image', { alignment: align.value }).run()}
+                  className={`rounded px-1.5 py-0.5 text-xs font-medium transition-colors ${
+                    active
+                      ? 'bg-[color:var(--accent)] text-white'
+                      : 'hover:bg-[color:var(--surface-2)] text-[color:var(--text-secondary)]'
+                  }`}
+                  title={align.label}
+                >
+                  {align.label.replace('Wrap ', '')}
+                </button>
+              )
+            })}
+          </div>
+        </BubbleMenu>
+      )}
+
       {editor && hasTextSelection && (
         <div
           className='absolute z-20 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-[color:var(--border-strong)] bg-[color:var(--surface-0)] p-1 shadow-xl text-[color:var(--text-primary)]'

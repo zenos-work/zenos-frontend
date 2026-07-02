@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Image from '@tiptap/extension-image'
+import { CustomImage } from '../editor/extensions/CustomImage'
 import Link from '@tiptap/extension-link'
 import Underline from '@tiptap/extension-underline'
 import { TextStyle } from '@tiptap/extension-text-style'
@@ -16,7 +16,7 @@ export default function ArticleDetail({ content }: { content: string }) {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Image,
+      CustomImage,
       // VideoEmbed,
       IframeEmbed,
       // Youtube,
@@ -37,7 +37,7 @@ export default function ArticleDetail({ content }: { content: string }) {
         class: [
           'prose max-w-none',
           'prose-code:px-1 prose-code:py-0.5 prose-code:rounded',
-          'prose-img:rounded-xl prose-img:w-full prose-img:h-auto',
+          'prose-img:rounded-xl prose-img:max-w-full prose-img:h-auto',
         ].join(' '),
       },
     },

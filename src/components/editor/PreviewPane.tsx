@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Image from '@tiptap/extension-image'
+import { CustomImage } from './extensions/CustomImage'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { useEffect } from 'react'
 import { FontSize } from './extensions/FontSize'
@@ -15,7 +15,7 @@ export default function PreviewPane({ title, content }: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Image,
+      CustomImage,
       // VideoEmbed,
       IframeEmbed,
       // Youtube,
@@ -35,7 +35,7 @@ export default function PreviewPane({ title, content }: Props) {
           'prose-headings:text-gray-900 prose-p:text-gray-800',
           'prose-code:text-emerald-900 prose-code:bg-emerald-100/80 prose-code:px-1 prose-code:py-0.5 prose-code:rounded',
           'prose-pre:bg-slate-900 prose-pre:text-slate-200 prose-pre:border prose-pre:border-slate-700',
-          'prose-img:rounded-xl prose-img:w-full prose-img:h-auto',
+          'prose-img:rounded-xl prose-img:max-w-full prose-img:h-auto',
         ].join(' '),
       },
     },

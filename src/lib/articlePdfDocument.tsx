@@ -520,6 +520,61 @@ function renderListItem(
   )
 }
 
+function renderParagraphWithImages(
+  content: RichNode[],
+  imageMap: ImageMap,
+): React.ReactNode[] {
+  const result: React.ReactNode[] = []
+  let currentTextNodes: RichNode[] = []
+
+  const flushText = (key: string | number) => {
+    if (currentTextNodes.length > 0) {
+      result.push(
+        <Text key={`t-${key}`} style={s.paragraph}>
+          {renderInline(currentTextNodes)}
+        </Text>
+      )
+      currentTextNodes = []
+    }
+  }
+
+  content.forEach((node, idx) => {
+    if (node.type === 'image') {
+      flushText(idx)
+      const src = String(node.attrs?.src || '').trim()
+      if (src) {
+        const imageSrc = imageMap.get(src) || src
+        const widthAttr = String(node.attrs?.width || '100%')
+        const alignment = String(node.attrs?.alignment || 'center')
+
+        const widthVal = widthAttr.endsWith('%') ? parseFloat(widthAttr) : 100
+        const imgStyle: RpStyle = {
+          width: `${widthVal}%`,
+          borderRadius: 4,
+          marginVertical: 4,
+        }
+
+        if (alignment === 'left') {
+          imgStyle.marginRight = 12
+        } else if (alignment === 'right') {
+          imgStyle.marginLeft = 12
+        } else if (alignment === 'inline') {
+          imgStyle.marginHorizontal = 6
+        }
+
+        result.push(
+          <Image key={`img-${idx}`} style={imgStyle} src={imageSrc} />
+        )
+      }
+    } else {
+      currentTextNodes.push(node)
+    }
+  })
+
+  flushText('end')
+  return result
+}
+
 /* ── Block rendering ──────────────────────────────────── */
 
 function renderBlock(
@@ -539,6 +594,14 @@ function renderBlock(
 
   /* paragraph */
   if (node.type === 'paragraph') {
+    const hasImages = (node.content || []).some(child => child.type === 'image')
+    if (hasImages) {
+      return (
+        <View key={key} style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 10 }}>
+          {renderParagraphWithImages(node.content || [], imageMap)}
+        </View>
+      )
+    }
     return (
       <Text key={key} style={s.paragraph}>
         {renderInline(node.content || [])}
@@ -602,9 +665,32 @@ function renderBlock(
     const src = String(node.attrs?.src || '').trim()
     if (!src) return null
     const imageSrc = imageMap.get(src) || src
+    const widthAttr = String(node.attrs?.width || '100%')
+    const alignment = String(node.attrs?.alignment || 'center')
+
+    const widthVal = widthAttr.endsWith('%') ? parseFloat(widthAttr) : 100
+    const imgStyle: RpStyle = {
+      width: `${widthVal}%`,
+      borderRadius: 4,
+      marginVertical: 4,
+    }
+
+    let containerStyle: RpStyle = {
+      marginVertical: 14,
+      width: '100%',
+    }
+
+    if (alignment === 'left') {
+      containerStyle.alignItems = 'flex-start'
+    } else if (alignment === 'right') {
+      containerStyle.alignItems = 'flex-end'
+    } else {
+      containerStyle.alignItems = 'center'
+    }
+
     return (
-      <View key={key} style={s.imageWrap} wrap={false}>
-        <Image style={s.image} src={imageSrc} />
+      <View key={key} style={containerStyle} wrap={false}>
+        <Image style={imgStyle} src={imageSrc} />
       </View>
     )
   }

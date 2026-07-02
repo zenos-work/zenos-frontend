@@ -198,7 +198,27 @@ function nodeToHtml(node: RichNode): string {
   if (node.type === 'image') {
     const src = escapeHtml(String(node.attrs?.src || ''))
     const alt = escapeHtml(String(node.attrs?.alt || ''))
-    return src ? `<img src="${src}" alt="${alt}" />` : ''
+    const width = escapeHtml(String(node.attrs?.width || '100%'))
+    const alignment = escapeHtml(String(node.attrs?.alignment || 'center'))
+
+    let style = `width: ${width}; max-width: 100%; height: auto;`
+    let className = 'my-3 rounded-xl'
+
+    if (alignment === 'left') {
+      style += ' float: left; margin-right: 1.5rem; margin-bottom: 0.5rem; clear: left;'
+      className += ' align-left'
+    } else if (alignment === 'right') {
+      style += ' float: right; margin-left: 1.5rem; margin-bottom: 0.5rem; clear: right;'
+      className += ' align-right'
+    } else if (alignment === 'inline') {
+      style += ' display: inline-block; vertical-align: top; margin: 0.5rem;'
+      className += ' align-inline'
+    } else {
+      style += ' display: block; margin-left: auto; margin-right: auto; clear: both;'
+      className += ' align-center'
+    }
+
+    return src ? `<img src="${src}" alt="${alt}" width="${width}" data-alignment="${alignment}" style="${style}" class="${className}" />` : ''
   }
 
   if (node.type === 'videoEmbed' || node.type === 'embed') {
@@ -342,11 +362,22 @@ async function embedImagesInHtml(html: string): Promise<string> {
       console.warn(`Could not embed image: ${src}`)
     }
 
-    // Apply responsive image styling
-    image.setAttribute(
-      'style',
-      'display:block;max-width:100%;width:auto;height:auto;object-fit:contain;margin:12pt auto;page-break-inside:avoid;border-radius:4px;',
-    )
+    const width = image.getAttribute('width') || '100%'
+    const alignment = image.getAttribute('data-alignment') || 'center'
+
+    let style = `width: ${width}; max-width: 100%; height: auto; object-fit: contain; page-break-inside: avoid; border-radius: 4px;`
+
+    if (alignment === 'left') {
+      style += ' float: left; margin-right: 1.5rem; margin-bottom: 0.5rem; clear: left;'
+    } else if (alignment === 'right') {
+      style += ' float: right; margin-left: 1.5rem; margin-bottom: 0.5rem; clear: right;'
+    } else if (alignment === 'inline') {
+      style += ' display: inline-block; vertical-align: top; margin: 0.5rem;'
+    } else {
+      style += ' display: block; margin-left: auto; margin-right: auto; clear: both;'
+    }
+
+    image.setAttribute('style', style)
   }
 
   return documentNode.body.innerHTML
